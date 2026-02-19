@@ -1,0 +1,10 @@
+{
+  "snapshot": {
+    "adr_count": 0,
+    "dirty_files": 12,
+    "ready_issue_count": 3,
+    "spec_count": 0,
+    "timestamp_utc": "2026-02-19T20:40:00+00:00"
+  },
+  "triggers": []
+}

@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "dp review output",
+  "type": "object",
+  "required": ["ready_to_commit", "blocking_count", "advisory_count", "findings"],
+  "properties": {
+    "ready_to_commit": {
+      "type": "boolean"
+    },
+    "blocking_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "advisory_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["check_id", "severity", "message", "path", "line"],
+        "properties": {
+          "check_id": {
+            "type": "string"
+          },
+          "severity": {
+            "type": "string",
+            "enum": ["blocking", "advisory"]
+          },
+          "message": {
+            "type": "string"
+          },
+          "path": {
+            "type": ["string", "null"]
+          },
+          "line": {
+            "type": ["integer", "null"],
+            "minimum": 1
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}
