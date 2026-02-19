@@ -89,3 +89,20 @@ def test_parse_trace_markers_supports_multiple_markers_on_one_line(tmp_path: Pat
         ("SPEC-11.11", 1),
         ("SPEC-22.22", 1),
     ]
+
+
+def test_parse_trace_markers_ignores_python_string_literals(tmp_path: Path) -> None:
+    source = tmp_path / "tests/literals.py"
+    _write(
+        source,
+        "\n".join(
+            (
+                'example = "# @trace SPEC-01.01"',
+                "# @trace SPEC-02.02",
+            )
+        ),
+    )
+
+    parsed = parse_trace_markers([source])
+
+    assert [item.spec_id for item in parsed] == ["SPEC-02.02"]

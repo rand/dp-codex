@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import io
 import re
+import tokenize
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
@@ -91,53 +93,110 @@ def _is_supported_trace_path(path: Path) -> bool:
 
 
 def _scan_file(path: Path) -> tuple[list[TraceMarker], list[MalformedTraceMarker]]:
-    markers: list[TraceMarker] = []
-    malformed: list[MalformedTraceMarker] = []
     content = path.read_text(encoding="utf-8")
 
+    if path.suffix.lower() in {".py", ".pyi"}:
+        return _scan_python_comments(path, content)
+    return _scan_text_content(path, content)
+
+
+def _scan_text_content(
+    path: Path,
+    content: str,
+) -> tuple[list[TraceMarker], list[MalformedTraceMarker]]:
+    markers: list[TraceMarker] = []
+    malformed: list[MalformedTraceMarker] = []
     for line_number, line in enumerate(content.splitlines(), start=1):
-        for match in TRACE_TOKEN_PATTERN.finditer(line):
-            raw_value = match.group(1)
-            token_column = match.start(1) + 1 if raw_value is not None else match.start() + 1
-            location = SourceLocation(
-                path=path.as_posix(),
-                line=line_number,
-                column=token_column,
-            )
+        _scan_trace_tokens(
+            path=path,
+            line_number=line_number,
+            snippet=line,
+            column_offset=0,
+            markers=markers,
+            malformed=malformed,
+        )
+    return markers, malformed
 
-            if raw_value is None:
-                malformed.append(
-                    MalformedTraceMarker(
-                        location=location,
-                        raw_value=None,
-                        message="Missing spec ID after @trace. Expected format: SPEC-XX.YY.",
-                    )
-                )
-                continue
 
-            normalized = _normalize_trace_token(raw_value)
-            if SPEC_ID_PATTERN.fullmatch(normalized):
-                markers.append(
-                    TraceMarker(
-                        spec_id=normalized,
-                        location=location,
-                    )
-                )
-                continue
+def _scan_python_comments(
+    path: Path,
+    content: str,
+) -> tuple[list[TraceMarker], list[MalformedTraceMarker]]:
+    markers: list[TraceMarker] = []
+    malformed: list[MalformedTraceMarker] = []
+    reader = io.StringIO(content).readline
 
-            malformed.append(
-                MalformedTraceMarker(
-                    location=location,
-                    raw_value=raw_value,
-                    message=(
-                        f"Malformed trace reference '{raw_value}'. "
-                        "Expected format: SPEC-XX.YY."
-                    ),
-                )
-            )
+    try:
+        tokens = tokenize.generate_tokens(reader)
+    except tokenize.TokenError:
+        return _scan_text_content(path, content)
+
+    for token in tokens:
+        if token.type != tokenize.COMMENT:
+            continue
+
+        line_number, start_column = token.start
+        _scan_trace_tokens(
+            path=path,
+            line_number=line_number,
+            snippet=token.string,
+            column_offset=start_column,
+            markers=markers,
+            malformed=malformed,
+        )
 
     return markers, malformed
 
 
 def _normalize_trace_token(value: str) -> str:
     return value.rstrip(".,;:)]}")
+
+
+def _scan_trace_tokens(
+    *,
+    path: Path,
+    line_number: int,
+    snippet: str,
+    column_offset: int,
+    markers: list[TraceMarker],
+    malformed: list[MalformedTraceMarker],
+) -> None:
+    for match in TRACE_TOKEN_PATTERN.finditer(snippet):
+        raw_value = match.group(1)
+        raw_column = match.start(1) if raw_value is not None else match.start()
+        location = SourceLocation(
+            path=path.as_posix(),
+            line=line_number,
+            column=column_offset + raw_column + 1,
+        )
+
+        if raw_value is None:
+            malformed.append(
+                MalformedTraceMarker(
+                    location=location,
+                    raw_value=None,
+                    message="Missing spec ID after @trace. Expected format: SPEC-XX.YY.",
+                )
+            )
+            continue
+
+        normalized = _normalize_trace_token(raw_value)
+        if SPEC_ID_PATTERN.fullmatch(normalized):
+            markers.append(
+                TraceMarker(
+                    spec_id=normalized,
+                    location=location,
+                )
+            )
+            continue
+
+        malformed.append(
+            MalformedTraceMarker(
+                location=location,
+                raw_value=raw_value,
+                message=(
+                    f"Malformed trace reference '{raw_value}'. "
+                    "Expected format: SPEC-XX.YY."
+                ),
+            )
+        )

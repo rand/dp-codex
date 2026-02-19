@@ -1,0 +1,34 @@
+{
+  "truths": [
+    {
+      "id": "T1",
+      "statement": "The project execution plan is present and versioned.",
+      "verified": true
+    },
+    {
+      "id": "T2",
+      "statement": "Canonical developer quality-gate commands are documented.",
+      "verified": true
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "A1",
+      "path": "docs/EXECUTION-PLAN.md"
+    },
+    {
+      "id": "A2",
+      "path": "docs/runbooks/developer-commands.md"
+    }
+  ],
+  "links": [
+    {
+      "truth_id": "T1",
+      "artifact_id": "A1"
+    },
+    {
+      "truth_id": "T2",
+      "artifact_id": "A2"
+    }
+  ]
+}

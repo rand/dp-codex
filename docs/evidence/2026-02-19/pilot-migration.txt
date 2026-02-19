@@ -1,0 +1,55 @@
+
+==> git init -q
+
+==> git config user.email pilot@example.com
+
+==> git config user.name Pilot User
+
+==> bd init -q -p pilot
+
+Created issue: pilot-eib
+
+==> run_dp task ready --json
+{"command": "task.ready", "data": [{"comment_count": 0, "created_at": "2026-02-19T21:23:18Z", "dependency_count": 0, "dependent_count": 0, "id": "pilot-eib", "issue_type": "task", "priority": 2, "status": "open", "title": "Pilot migration walkthrough", "updated_at": "2026-02-19T21:23:18Z"}], "error": null, "exit_code": 0, "ok": true, "stderr": null}
+
+==> run_dp task show pilot-eib --json
+{"command": "task.show", "data": [{"created_at": "2026-02-19T21:23:18Z", "id": "pilot-eib", "issue_type": "task", "priority": 2, "status": "open", "title": "Pilot migration walkthrough", "updated_at": "2026-02-19T21:23:18Z"}], "error": null, "exit_code": 0, "ok": true, "stderr": null}
+
+==> run_dp task update pilot-eib --status in_progress --json
+{"command": "task.update", "data": [{"created_at": "2026-02-19T21:23:18Z", "id": "pilot-eib", "issue_type": "task", "priority": 2, "status": "in_progress", "title": "Pilot migration walkthrough", "updated_at": "2026-02-19T21:23:18Z"}], "error": null, "exit_code": 0, "ok": true, "stderr": null}
+
+==> run_dp trace coverage --json --spec-glob docs/specs/**/*.md --trace-glob dp/**/*.py
+{"covered_count": 1, "covered_specs": ["SPEC-01.01"], "total_specs": 1, "uncovered_specs": []}
+
+==> run_dp trace validate --json --spec-glob docs/specs/**/*.md --trace-glob dp/**/*.py
+{"error_count": 0, "issues": [], "valid": true}
+
+==> run_dp adr create Pilot architecture decision --json
+{"adr": {"created": "2026-02-19", "id": "ADR-0001", "path": "docs/adr/ADR-0001-pilot-architecture-decision.md", "status": "proposal", "superseded_by": null, "title": "Pilot architecture decision", "updated": "2026-02-19"}, "ok": true}
+
+==> run_dp decompose --item Implement pilot workflow --preset codex-small --json
+{"context_window": 32000, "is_dag": true, "nodes": [{"depends_on": [], "estimated_tokens": 256, "id": "T1", "title": "Implement pilot workflow"}], "ok": true}
+
+==> run_dp progress --output-dir docs/progress --json
+{"agent_bootstrap": {"next_steps": ["bd ready", "make check", "uv run dp review --json"], "summary": "dirty_files=8, ready_issues=0, specs=1, adrs=1", "triggered_checks": []}, "json_path": "docs/progress/progress-20260219T212318+0000.json", "markdown_path": "docs/progress/progress-20260219T212318+0000.md", "ok": true, "snapshot": {"adr_count": 1, "dirty_files": 8, "ready_issue_count": 0, "spec_count": 1, "timestamp_utc": "2026-02-19T21:23:18+00:00"}, "triggers": []}
+
+==> run_dp enforce pre-commit --policy dp-policy.json --json
+{"blocked": false, "bypass_reason": null, "bypassed": false, "checks": [{"blocking": true, "check": "lint", "command": "make lint", "duration_seconds": 0.014, "exit_code": 0, "message": "Check passed.", "status": "passed"}, {"blocking": true, "check": "typecheck", "command": "make typecheck", "duration_seconds": 0.013, "exit_code": 0, "message": "Check passed.", "status": "passed"}, {"blocking": true, "check": "tests", "command": "make test", "duration_seconds": 0.014, "exit_code": 0, "message": "Check passed.", "status": "passed"}, {"blocking": true, "check": "trace_validate", "command": "uv run dp trace validate --json --spec-glob 'docs/specs/**/*.md' --trace-glob 'dp/**/*.py' --trace-glob 'scripts/**/*.py'", "duration_seconds": 0.329, "exit_code": 0, "message": "Check passed.", "status": "passed"}, {"blocking": true, "check": "trace_coverage", "command": "uv run dp trace coverage --json --spec-glob 'docs/specs/**/*.md' --trace-glob 'dp/**/*.py' --trace-glob 'scripts/**/*.py'", "duration_seconds": 0.142, "exit_code": 0, "message": "Trace coverage passed (1/1 covered).", "status": "passed"}], "mode": "guided", "ok": true, "policy_path": "dp-policy.json", "stage": "pre-commit"}
+
+==> git add .
+
+==> git commit -q -m pilot: complete disciplined workflow
+
+==> run_dp review --json
+{"advisory_count": 0, "blocking_count": 0, "findings": [], "ready_to_commit": true}
+
+==> run_dp verify --manifest docs/verify/manifest.json --json
+{"levels": [{"details": [], "level": "truths", "passed": 1, "status": "verified", "total": 1}, {"details": [], "level": "artifacts", "passed": 1, "status": "verified", "total": 1}, {"details": [], "level": "links", "passed": 1, "status": "verified", "total": 1}], "ok": true, "outcome": "verified"}
+
+==> run_dp enforce pre-push --policy dp-policy.json --json
+{"blocked": false, "bypass_reason": null, "bypassed": false, "checks": [{"blocking": false, "check": "task_sync", "command": null, "duration_seconds": 0.0, "exit_code": null, "message": "Disabled by policy.", "status": "skipped"}, {"blocking": true, "check": "review", "command": "uv run dp review --json", "duration_seconds": 0.142, "exit_code": 0, "message": "Check passed.", "status": "passed"}, {"blocking": true, "check": "verify", "command": "uv run dp verify --json", "duration_seconds": 0.127, "exit_code": 0, "message": "Check passed.", "status": "passed"}], "mode": "guided", "ok": true, "policy_path": "dp-policy.json", "stage": "pre-push"}
+
+==> run_dp task close pilot-eib --reason Pilot loop completed end to end --json
+{"command": "task.close", "data": [{"close_reason": "Pilot loop completed end to end", "closed_at": "2026-02-19T21:23:21Z", "created_at": "2026-02-19T21:23:18Z", "id": "pilot-eib", "issue_type": "task", "priority": 2, "status": "closed", "title": "Pilot migration walkthrough", "updated_at": "2026-02-19T21:23:21Z"}], "error": null, "exit_code": 0, "ok": true, "stderr": null}
+
+Pilot repository completed successfully: /var/folders/vx/_xxfn0z95bv7qmfgb3nx6z700000gn/T/tmp.Tb3YizHkTC/pilot-repo

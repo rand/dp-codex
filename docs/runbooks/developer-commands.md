@@ -28,6 +28,19 @@ make typecheck
 make format
 ```
 
+Run policy-driven enforcement checks directly:
+
+```bash
+uv run dp enforce pre-commit --policy dp-policy.json
+uv run dp enforce pre-push --policy dp-policy.json
+```
+
 ## CI Guidance
 
-CI should execute the same `make` targets (at minimum `make check`) to keep local and remote validation aligned.
+CI should execute:
+
+1. `make check`
+2. `uv run dp enforce pre-commit --policy dp-policy.json --json`
+3. `uv run dp enforce pre-push --policy dp-policy.json --json`
+
+This keeps hook behavior and CI behavior aligned against the same versioned policy file.

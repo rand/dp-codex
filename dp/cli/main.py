@@ -23,6 +23,7 @@ from dp.core.task_normalization import normalize_priority, normalize_status
 from dp.core.trace_parser import parse_trace_markers, parse_trace_references
 from dp.core.validation import validate_trace_references
 from dp.core.verify import run_goal_backward_verify
+from dp.enforcement import run_enforcement
 from dp.providers.beads import BdUnavailableError, BeadsNotInitializedError, run_bd
 
 DEFAULT_SPEC_GLOBS = ("docs/specs/**/*.md", "docs/**/*.md")
@@ -169,6 +170,25 @@ def _build_parser() -> argparse.ArgumentParser:
     policy_validate_parser.add_argument("--config", default=DEFAULT_POLICY_PATH.as_posix())
     policy_validate_parser.add_argument("--json", action="store_true")
     policy_validate_parser.set_defaults(handler=_run_policy_validate)
+
+    enforce_parser = subparsers.add_parser(
+        "enforce",
+        help="Run policy-controlled enforcement checks for hook/CI stages.",
+    )
+    enforce_subparsers = enforce_parser.add_subparsers(dest="enforce_command", required=True)
+
+    for stage in ("pre-commit", "pre-push"):
+        stage_parser = enforce_subparsers.add_parser(
+            stage,
+            help=f"Run enforcement checks for {stage}.",
+        )
+        stage_parser.add_argument(
+            "--policy",
+            default=DEFAULT_POLICY_PATH.as_posix(),
+            help="Path to policy JSON file.",
+        )
+        stage_parser.add_argument("--json", action="store_true")
+        stage_parser.set_defaults(handler=_run_enforce, stage=stage)
 
     task_parser = subparsers.add_parser("task")
     task_subparsers = task_parser.add_subparsers(dest="task_command", required=True)
@@ -532,6 +552,54 @@ def _run_policy_validate(args: argparse.Namespace) -> int:
         state = "enabled" if enabled else "disabled"
         print(f"- {check_name}: {state}")
     return 0
+
+
+def _run_enforce(args: argparse.Namespace) -> int:
+    try:
+        report = run_enforcement(
+            stage=args.stage,
+            policy_path=Path(args.policy),
+            repo_root=Path.cwd(),
+        )
+    except ValueError as exc:
+        if args.json:
+            print(json.dumps({"ok": False, "error": str(exc)}))
+        else:
+            print(f"dp enforce error: {exc}", file=sys.stderr)
+        return 2
+
+    exit_code = 1 if report.blocked else 0
+
+    if args.json:
+        payload = report.to_dict()
+        payload["ok"] = not report.blocked
+        print(json.dumps(payload, sort_keys=True))
+        return exit_code
+
+    print(f"Enforcement stage: {report.stage}")
+    print(f"Policy mode: {report.mode} ({report.policy_path})")
+
+    if report.bypassed:
+        print("Bypass: active")
+        print(f"Reason: {report.bypass_reason}")
+        return 0
+
+    for check in report.checks:
+        print(f"- {check.check}: {check.status} (blocking={str(check.blocking).lower()})")
+        if check.command is not None:
+            print(f"  command: {check.command}")
+        print(f"  message: {check.message}")
+
+    if report.blocked:
+        print("Result: BLOCKED")
+        print(
+            "Emergency bypass: set DP_BYPASS_ENFORCEMENT=1 "
+            "and DP_BYPASS_REASON='<reason>' for one run."
+        )
+    else:
+        print("Result: PASS")
+
+    return exit_code
 
 
 def _latest_progress_snapshot(output_dir: Path) -> Path | None:

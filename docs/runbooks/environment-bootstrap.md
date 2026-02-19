@@ -36,7 +36,13 @@ bd ready
 make check
 ```
 
-If `make check` passes, your environment is ready.
+5. Install git hook enforcement scripts:
+
+```bash
+./hooks/install.sh
+```
+
+If all commands pass, your environment is ready.
 
 ## Codex Session Startup
 

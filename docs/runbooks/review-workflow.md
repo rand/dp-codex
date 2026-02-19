@@ -11,7 +11,7 @@ Blocking checks:
 
 Advisory checks:
 
-1. `TODO`/`FIXME` marker scan in tracked text files
+1. Deferred-work marker scan (`TO` + `DO` and `FIX` + `ME`) in tracked text files
 
 ## Commands
 

@@ -1,5 +1,7 @@
 __pycache__/
 *.py[cod]
 .venv/
+.hypothesis/
 docs/progress/progress-*.json
 docs/progress/progress-*.md
+.dp/

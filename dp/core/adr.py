@@ -205,11 +205,11 @@ def _render(record: AdrRecord, body: str) -> str:
 def _default_body() -> str:
     return (
         "## Context\n\n"
-        "TBD\n\n"
+        "- Problem statement and constraints.\n\n"
         "## Decision\n\n"
-        "TBD\n\n"
+        "- Selected option and rationale.\n\n"
         "## Consequences\n\n"
-        "TBD\n"
+        "- Expected impacts, trade-offs, and follow-up actions.\n"
     )
 
 

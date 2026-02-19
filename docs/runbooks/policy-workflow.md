@@ -16,6 +16,17 @@ Supported modes:
 
 Per-check overrides use boolean values in `overrides`.
 
+Supported checks:
+
+1. `lint`
+2. `typecheck`
+3. `tests`
+4. `trace_validate`
+5. `trace_coverage`
+6. `task_sync`
+7. `review`
+8. `verify`
+
 ## Example
 
 ```json
@@ -34,3 +45,22 @@ Per-check overrides use boolean values in `overrides`.
 dp policy validate --config dp-policy.json
 dp policy validate --config dp-policy.json --json
 ```
+
+## Execute Enforcement
+
+```bash
+dp enforce pre-commit --policy dp-policy.json
+dp enforce pre-push --policy dp-policy.json
+dp enforce pre-push --policy dp-policy.json --json
+```
+
+## Emergency Bypass
+
+Bypass is only for urgent production or recovery scenarios.
+
+```bash
+DP_BYPASS_ENFORCEMENT=1 DP_BYPASS_REASON="incident rollback" git commit
+DP_BYPASS_ENFORCEMENT=1 DP_BYPASS_REASON="incident rollback" git push
+```
+
+Each bypass appends one JSON line to `.dp/bypass-log.jsonl` with UTC timestamp, stage, actor, and reason.

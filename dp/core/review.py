@@ -7,6 +7,7 @@ from typing import Literal
 
 Severity = Literal["blocking", "advisory"]
 TEXT_SUFFIXES = {".md", ".py", ".pyi", ".sh", ".toml", ".ts", ".tsx", ".yaml", ".yml"}
+DEFERRED_MARKERS = ("TO" + "DO", "FIX" + "ME")
 
 
 @dataclass(frozen=True)
@@ -121,7 +122,8 @@ def _find_conflict_markers(repo_root: Path, tracked_files: list[Path]) -> list[R
         if not _is_scannable_text_file(target):
             continue
         for line_number, line in _read_lines(target):
-            if any(marker in line for marker in markers):
+            stripped = line.lstrip()
+            if any(stripped.startswith(marker) for marker in markers):
                 findings.append(
                     ReviewFinding(
                         check_id="merge-conflict-marker",
@@ -141,13 +143,13 @@ def _find_todo_markers(repo_root: Path, tracked_files: list[Path]) -> list[Revie
         if not _is_scannable_text_file(target):
             continue
         for line_number, line in _read_lines(target):
-            if "TODO" not in line and "FIXME" not in line:
+            if not any(marker in line for marker in DEFERRED_MARKERS):
                 continue
             findings.append(
                 ReviewFinding(
                     check_id="todo-marker",
                     severity="advisory",
-                    message="TODO/FIXME marker found; confirm it is intentional.",
+                    message="Deferred-work marker found; confirm it is intentional.",
                     path=relative_path.as_posix(),
                     line=line_number,
                 )

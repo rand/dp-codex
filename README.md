@@ -31,10 +31,16 @@ A production-ready `dp` toolkit and operating model that provides:
 - `docs/runbooks/decompose-workflow.md`: Context-window-aware DAG decomposition usage
 - `docs/runbooks/progress-workflow.md`: Progress snapshots and watch trigger evaluation
 - `docs/runbooks/policy-workflow.md`: Enforcement policy modes and per-check overrides
+- `docs/runbooks/enforcement-workflow.md`: Git-hook/CI enforcement execution and bypass protocol
+- `docs/runbooks/migration-guide.md`: Step-by-step repository migration and rollout checklist
+- `docs/runbooks/troubleshooting.md`: Common failure modes and recovery steps
+- `docs/verify/manifest.json`: Default verification manifest used by `dp verify`
+- `docs/pilot/pilot-migration-report.md`: Empirical pilot execution results
+- `docs/release/v1-readiness.md`: Release readiness checklist and decision log
 
 ## Status
 
-M0 foundation work is in progress (repository scaffold and command baseline established).
+M0-M6 milestone scope has been implemented and empirically validated; v1 readiness is tracked in `docs/release/v1-readiness.md`.
 
 ## Developer Commands
 

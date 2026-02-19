@@ -25,3 +25,9 @@ jobs:
 
       - name: Run quality gates
         run: make check
+
+      - name: Run enforcement checks (pre-commit parity)
+        run: uv run dp enforce pre-commit --policy dp-policy.json --json
+
+      - name: Run enforcement checks (pre-push parity)
+        run: uv run dp enforce pre-push --policy dp-policy.json --json

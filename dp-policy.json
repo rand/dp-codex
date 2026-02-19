@@ -1,0 +1,7 @@
+{
+  "mode": "guided",
+  "overrides": {
+    "review": true,
+    "verify": true
+  }
+}

@@ -1,0 +1,7 @@
+uv run ruff check dp tests
+All checks passed!
+uv run mypy dp
+Success: no issues found in 20 source files
+PYTHONPATH=. uv run pytest -q
+........................................................................ [ 75%]
+........................                                                 [100%]
