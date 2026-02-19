@@ -1,20 +1,24 @@
 # dp-codex
 
-Codex-native implementation plan for a disciplined, traceable AI-assisted development workflow.
+Disciplined delivery system for Codex: `dp` CLI, policy-driven enforcement, and documentation that turns process into repeatable execution.
 
-## Purpose
+## What It Is
 
-This repository is the execution workspace for building a Codex-first version of the disciplined process capability currently implemented as a Claude plugin.
+`dp-codex` is the project itself, not just a planning artifact. It provides:
 
-## Primary Deliverable
+1. A production-ready `dp` command surface for traceability, task workflow, ADR, review, verify, decompose, progress, policy, and enforcement.
+2. Governance controls that run consistently in local hooks and CI.
+3. An operating model that supports real delivery loops, not merely command demos.
+4. End-to-end documentation for users from first-time adopters to maintainers.
 
-A production-ready `dp` toolkit and operating model that provides:
+## Core Workflows
 
-- Spec-first workflow with traceability (`[SPEC-XX.YY]` + `@trace`)
-- Task/dependency orchestration over Beads (`bd`) and optional providers
-- ADR lifecycle support
-- Deterministic enforcement in git hooks and CI
-- Decomposition and progress reporting workflows optimized for Codex
+1. Task lifecycle over Beads (`dp task ...` + `bd`)
+2. Spec/trace chain (`[SPEC-XX.YY]` + `@trace SPEC-XX.YY`)
+3. ADR-backed architectural decisioning
+4. Deterministic review and goal-backward verification
+5. Policy-driven pre-commit and pre-push enforcement
+6. Decomposition and progress snapshots for fast context recovery
 
 ## Quick Start
 
@@ -24,6 +28,20 @@ bd ready
 ./hooks/install.sh
 make check
 ```
+
+Run an empirical end-to-end pilot in an isolated temporary repository:
+
+```bash
+scripts/run_pilot_migration.sh
+```
+
+## Reliability Model
+
+1. Deterministic commands with explicit exit semantics.
+2. Machine-readable `--json` outputs for automation.
+3. Versioned policy in `dp-policy.json`.
+4. Auditable bypass path for emergency operations.
+5. CI parity with local enforcement behavior.
 
 ## Documentation Map
 
@@ -57,6 +75,12 @@ Operational runbooks:
 - `docs/runbooks/enforcement-workflow.md`
 - `docs/runbooks/migration-guide.md`
 - `docs/runbooks/troubleshooting.md`
+
+Reference and contributor standards:
+
+- `docs/reference/cli-workflow-reference.md`
+- `docs/developer/contributor-handbook.md`
+- `docs/developer/documentation-style.md`
 
 ## Status
 
