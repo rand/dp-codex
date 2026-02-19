@@ -16,27 +16,47 @@ A production-ready `dp` toolkit and operating model that provides:
 - Deterministic enforcement in git hooks and CI
 - Decomposition and progress reporting workflows optimized for Codex
 
-## Planning Docs
+## Quick Start
 
-- `docs/EXECUTION-PLAN.md`: End-to-end phased execution plan with milestones, acceptance criteria, and risk controls
-- `AGENTS.md`: Codex operating instructions for implementing this plan
-- `docs/runbooks/developer-commands.md`: Canonical local/CI quality gate commands
-- `docs/runbooks/environment-bootstrap.md`: First-time contributor setup and troubleshooting
-- `docs/runbooks/task-normalization.md`: Canonical status/priority mapping for `dp task`
-- `docs/runbooks/task-json-output.md`: Stable `--json` schema for `dp task` automation
-- `docs/runbooks/adr-workflow.md`: ADR file conventions and lifecycle transitions
-- `docs/runbooks/review-workflow.md`: Deterministic review checks and commit-readiness flow
-- `docs/runbooks/verify-workflow.md`: Goal-backward verify levels, outcomes, and exit codes
-- `docs/runbooks/output-schemas.md`: JSON schema contracts for review/verify automation output
-- `docs/runbooks/decompose-workflow.md`: Context-window-aware DAG decomposition usage
-- `docs/runbooks/progress-workflow.md`: Progress snapshots and watch trigger evaluation
-- `docs/runbooks/policy-workflow.md`: Enforcement policy modes and per-check overrides
-- `docs/runbooks/enforcement-workflow.md`: Git-hook/CI enforcement execution and bypass protocol
-- `docs/runbooks/migration-guide.md`: Step-by-step repository migration and rollout checklist
-- `docs/runbooks/troubleshooting.md`: Common failure modes and recovery steps
-- `docs/verify/manifest.json`: Default verification manifest used by `dp verify`
-- `docs/pilot/pilot-migration-report.md`: Empirical pilot execution results
-- `docs/release/v1-readiness.md`: Release readiness checklist and decision log
+```bash
+uv sync --dev
+bd ready
+./hooks/install.sh
+make check
+```
+
+## Documentation Map
+
+Primary docs index:
+
+- `docs/README.md`
+
+Conceptual model:
+
+- `docs/concepts/disciplined-loop.md`
+- `docs/concepts/traceability-chain.md`
+- `docs/concepts/governance-and-risk.md`
+
+Role-based guides:
+
+- `docs/guides/quickstart-first-feature.md` (beginner)
+- `docs/guides/feature-driver-playbook.md` (intermediate)
+- `docs/guides/maintainer-automation-playbook.md` (advanced)
+
+Internals:
+
+- `docs/internals/architecture.md`
+- `docs/internals/command-runtime.md`
+- `docs/internals/data-contracts.md`
+- `docs/internals/testing-strategy.md`
+
+Operational runbooks:
+
+- `docs/runbooks/environment-bootstrap.md`
+- `docs/runbooks/developer-commands.md`
+- `docs/runbooks/enforcement-workflow.md`
+- `docs/runbooks/migration-guide.md`
+- `docs/runbooks/troubleshooting.md`
 
 ## Status
 

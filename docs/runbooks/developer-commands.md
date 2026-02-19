@@ -1,6 +1,6 @@
 # Developer Command Runbook
 
-This repository uses `make` as the single command surface for quality gates.
+This repository uses `make` as the command surface for quality gates and `dp` for workflow checks.
 
 ## Prerequisites
 
@@ -44,3 +44,26 @@ CI should execute:
 3. `uv run dp enforce pre-push --policy dp-policy.json --json`
 
 This keeps hook behavior and CI behavior aligned against the same versioned policy file.
+
+## Typical Daily Sequence
+
+```bash
+bd ready
+bd update <issue-id> --status in_progress
+make check
+uv run dp enforce pre-commit --policy dp-policy.json --json
+```
+
+Before push:
+
+```bash
+uv run dp review --json
+uv run dp verify --json
+uv run dp enforce pre-push --policy dp-policy.json --json
+```
+
+## Related Guides
+
+1. `/docs/guides/quickstart-first-feature.md`
+2. `/docs/guides/feature-driver-playbook.md`
+3. `/docs/reference/cli-workflow-reference.md`

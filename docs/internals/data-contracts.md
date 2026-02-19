@@ -1,0 +1,32 @@
+# Data Contracts
+
+DP-Codex treats machine-readable output as a product surface, not a side effect.
+
+## Contract Sources
+
+1. `/docs/schemas/review-output.schema.json`
+2. `/docs/schemas/verify-output.schema.json`
+3. `/docs/schemas/policy.schema.json`
+
+## Contracted Command Families
+
+1. `dp review --json`
+2. `dp verify --json`
+3. `dp policy validate --json`
+4. `dp task ... --json`
+5. `dp enforce ... --json`
+
+## Stability Expectations
+
+1. Field names should remain stable across patch releases.
+2. New fields should be additive when possible.
+3. Exit codes remain semantically aligned with documented outcomes.
+
+## Evidence Discipline
+
+When a contract changes:
+
+1. Update schema files first.
+2. Update CLI behavior and tests.
+3. Update runbooks and reference docs.
+4. Re-run quality gates and pilot flow if behavior affects user workflows.
