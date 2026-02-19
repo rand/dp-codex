@@ -4,9 +4,9 @@ Disciplined delivery system for Codex: `dp` CLI, policy-driven enforcement, and 
 
 ## What It Is
 
-`dp-codex` is the project itself, not just a planning artifact. It provides:
+`dp-codex` provides:
 
-1. A production-ready `dp` command surface for traceability, task workflow, ADR, review, verify, decompose, progress, policy, and enforcement.
+1. A `dp` command surface for traceability, task workflow, ADR, review, verify, decompose, progress, policy, and enforcement.
 2. Governance controls that run consistently in local hooks and CI.
 3. An operating model that supports real delivery loops, not merely command demos.
 4. End-to-end documentation for users from first-time adopters to maintainers.
