@@ -27,6 +27,8 @@ def test_build_policy_config_merges_mode_and_overrides_property(
     config = build_policy_config({"mode": mode, "overrides": overrides})
 
     expected_checks = dict(BASELINE_BY_MODE[mode])
+    if "task_sync" in overrides and "task_health" not in overrides:
+        expected_checks["task_health"] = overrides["task_sync"]
     expected_checks.update(overrides)
     assert config.mode == mode
     assert config.checks == expected_checks

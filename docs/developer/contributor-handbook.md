@@ -3,16 +3,16 @@
 ## Environment
 
 1. `uv sync --dev`
-2. `bd ready`
+2. `dp doctor --json`
 3. `make check`
 
 ## Work Intake And Closure
 
-1. Start from `bd ready`.
-2. Claim work with `bd update <id> --status in_progress`.
+1. Start from `dp doctor --json`.
+2. Claim ready work with `bd ready --claim --json`, or claim known work with `bd update <id> --claim`.
 3. Keep task scope tight and verifiable.
 4. Close with explicit rationale and verification evidence.
-5. Run `bd sync` after close.
+5. Run `dp doctor --json` and `bd --readonly status --json` after close.
 
 ## Code Change Rules
 
@@ -24,10 +24,11 @@
 ## Session Landing
 
 1. `git status`
-2. `bd sync`
+2. `dp doctor --json`
 3. `git add ...`
 4. `git commit -m "type: summary"`
 5. `git pull --rebase`
-6. `git push`
+6. `bd --readonly status --json`
+7. `git push`
 
 No stranded local commits. We ship or we keep working.

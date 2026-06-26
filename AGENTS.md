@@ -8,8 +8,8 @@ Prefer small, independently verifiable increments over large multi-concern chang
 
 ## Work Intake
 
-1. Pull from `bd ready`.
-2. Claim with `bd update <id> --status in_progress`.
+1. Run `dp doctor --json` to confirm Beads and local workflow health.
+2. Pull and claim ready work with `bd ready --claim --json`, or claim a known issue with `bd update <id> --claim`.
 3. Read only the files listed in the issue context before editing.
 
 ## Implementation Rules
@@ -37,8 +37,10 @@ If a command does not exist yet, create a follow-up issue and run the closest eq
 1. Verify acceptance criteria from the issue.
 2. Close with rationale:
    `bd close <id> --reason "<what was implemented and verified>"`
-3. Sync tracker state:
-   `bd sync`
+3. Confirm tracker health:
+   `dp doctor --json`
+4. Export or back up tracker state only through current Beads commands, such as
+   `bd export`, `bd backup sync`, or `bd vc status`.
 
 ## Session Completion Protocol
 
@@ -46,7 +48,8 @@ Before ending a session, complete all steps:
 
 ```bash
 git status
-bd sync
+dp doctor --json
+bd --readonly status --json
 git add <files>
 git commit -m "<type>: <summary>"
 git push
@@ -70,7 +73,8 @@ Execution sequencing, milestones, and acceptance criteria are defined in `docs/E
 4. **PUSH TO REMOTE** - This is MANDATORY:
    ```bash
    git pull --rebase
-   bd sync
+   dp doctor --json
+   bd --readonly status --json
    git push
    git status  # MUST show "up to date with origin"
    ```

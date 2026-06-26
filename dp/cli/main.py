@@ -24,7 +24,12 @@ from dp.core.trace_parser import parse_trace_markers, parse_trace_references
 from dp.core.validation import validate_trace_references
 from dp.core.verify import run_goal_backward_verify
 from dp.enforcement import run_enforcement
-from dp.providers.beads import BdUnavailableError, BeadsNotInitializedError, run_bd
+from dp.providers.beads import (
+    BdUnavailableError,
+    BeadsNotInitializedError,
+    check_beads_health,
+    run_bd,
+)
 
 DEFAULT_SPEC_GLOBS = ("docs/specs/**/*.md", "docs/**/*.md")
 DEFAULT_TRACE_GLOBS = ("dp/**/*.py", "tests/**/*.py")
@@ -116,6 +121,13 @@ def _build_parser() -> argparse.ArgumentParser:
     progress_parser.add_argument("--previous")
     progress_parser.add_argument("--json", action="store_true")
     progress_parser.set_defaults(handler=_run_progress)
+
+    doctor_parser = subparsers.add_parser(
+        "doctor",
+        help="Check local dp-codex workflow health without mutating state.",
+    )
+    doctor_parser.add_argument("--json", action="store_true")
+    doctor_parser.set_defaults(handler=_run_doctor)
 
     adr_parser = subparsers.add_parser("adr")
     adr_subparsers = adr_parser.add_subparsers(dest="adr_command", required=True)
@@ -383,6 +395,36 @@ def _run_progress(args: argparse.Namespace) -> int:
             print(f"- {trigger.name}: {state} ({trigger.reason})")
 
     return 1 if triggered else 0
+
+
+def _run_doctor(args: argparse.Namespace) -> int:
+    health = check_beads_health()
+    payload = {
+        "ok": health.ok,
+        "checks": {
+            "beads": health.to_dict(),
+        },
+    }
+
+    if args.json:
+        print(json.dumps(payload, sort_keys=True))
+        return 0 if health.ok else 2
+
+    print(f"Doctor: {'PASS' if health.ok else 'FAIL'}")
+    print(f"Beads: {'ok' if health.ok else 'not ready'}")
+    if health.bd_version is not None:
+        print(f"bd version: {health.bd_version}")
+    if health.issue_prefix is not None:
+        print(f"issue prefix: {health.issue_prefix}")
+    if health.issue_count is not None:
+        print(f"issue count: {health.issue_count}")
+    for warning in health.warnings:
+        print(f"warning: {warning}")
+    for error in health.errors:
+        print(f"error: {error}", file=sys.stderr)
+    if health.recovery_hint is not None:
+        print(f"recovery: {health.recovery_hint}", file=sys.stderr)
+    return 0 if health.ok else 2
 
 
 def _run_adr_create(args: argparse.Namespace) -> int:

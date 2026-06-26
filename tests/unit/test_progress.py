@@ -63,5 +63,7 @@ def test_write_progress_report_and_load_snapshot_round_trip(tmp_path: Path) -> N
     assert markdown_path.exists()
     markdown = markdown_path.read_text(encoding="utf-8")
     assert "## Agent Bootstrap" in markdown
+    assert "dp doctor --json" in markdown
+    assert "bd ready --claim --json" in markdown
     assert loaded.dirty_files == 1
     assert loaded.spec_count == 2

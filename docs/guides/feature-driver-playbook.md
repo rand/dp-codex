@@ -6,8 +6,8 @@ Goal: deliver predictable outcomes while coordinating specs, tasks, and verifica
 
 ## Planning Pattern
 
-1. Pull ready work: `bd ready`
-2. Claim a bounded task: `bd update <id> --status in_progress`
+1. Check local health: `dp doctor --json`
+2. Claim a bounded task: `bd ready --claim --json` or `bd update <id> --claim`
 3. Keep each task one logical outcome.
 4. Discover follow-up work immediately when surfaced.
 
@@ -38,7 +38,8 @@ dp verify --json
 dp enforce pre-push --policy dp-policy.json --json
 git push
 bd close <id> --reason "implemented + verified"
-bd sync
+dp doctor --json
+bd --readonly status --json
 ```
 
 ## Practical Heuristics

@@ -48,8 +48,8 @@ This keeps hook behavior and CI behavior aligned against the same versioned poli
 ## Typical Daily Sequence
 
 ```bash
-bd ready
-bd update <issue-id> --status in_progress
+dp doctor --json
+bd ready --claim --json
 make check
 uv run dp enforce pre-commit --policy dp-policy.json --json
 ```
@@ -60,6 +60,7 @@ Before push:
 uv run dp review --json
 uv run dp verify --json
 uv run dp enforce pre-push --policy dp-policy.json --json
+bd --readonly status --json
 ```
 
 ## Related Guides

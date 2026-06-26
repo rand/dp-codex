@@ -10,6 +10,7 @@ POLICY_MODES = ("strict", "guided", "minimal")
 SUPPORTED_CHECKS = (
     "lint",
     "review",
+    "task_health",
     "task_sync",
     "tests",
     "trace_coverage",
@@ -38,6 +39,7 @@ BASELINE_BY_MODE = {
     "guided": {
         "lint": True,
         "review": False,
+        "task_health": False,
         "task_sync": False,
         "tests": True,
         "trace_coverage": True,
@@ -48,6 +50,7 @@ BASELINE_BY_MODE = {
     "minimal": {
         "lint": False,
         "review": False,
+        "task_health": False,
         "task_sync": False,
         "tests": True,
         "trace_coverage": False,
@@ -93,6 +96,8 @@ def build_policy_config(payload: dict[str, object]) -> PolicyConfig:
     overrides = dict(overrides_raw) if isinstance(overrides_raw, dict) else {}
 
     checks = dict(BASELINE_BY_MODE[mode])
+    if "task_sync" in overrides and "task_health" not in overrides:
+        checks["task_health"] = bool(overrides["task_sync"])
     for key, value in overrides.items():
         checks[str(key)] = bool(value)
 

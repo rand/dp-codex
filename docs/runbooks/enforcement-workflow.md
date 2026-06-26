@@ -20,9 +20,13 @@ Pre-commit checks:
 
 Pre-push checks:
 
-1. `task_sync`
+1. `task_health`
 2. `review`
 3. `verify`
+
+`task_health` runs `dp doctor --json`. It is read-only and checks whether the
+task provider is usable; it does not run removed Beads sync-era commands or
+perform hidden persistence.
 
 ## Install Hooks
 

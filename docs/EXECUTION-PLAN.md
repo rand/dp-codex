@@ -178,7 +178,7 @@ Separate stable process logic from agent-platform integration.
 ### Tasks
 
 1. Implement pre-commit checks (tests/traces/required metadata).
-2. Implement pre-push checks (sync/status safeguards).
+2. Implement pre-push checks (task provider health/status safeguards).
 3. Create policy config schema with per-check overrides.
 4. Add bypass logging conventions for emergency workflows.
 
@@ -205,6 +205,37 @@ Separate stable process logic from agent-platform integration.
 
 1. Pilot team can execute full workflow without maintainer intervention.
 2. Known defects are triaged with severity and ownership.
+
+## M7: Beads/Codex Modernization and Low-Friction Discipline
+
+### Outcomes
+
+1. Current Beads CLI behavior is detected explicitly instead of assumed from
+   stale command surfaces.
+2. Codex sessions begin from cheap health checks and issue-scoped context, not
+   full-repo rediscovery.
+3. Enforcement distinguishes read-only health validation from mutating
+   persistence/export/backup operations.
+
+### Tasks
+
+1. Add `dp doctor` and Beads capability diagnostics.
+2. Replace `bd sync` assumptions with current read-only status plus explicit
+   `bd export`, `bd backup`, `bd vc`, and `bd bootstrap` guidance.
+3. Add Codex-native integration guidance using lean `AGENTS.md`, repo config,
+   hooks, skills, and MCP only where they reduce repeated friction.
+4. Harden evidence and verification beyond file-existence checks.
+5. Add flow-level pilots that measure setup recovery, claim latency, evidence
+   completeness, and false-positive enforcement friction.
+
+### Exit Criteria
+
+1. Fresh Codex session can run `dp doctor --json`, claim work, verify, close,
+   commit, and push without invoking removed Beads commands.
+2. Failure guidance is actionable for missing `bd`, missing `.beads`,
+   uninitialized Beads database, and stale sync-era instructions.
+3. Strict checks are available for risky changes while routine work keeps a
+   low-friction guided path.
 
 ## 7. Codex Optimization Strategy
 

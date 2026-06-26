@@ -197,9 +197,73 @@ def test_run_enforcement_pre_push_respects_policy_disabled_checks(tmp_path: Path
     report = run_enforcement(stage="pre-push", policy_path=policy_path, repo_root=tmp_path)
 
     assert report.blocked is False
-    assert [item.check for item in report.checks] == ["task_sync", "review", "verify"]
+    assert [item.check for item in report.checks] == ["task_health", "review", "verify"]
     assert all(item.status == "skipped" for item in report.checks)
     assert all(item.message == "Disabled by policy." for item in report.checks)
+
+
+def test_run_enforcement_pre_push_uses_doctor_for_task_health(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("UV_CACHE_DIR", raising=False)
+    policy_path = tmp_path / "policy.json"
+    _write_policy(path=policy_path, payload={"mode": "minimal", "overrides": {"task_health": True}})
+    calls: list[list[str]] = []
+
+    def fake_run(
+        cmd: list[str],
+        *,
+        capture_output: bool,
+        check: bool,
+        cwd: Path,
+        env: dict[str, str],
+        text: bool,
+    ) -> subprocess.CompletedProcess[str]:
+        assert capture_output is True
+        assert check is False
+        assert cwd == tmp_path
+        assert env["UV_CACHE_DIR"] == (tmp_path / ".uv-cache").as_posix()
+        assert text is True
+        calls.append(cmd)
+        return _build_result(0, stdout='{"ok":true,"checks":{"beads":{"ok":true}}}')
+
+    monkeypatch.setattr("dp.enforcement.engine.subprocess.run", fake_run)
+
+    report = run_enforcement(stage="pre-push", policy_path=policy_path, repo_root=tmp_path)
+
+    assert report.blocked is False
+    assert calls == [["uv", "run", "dp", "doctor", "--json"]]
+    assert report.checks[0].check == "task_health"
+
+
+def test_task_sync_policy_override_enables_task_health_alias(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv("UV_CACHE_DIR", raising=False)
+    policy_path = tmp_path / "policy.json"
+    _write_policy(path=policy_path, payload={"mode": "minimal", "overrides": {"task_sync": True}})
+    calls: list[list[str]] = []
+
+    def fake_run(
+        cmd: list[str],
+        *,
+        capture_output: bool,
+        check: bool,
+        cwd: Path,
+        env: dict[str, str],
+        text: bool,
+    ) -> subprocess.CompletedProcess[str]:
+        calls.append(cmd)
+        return _build_result(0, stdout='{"ok":true,"checks":{"beads":{"ok":true}}}')
+
+    monkeypatch.setattr("dp.enforcement.engine.subprocess.run", fake_run)
+
+    report = run_enforcement(stage="pre-push", policy_path=policy_path, repo_root=tmp_path)
+
+    assert report.blocked is False
+    assert calls == [["uv", "run", "dp", "doctor", "--json"]]
 
 
 def test_run_enforcement_records_bypass_event(

@@ -24,7 +24,8 @@ Disciplined delivery system for Codex: `dp` CLI, policy-driven enforcement, and 
 
 ```bash
 uv sync --dev
-bd ready
+dp doctor --json
+bd ready --claim --json
 ./hooks/install.sh
 make check
 ```

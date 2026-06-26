@@ -27,7 +27,8 @@ uv sync --dev
 3. Confirm Beads is healthy and work is discoverable:
 
 ```bash
-bd ready
+dp doctor --json
+bd ready --json
 ```
 
 4. Run the canonical quality gates:
@@ -49,11 +50,12 @@ If all commands pass, your environment is ready.
 At the start of each implementation session:
 
 ```bash
-bd ready
-bd update <issue-id> --status in_progress
+dp doctor --json
+bd ready --claim --json
 ```
 
-Use `bd show <issue-id>` to confirm acceptance criteria before editing.
+If you already know the issue ID, use `bd update <issue-id> --claim`. Use
+`bd show <issue-id>` to confirm acceptance criteria before editing.
 
 ## Troubleshooting
 
@@ -67,6 +69,21 @@ UV_CACHE_DIR=.uv-cache make check
 
 1. Ensure Beads CLI is installed and on `PATH`.
 2. Confirm you are inside the repository root with `.beads/`.
+
+Beads database exists but is not usable:
+
+```bash
+bd bootstrap --dry-run
+dp doctor --json
+```
+
+If `dp doctor` reports missing `issue_prefix` on an empty embedded database,
+recover from the tracked issue snapshot:
+
+```bash
+bd init --reinit-local --prefix <prefix>
+bd import .beads/issues.jsonl
+```
 
 `make` target missing:
 

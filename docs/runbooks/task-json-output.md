@@ -28,3 +28,7 @@ All `dp task` subcommands support `--json` and return a stable envelope:
 1. Missing `bd`: `exit_code=127`, `ok=false`, `error` populated
 2. Uninitialized `.beads`: `exit_code=2`, `ok=false`, `error` populated
 3. `bd` command failure: non-zero `exit_code`, `ok=false`, stderr forwarded
+
+For provider health and setup diagnostics, use `dp doctor --json`. Task wrappers
+delegate to Beads; doctor checks whether that delegation is safe before work
+starts.

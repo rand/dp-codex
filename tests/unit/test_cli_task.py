@@ -6,7 +6,12 @@ from typing import Sequence
 
 import pytest
 
-from dp.providers.beads import BdUnavailableError, BeadsNotInitializedError, CommandResult
+from dp.providers.beads import (
+    BdUnavailableError,
+    BeadsHealth,
+    BeadsNotInitializedError,
+    CommandResult,
+)
 
 cli_main = importlib.import_module("dp.cli.main")
 
@@ -249,3 +254,69 @@ def test_task_update_rejects_invalid_priority_before_invoking_bd(
 
     assert exit_code == 2
     assert "Invalid priority value 'P9'" in capsys.readouterr().err
+
+
+def test_doctor_json_returns_stable_beads_health(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr(
+        cli_main,
+        "check_beads_health",
+        lambda: BeadsHealth(
+            ok=True,
+            repo_root="/repo",
+            beads_dir="/repo/.beads",
+            bd_available=True,
+            bd_version="bd version 1.0.4",
+            initialized=True,
+            issue_prefix="dpcx",
+            issue_count=47,
+            ready_count=0,
+            sync_command_available=False,
+            warnings=("bd sync is not available",),
+            errors=(),
+            recovery_hint=None,
+        ),
+    )
+
+    exit_code = cli_main.main(["doctor", "--json"])
+
+    assert exit_code == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["ok"] is True
+    assert payload["checks"]["beads"]["issue_prefix"] == "dpcx"
+    assert payload["checks"]["beads"]["sync_command_available"] is False
+
+
+def test_doctor_returns_nonzero_with_recovery_hint(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr(
+        cli_main,
+        "check_beads_health",
+        lambda: BeadsHealth(
+            ok=False,
+            repo_root=None,
+            beads_dir=None,
+            bd_available=True,
+            bd_version="bd version 1.0.4",
+            initialized=False,
+            issue_prefix=None,
+            issue_count=None,
+            ready_count=None,
+            sync_command_available=False,
+            warnings=(),
+            errors=("No .beads directory found",),
+            recovery_hint="Run `bd bootstrap --dry-run`.",
+        ),
+    )
+
+    exit_code = cli_main.main(["doctor"])
+
+    assert exit_code == 2
+    captured = capsys.readouterr()
+    assert "Doctor: FAIL" in captured.out
+    assert "No .beads directory found" in captured.err
+    assert "bd bootstrap --dry-run" in captured.err

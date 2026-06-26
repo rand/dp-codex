@@ -267,7 +267,8 @@ def _build_agent_bootstrap(
         f"specs={snapshot.spec_count}, adrs={snapshot.adr_count}"
     )
     next_steps = [
-        "bd ready",
+        "dp doctor --json",
+        "bd ready --claim --json",
         "make check",
         "uv run dp review --json",
     ]

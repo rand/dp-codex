@@ -23,7 +23,7 @@ PRE_COMMIT_CHECK_ORDER = (
     "trace_coverage",
 )
 PRE_PUSH_CHECK_ORDER = (
-    "task_sync",
+    "task_health",
     "review",
     "verify",
 )
@@ -64,7 +64,7 @@ CHECK_COMMANDS = {
         "--trace-glob",
         ENFORCEMENT_TRACE_GLOB_SECONDARY,
     ),
-    "task_sync": ("bd", "sync"),
+    "task_health": ("uv", "run", "dp", "doctor", "--json"),
     "review": ("uv", "run", "dp", "review", "--json"),
     "verify": ("uv", "run", "dp", "verify", "--json"),
 }

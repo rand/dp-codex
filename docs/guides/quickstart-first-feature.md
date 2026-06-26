@@ -8,7 +8,8 @@ Goal: go from "what is this" to a completed task with traceability and verificat
 
 ```bash
 uv sync --dev
-bd ready
+dp doctor --json
+bd ready --json
 ./hooks/install.sh
 make check
 ```
@@ -18,10 +19,11 @@ If this passes, your environment is healthy.
 ## 2. Pick A Task
 
 ```bash
-bd ready
-bd update <issue-id> --status in_progress
+bd ready --claim --json
 bd show <issue-id>
 ```
+
+If you already know the issue ID, claim it with `bd update <issue-id> --claim`.
 
 Read acceptance criteria before editing. Future you will appreciate past you.
 
@@ -67,7 +69,8 @@ git push
 
 ```bash
 bd close <issue-id> --reason "what changed and what was verified"
-bd sync
+dp doctor --json
+bd --readonly status --json
 ```
 
 You now have a complete, auditable loop from intent to closure.

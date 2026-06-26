@@ -5,7 +5,7 @@ When something fails, use this page to triage quickly and recover without guessw
 ## Fast Triage Sequence
 
 1. `git status`
-2. `bd ready`
+2. `dp doctor --json`
 3. `make check`
 4. `dp enforce pre-commit --policy dp-policy.json --json`
 5. `dp enforce pre-push --policy dp-policy.json --json`
@@ -30,17 +30,32 @@ Cause: repo is not initialized for Beads.
 Fix:
 
 ```bash
-bd init -p <repo-prefix>
+bd bootstrap --dry-run
+bd init --prefix <repo-prefix>
+```
+
+## `dp doctor ...` reports missing `issue_prefix`
+
+Cause: `.beads` exists, but the embedded Beads database is not initialized
+enough for current Beads commands.
+
+Fix:
+
+```bash
+bd bootstrap --dry-run
+bd init --reinit-local --prefix <repo-prefix>
+bd import .beads/issues.jsonl
+dp doctor --json
 ```
 
 ## `dp enforce ...` fails with `bd command not found`
 
-Cause: `task_sync` is enabled by policy but Beads CLI is unavailable.
+Cause: `task_health` is enabled by policy but Beads CLI is unavailable.
 
 Fix:
 
 1. Install `bd`, or
-2. Disable `task_sync` in policy where appropriate.
+2. Disable `task_health` in policy where appropriate.
 
 ## `dp enforce ...` fails with uv cache permission error
 

@@ -23,9 +23,12 @@ Supported checks:
 3. `tests`
 4. `trace_validate`
 5. `trace_coverage`
-6. `task_sync`
+6. `task_health`
 7. `review`
 8. `verify`
+
+`task_sync` remains accepted as a deprecated compatibility override and maps to
+`task_health` when `task_health` is not set explicitly.
 
 ## Example
 
