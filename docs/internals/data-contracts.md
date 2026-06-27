@@ -11,6 +11,7 @@ DP-Codex treats machine-readable output as a product surface, not a side effect.
 5. `/docs/schemas/evidence-lint-output.schema.json`
 6. `/docs/schemas/loop-lint-output.schema.json`
 7. `/docs/schemas/campaign-lint-output.schema.json`
+8. `/docs/schemas/campaign-init-output.schema.json`
 
 ## Contracted Command Families
 
@@ -24,7 +25,7 @@ DP-Codex treats machine-readable output as a product surface, not a side effect.
 8. `dp agent prompt ... --json`
 9. `dp evidence lint ... --json`
 10. `dp loop lint/status/next ... --json`
-11. `dp campaign lint/status/recover ... --json`
+11. `dp campaign init/lint/status/recover ... --json`
 
 ## Stability Expectations
 

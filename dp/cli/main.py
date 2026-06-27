@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any, Callable, Sequence, TextIO, cast
 
 from dp.core.adr import create_adr, list_adrs, show_adr, update_adr_status
+from dp.core.campaign_init import init_campaign_from_primary_spec
 from dp.core.campaign_manifest import (
     campaign_recover,
     campaign_status,
@@ -421,6 +422,15 @@ def _build_parser() -> argparse.ArgumentParser:
         required=True,
     )
 
+    campaign_init_parser = campaign_subparsers.add_parser(
+        "init",
+        help="Create a conservative campaign scaffold from a local primary spec.",
+    )
+    campaign_init_parser.add_argument("--primary-spec", required=True)
+    campaign_init_parser.add_argument("--write", action="store_true")
+    campaign_init_parser.add_argument("--json", action="store_true")
+    campaign_init_parser.set_defaults(handler=_run_campaign_init)
+
     campaign_lint_parser = campaign_subparsers.add_parser(
         "lint",
         help="Validate a CampaignManifest without executing campaign work.",
@@ -746,6 +756,13 @@ def _run_loop_next(args: argparse.Namespace) -> int:
     )
 
 
+def _run_campaign_init(args: argparse.Namespace) -> int:
+    return _emit_campaign_command_result(
+        init_campaign_from_primary_spec(Path(args.primary_spec), write=args.write),
+        args.json,
+    )
+
+
 def _run_campaign_lint(args: argparse.Namespace) -> int:
     result = lint_campaign_file(Path(args.campaign))
 
@@ -781,7 +798,9 @@ def _emit_campaign_command_result(result: Any, json_output: bool) -> int:
     if result.payload.get("ok") is True:
         command = result.payload.get("command")
         campaign_id = result.payload.get("campaign_id")
-        if command == "campaign.recover":
+        if command == "campaign.init":
+            print(f"Campaign scaffold: {campaign_id}")
+        elif command == "campaign.recover":
             print(f"Campaign recoverable: {campaign_id}")
         else:
             print(f"Campaign ok: {campaign_id}")

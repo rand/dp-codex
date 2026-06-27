@@ -106,3 +106,35 @@ def test_campaign_lint_json_output_matches_schema(capsys) -> None:
     assert exit_code == 0
     payload = json.loads(capsys.readouterr().out)
     validate(instance=payload, schema=schema)
+
+
+def test_campaign_init_json_output_matches_schema(
+    tmp_path: Path,
+    capsys,
+    monkeypatch,
+) -> None:
+    schema = json.loads(
+        Path("docs/schemas/campaign-init-output.schema.json").read_text(encoding="utf-8")
+    )
+    primary_spec = tmp_path / "docs/primary/product.md"
+    primary_spec.parent.mkdir(parents=True)
+    primary_spec.write_text(
+        "# Product\n\n## Goals\n\nShip a useful scaffold.\n\n## Evidence\n\nLint artifacts.\n",
+        encoding="utf-8",
+    )
+    monkeypatch.chdir(tmp_path)
+
+    exit_code = cli_main.main(
+        [
+            "campaign",
+            "init",
+            "--primary-spec",
+            "docs/primary/product.md",
+            "--write",
+            "--json",
+        ]
+    )
+
+    assert exit_code == 0
+    payload = json.loads(capsys.readouterr().out)
+    validate(instance=payload, schema=schema)

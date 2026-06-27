@@ -9,6 +9,7 @@ JSON output contracts for automation are versioned as JSON Schema files:
 5. `docs/schemas/evidence-lint-output.schema.json`
 6. `docs/schemas/loop-lint-output.schema.json`
 7. `docs/schemas/campaign-lint-output.schema.json`
+8. `docs/schemas/campaign-init-output.schema.json`
 
 Validation is enforced by unit tests that execute real JSON-producing flows and validate payloads
 against these schemas where a stable schema exists. Other JSON command families are covered by

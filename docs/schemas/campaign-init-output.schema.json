@@ -1,0 +1,199 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "artifact_paths": {
+      "additionalProperties": false,
+      "properties": {
+        "campaign": {
+          "type": "string"
+        },
+        "evidence_plans": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "goals": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "loop": {
+          "type": "string"
+        },
+        "needs_refinement": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "campaign",
+        "loop",
+        "goals",
+        "evidence_plans",
+        "needs_refinement"
+      ],
+      "type": "object"
+    },
+    "error": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "path",
+        "message"
+      ],
+      "type": "object"
+    },
+    "marker": {
+      "additionalProperties": false,
+      "properties": {
+        "reason": {
+          "type": "string"
+        },
+        "route": {
+          "enum": [
+            "needs_decision",
+            "needs_specification",
+            "needs_validator"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "route",
+        "reason"
+      ],
+      "type": "object"
+    },
+    "primary_spec": {
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "sha256": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "type": "object"
+    },
+    "section": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "level": {
+          "type": "integer"
+        },
+        "line": {
+          "type": "integer"
+        },
+        "title": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "level",
+        "line"
+      ],
+      "type": "object"
+    }
+  },
+  "oneOf": [
+    {
+      "additionalProperties": true,
+      "properties": {
+        "artifacts": {
+          "$ref": "#/$defs/artifact_paths"
+        },
+        "campaign_id": {
+          "type": "string"
+        },
+        "command": {
+          "const": "campaign.init"
+        },
+        "loop_id": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "needs_refinement": {
+          "const": true
+        },
+        "ok": {
+          "const": true
+        },
+        "primary_spec": {
+          "$ref": "#/$defs/primary_spec"
+        },
+        "refinement_markers": {
+          "items": {
+            "$ref": "#/$defs/marker"
+          },
+          "type": "array"
+        },
+        "sections": {
+          "items": {
+            "$ref": "#/$defs/section"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "ok",
+        "command",
+        "campaign_id",
+        "loop_id",
+        "needs_refinement",
+        "primary_spec",
+        "sections",
+        "refinement_markers",
+        "artifacts",
+        "lint",
+        "message"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "const": "campaign.init"
+        },
+        "error": {
+          "$ref": "#/$defs/error"
+        },
+        "ok": {
+          "const": false
+        }
+      },
+      "required": [
+        "ok",
+        "command",
+        "error"
+      ],
+      "type": "object"
+    }
+  ],
+  "title": "Campaign init output"
+}

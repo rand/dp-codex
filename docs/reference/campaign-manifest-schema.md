@@ -45,6 +45,12 @@ dp campaign status <campaign.json> --json
 dp campaign recover <campaign.json> --json
 ```
 
+Scaffold command:
+
+```bash
+dp campaign init --primary-spec docs/primary/example.md --write --json
+```
+
 Exit codes:
 
 1. `0`: valid lint, successful status, or successful recovery.
