@@ -22,10 +22,13 @@ GoalContract through dp without relying on chat memory.
 12. `dp campaign refine <campaign.json> --write`: deterministic authoring refinement into child
     spec/ADR stubs, GoalContract/EvidencePlan refinement metadata, and optional Beads
     epics/issues.
+13. `dp campaign refine <campaign.json> --llm`: agent-mediated LLM refinement request emission.
+14. `dp campaign refine <campaign.json> --llm-response <response.json> --write`: deterministic
+    import of model-authored draft refinement metadata.
 
 ## What Does Not Exist Yet
 
-1. LLM-assisted campaign refinement.
+1. Richer semantic graph hardening beyond the response import metadata.
 2. A supervised campaign runner.
 
 Those are tracked as SPEC-80 follow-up issues.
@@ -163,10 +166,22 @@ Materialize Beads work only when explicitly requested:
 dp campaign refine docs/campaigns/CAMPAIGN-example.json --write --create-beads --json
 ```
 
+Emit an LLM refinement request for the calling agent's current provider/model:
+
+```bash
+dp campaign refine docs/campaigns/CAMPAIGN-example.json --llm --json
+```
+
+After the calling agent writes a response artifact, import it through deterministic validation:
+
+```bash
+dp campaign refine docs/campaigns/CAMPAIGN-example.json --llm-response response.json --write --json
+```
+
 Refinement is still authoring, not verification. It keeps the campaign `draft`, does not execute
-evidence, and does not infer dependency edges from prose. Future `--llm` refinement is expected to
-use the calling agent's provider and model with provenance; deterministic gates remain responsible
-for readiness and completion.
+evidence, and does not infer dependency edges from prose. LLM-assisted response import records
+provider/model provenance and rejects unknown goals, prompt-hash mismatches, unsafe paths, and raw
+shell evidence proposals. Deterministic gates remain responsible for readiness and completion.
 
 ## Safe Local Smoke Test
 

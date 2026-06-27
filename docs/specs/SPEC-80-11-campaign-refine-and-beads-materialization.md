@@ -12,10 +12,10 @@ Parent: SPEC-80
 The next control-plane step is an explicit authoring command that refines those draft signals into
 repo-native artifacts and, when requested, Beads work.
 
-This slice implements deterministic refinement first. It also defines the provenance contract for
-future LLM-assisted refinement, where the appropriate provider is the provider currently in use by
-the agent calling dp, typically Codex using a native OpenAI model. Network and model calls are
-allowed only in that explicit authoring mode.
+This slice implements deterministic refinement first. It also defines the provenance contract that
+SPEC-80.12 uses for LLM-assisted refinement, where the appropriate provider is the provider
+currently in use by the agent calling dp, typically Codex using a native OpenAI model. Network and
+model calls are allowed only in that explicit authoring mode.
 
 ## Command
 
@@ -25,10 +25,11 @@ dp campaign refine <campaign.json> --write --json
 dp campaign refine <campaign.json> --write --create-beads --json
 ```
 
-Future:
+Agent-mediated LLM refinement is specified and implemented by SPEC-80.12:
 
 ```bash
-dp campaign refine <campaign.json> --llm --write --json
+dp campaign refine <campaign.json> --llm --json
+dp campaign refine <campaign.json> --llm-response <response.json> --write --json
 ```
 
 ## Requirements
@@ -46,8 +47,9 @@ dp campaign refine <campaign.json> --llm --write --json
 10. The command SHOULD avoid duplicate Beads references on repeated runs by reusing already
     recorded Beads ids in the CampaignManifest.
 11. Beads creation MUST use Beads as the issue substrate; dp must not create a parallel task store.
-12. `--llm` MUST be authoring-only. Until implemented, it MUST fail with a structured
-    not-implemented response rather than silently acting deterministic.
+12. `--llm` MUST be authoring-only. SPEC-80.12 implements it as a request/response protocol where
+    dp emits an agent-facing request and imports an explicit response artifact through
+    deterministic validation.
 
 ## Deterministic Refine Output
 

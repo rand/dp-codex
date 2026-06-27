@@ -6,6 +6,8 @@
 dp campaign refine docs/campaigns/CAMPAIGN-example.json --json
 dp campaign refine docs/campaigns/CAMPAIGN-example.json --write --json
 dp campaign refine docs/campaigns/CAMPAIGN-example.json --write --create-beads --json
+dp campaign refine docs/campaigns/CAMPAIGN-example.json --llm --json
+dp campaign refine docs/campaigns/CAMPAIGN-example.json --llm-response response.json --write --json
 ```
 
 Current mode:
@@ -23,7 +25,13 @@ records the paths in the CampaignManifest.
 `--create-beads` is explicit and requires `--write`. It creates or reuses a campaign epic and task
 issues, then records Beads ids in the manifest. Beads remains the task substrate.
 
-`--llm` is reserved for a future authoring mode. The intended provider is the provider currently
-in use by the agent calling dp, usually Codex using a native OpenAI model. LLM refinement may make
-network/model calls, but it must record provenance and pass deterministic gates before any output is
-treated as ready. LLM judgment is never a blocking gate or verification result.
+LLM-assisted refinement is agent-mediated. `--llm --json` emits a deterministic request package for
+the calling agent's current provider/model and writes nothing. The agent performs the model/network
+call and writes a response artifact matching
+`docs/schemas/campaign-refine-llm-response.schema.json`.
+
+`--llm-response <response.json> --write --json` imports that response only after deterministic
+validation: campaign id, prompt hash, provider provenance, known goal ids, path sanity, and
+argv-only evidence proposals without raw shell syntax. Imported model content is recorded as draft
+authoring metadata on the campaign, GoalContracts, and EvidencePlans. It never marks work ready,
+complete, or verified. LLM judgment is never a blocking gate or verification result.

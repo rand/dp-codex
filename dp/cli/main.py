@@ -483,6 +483,7 @@ def _build_parser() -> argparse.ArgumentParser:
     campaign_refine_parser.add_argument("--write", action="store_true")
     campaign_refine_parser.add_argument("--create-beads", action="store_true")
     campaign_refine_parser.add_argument("--llm", action="store_true")
+    campaign_refine_parser.add_argument("--llm-response")
     campaign_refine_parser.add_argument("--json", action="store_true")
     campaign_refine_parser.set_defaults(handler=_run_campaign_refine)
 
@@ -852,6 +853,7 @@ def _run_campaign_refine(args: argparse.Namespace) -> int:
             write=args.write,
             create_beads=args.create_beads,
             llm=args.llm,
+            llm_response=Path(args.llm_response) if args.llm_response is not None else None,
         ),
         args.json,
     )

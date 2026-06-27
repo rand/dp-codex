@@ -37,6 +37,7 @@
         "kind": {
           "enum": [
             "deterministic_refine",
+            "llm_request",
             "llm"
           ],
           "type": "string"
@@ -110,7 +111,11 @@
           "const": "campaign.refine"
         },
         "mode": {
-          "const": "deterministic_refine"
+          "enum": [
+            "deterministic_refine",
+            "llm_request",
+            "llm_import"
+          ]
         },
         "message": {
           "type": "string"
@@ -123,6 +128,12 @@
         },
         "provenance": {
           "$ref": "#/$defs/provenance"
+        },
+        "request": {
+          "type": "object"
+        },
+        "llm": {
+          "type": "object"
         },
         "written": {
           "type": "boolean"
@@ -143,6 +154,18 @@
     },
     {
       "additionalProperties": true,
+      "anyOf": [
+        {
+          "required": [
+            "error"
+          ]
+        },
+        {
+          "required": [
+            "errors"
+          ]
+        }
+      ],
       "properties": {
         "command": {
           "const": "campaign.refine"
@@ -150,14 +173,19 @@
         "error": {
           "$ref": "#/$defs/error"
         },
+        "errors": {
+          "items": {
+            "$ref": "#/$defs/error"
+          },
+          "type": "array"
+        },
         "ok": {
           "const": false
         }
       },
       "required": [
         "ok",
-        "command",
-        "error"
+        "command"
       ],
       "type": "object"
     }

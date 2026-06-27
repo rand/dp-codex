@@ -59,6 +59,8 @@ Refinement command:
 ```bash
 dp campaign refine docs/campaigns/CAMPAIGN-example.json --write --json
 dp campaign refine docs/campaigns/CAMPAIGN-example.json --write --create-beads --json
+dp campaign refine docs/campaigns/CAMPAIGN-example.json --llm --json
+dp campaign refine docs/campaigns/CAMPAIGN-example.json --llm-response response.json --write --json
 ```
 
 Exit codes:
@@ -70,9 +72,11 @@ Exit codes:
 
 Safety rules:
 
-1. Campaign commands never call an LLM.
-2. Campaign commands never execute evidence checks.
-3. Campaign status is derived from linted artifacts and append-only goal events.
+1. Campaign lint/status/recover never call an LLM.
+2. `dp campaign refine --llm` is explicit authoring: dp emits a request and imports a response
+   artifact; the calling agent performs any model/network call.
+3. Campaign commands never execute evidence checks.
+4. Campaign status is derived from linted artifacts and append-only goal events.
 4. Recovery does not consult chat memory or hidden state.
 5. A goal in `evidence_pending` is not treated as verified.
 6. Refinement authoring preserves `draft` status until deterministic readiness gates exist.

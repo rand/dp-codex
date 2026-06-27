@@ -14,6 +14,7 @@ DP-Codex treats machine-readable output as a product surface, not a side effect.
 8. `/docs/schemas/campaign-lint-output.schema.json`
 9. `/docs/schemas/campaign-init-output.schema.json`
 10. `/docs/schemas/campaign-refine-output.schema.json`
+11. `/docs/schemas/campaign-refine-llm-response.schema.json`
 
 ## Contracted Command Families
 

@@ -11,7 +11,16 @@ from dp.providers.beads import BdUnavailableError, BeadsNotInitializedError, run
 
 # @trace SPEC-80.11
 REFINE_MODE = "deterministic_refine"
-LLM_PROMPT_TEMPLATE = "campaign-refine-calling-agent-v0.1"
+
+# @trace SPEC-80.12
+LLM_REQUEST_MODE = "llm_request"
+LLM_IMPORT_MODE = "llm_import"
+LLM_PROMPT_TEMPLATE = "campaign-refine-calling-agent-v0.2"
+LLM_RESPONSE_SCHEMA_VERSION = "0.1"
+LLM_RESPONSE_SCHEMA_PATH = "docs/schemas/campaign-refine-llm-response.schema.json"
+SHELL_CONTROL_PATTERNS = ("&&", "||", ";", "|", "`", "$(", "\n", "\r", ">", "<")
+SHELL_EXECUTABLES = frozenset({"bash", "cmd", "fish", "powershell", "pwsh", "sh", "zsh"})
+LLM_PROVIDER_SOURCES = frozenset({"calling_agent", "environment", "explicit_config"})
 
 
 @dataclass(frozen=True)
@@ -66,14 +75,31 @@ def refine_campaign(
     write: bool,
     create_beads: bool,
     llm: bool,
+    llm_response: Path | None = None,
 ) -> CampaignRefineResult:
-    if llm:
-        return _llm_not_implemented(campaign_path)
     if create_beads and not write:
         return _usage_error(
             "create_beads_requires_write",
             "$.create_beads",
             "--create-beads mutates Beads and requires --write.",
+        )
+    if llm and write and llm_response is None:
+        return _usage_error(
+            "llm_response_required_for_write",
+            "$.llm_response",
+            "--llm writes require an explicit --llm-response artifact.",
+        )
+    if llm_response is not None and not write:
+        return _usage_error(
+            "llm_response_requires_write",
+            "$.llm_response",
+            "--llm-response imports model output and requires --write.",
+        )
+    if llm_response is not None and create_beads:
+        return _usage_error(
+            "llm_response_create_beads_unsupported",
+            "$.create_beads",
+            "--create-beads is not supported while importing an LLM response.",
         )
 
     lint_result = lint_campaign_file(campaign_path)
@@ -93,6 +119,24 @@ def refine_campaign(
     planned_nodes = _planned_nodes(campaign, campaign_slug=campaign_slug)
     provenance = _deterministic_provenance(campaign_path, campaign, planned_nodes)
     planned = _planned_payload(planned_nodes)
+
+    if llm_response is not None:
+        return _import_llm_response(
+            campaign_path,
+            campaign,
+            planned_nodes,
+            planned=planned,
+            deterministic_provenance=provenance,
+            response_path=llm_response,
+        )
+
+    if llm:
+        return _emit_llm_request(
+            campaign_path,
+            campaign,
+            planned_nodes,
+            planned=planned,
+        )
 
     collisions = _collisions(campaign_id, planned_nodes, provenance)
     if collisions:
@@ -224,18 +268,6 @@ def _deterministic_provenance(
     campaign: dict[str, Any],
     planned_nodes: list[PlannedNode],
 ) -> dict[str, Any]:
-    input_hashes: dict[str, str] = {
-        "campaign": _file_sha256(campaign_path),
-    }
-    primary_spec = campaign.get("primary_spec")
-    if isinstance(primary_spec, dict) and isinstance(primary_spec.get("path"), str):
-        primary_path = Path(primary_spec["path"])
-        if primary_path.exists():
-            input_hashes["primary_spec"] = _file_sha256(primary_path)
-    for node in planned_nodes:
-        input_hashes[node.goal_path.as_posix()] = _file_sha256(node.goal_path)
-        input_hashes[node.evidence_path.as_posix()] = _file_sha256(node.evidence_path)
-
     planned_digest = _json_sha256(_planned_payload(planned_nodes))
     return {
         "kind": REFINE_MODE,
@@ -245,7 +277,7 @@ def _deterministic_provenance(
         "network_calls": False,
         "prompt_hash": None,
         "prompt_template": None,
-        "input_artifact_hashes": input_hashes,
+        "input_artifact_hashes": _input_artifact_hashes(campaign_path, campaign, planned_nodes),
         "output_hash": planned_digest,
         "dp_version": "unknown",
         "linter_version": "0.1",
@@ -253,39 +285,461 @@ def _deterministic_provenance(
     }
 
 
-def _llm_not_implemented(campaign_path: Path) -> CampaignRefineResult:
-    input_hashes: dict[str, str] = {}
-    if campaign_path.exists():
-        input_hashes["campaign"] = _file_sha256(campaign_path)
+def _emit_llm_request(
+    campaign_path: Path,
+    campaign: dict[str, Any],
+    planned_nodes: list[PlannedNode],
+    *,
+    planned: dict[str, Any],
+) -> CampaignRefineResult:
+    campaign_id = str(campaign["id"])
+    request = _llm_request(campaign, planned_nodes)
+    input_hashes = _input_artifact_hashes(campaign_path, campaign, planned_nodes)
+    provenance = {
+        "kind": LLM_REQUEST_MODE,
+        "provider": "calling_agent",
+        "provider_source": "calling_agent",
+        "model": "calling_agent_model",
+        "network_calls": False,
+        "prompt_hash": request["prompt_hash"],
+        "prompt_template": LLM_PROMPT_TEMPLATE,
+        "input_artifact_hashes": input_hashes,
+        "output_hash": _json_sha256(request),
+        "dp_version": "unknown",
+        "linter_version": "0.1",
+        "reviewed": False,
+    }
+    return CampaignRefineResult(
+        payload={
+            "ok": True,
+            "command": "campaign.refine",
+            "campaign_id": campaign_id,
+            "mode": LLM_REQUEST_MODE,
+            "written": False,
+            "provenance": provenance,
+            "planned": planned,
+            "beads": _empty_beads_result(requested=False),
+            "request": request,
+            "message": "LLM refinement request emitted for the calling agent provider.",
+        },
+        exit_code=0,
+    )
+
+
+def _import_llm_response(
+    campaign_path: Path,
+    campaign: dict[str, Any],
+    planned_nodes: list[PlannedNode],
+    *,
+    planned: dict[str, Any],
+    deterministic_provenance: dict[str, Any],
+    response_path: Path,
+) -> CampaignRefineResult:
+    campaign_id = str(campaign["id"])
+    response_result = _read_llm_response(response_path)
+    if response_result.exit_code != 0:
+        return response_result
+    response = response_result.payload["response"]
+    request = _llm_request(campaign, planned_nodes)
+    errors = _validate_llm_response(response, request, campaign_id, planned_nodes)
+    if errors:
+        return CampaignRefineResult(
+            payload={
+                "ok": False,
+                "command": "campaign.refine",
+                "campaign_id": campaign_id,
+                "mode": LLM_IMPORT_MODE,
+                "response_path": response_path.as_posix(),
+                "errors": errors,
+            },
+            exit_code=1,
+        )
+
+    collisions = _collisions(campaign_id, planned_nodes, deterministic_provenance)
+    if collisions:
+        return _usage_error(
+            "artifact_exists",
+            collisions[0],
+            f"Refusing to overwrite existing non-identical artifact: {collisions[0]}.",
+        )
+
+    provenance = _llm_import_provenance(
+        campaign_path,
+        campaign,
+        planned_nodes,
+        response_path=response_path,
+        response=response,
+        prompt_hash=str(request["prompt_hash"]),
+    )
+    response_nodes = _response_nodes_by_goal(response)
+    for node in planned_nodes:
+        _write_if_needed(
+            node.spec_path,
+            _render_spec_stub(campaign_id, node, deterministic_provenance),
+        )
+        if node.adr_path is not None:
+            _write_if_needed(node.adr_path, _render_adr_stub(node))
+        _write_goal_refinement(node, deterministic_provenance)
+        _write_evidence_refinement(node, deterministic_provenance)
+        if node.goal_id in response_nodes:
+            _write_goal_llm_refinement(node, response_nodes[node.goal_id], provenance)
+            _write_evidence_llm_refinement(node, response_nodes[node.goal_id], provenance)
+    _write_campaign_refinement(
+        campaign_path,
+        campaign,
+        planned_nodes,
+        provenance=deterministic_provenance,
+        beads_result=_empty_beads_result(requested=False),
+    )
+    _write_campaign_llm_refinement(
+        campaign_path,
+        response,
+        provenance=provenance,
+        response_path=response_path,
+    )
+
+    return CampaignRefineResult(
+        payload={
+            "ok": True,
+            "command": "campaign.refine",
+            "campaign_id": campaign_id,
+            "mode": LLM_IMPORT_MODE,
+            "written": True,
+            "provenance": provenance,
+            "planned": planned,
+            "beads": _empty_beads_result(requested=False),
+            "llm": {
+                "response_path": response_path.as_posix(),
+                "imported_nodes": sorted(response_nodes),
+            },
+            "message": "LLM refinement response imported as draft authoring metadata.",
+        },
+        exit_code=0,
+    )
+
+
+def _llm_request(campaign: dict[str, Any], planned_nodes: list[PlannedNode]) -> dict[str, Any]:
+    campaign_id = str(campaign["id"])
+    nodes = [_llm_request_node(node) for node in planned_nodes]
+    prompt_inputs = {
+        "campaign_id": campaign_id,
+        "primary_spec": campaign.get("primary_spec", {}),
+        "nodes": nodes,
+    }
+    prompt = _render_llm_prompt(prompt_inputs)
+    prompt_hash = _text_sha256(prompt)
+    return {
+        "schema_version": LLM_RESPONSE_SCHEMA_VERSION,
+        "campaign_id": campaign_id,
+        "provider": "calling_agent",
+        "provider_source": "calling_agent",
+        "network_calls_by": "calling_agent",
+        "prompt_template": LLM_PROMPT_TEMPLATE,
+        "prompt_hash": prompt_hash,
+        "response_schema": LLM_RESPONSE_SCHEMA_PATH,
+        "prompt": prompt,
+        "response_contract": {
+            "schema_version": LLM_RESPONSE_SCHEMA_VERSION,
+            "required_fields": [
+                "schema_version",
+                "campaign_id",
+                "prompt_hash",
+                "provider",
+                "provider_source",
+                "model",
+                "created_at",
+                "nodes",
+            ],
+            "node_fields": [
+                "goal_id",
+                "objective",
+                "rationale",
+                "non_goals",
+                "requirements",
+                "evidence",
+                "decisions",
+                "dependencies",
+                "read_first",
+                "allowed_paths",
+            ],
+        },
+        "nodes": nodes,
+    }
+
+
+def _llm_request_node(node: PlannedNode) -> dict[str, Any]:
+    return {
+        "goal_id": node.goal_id,
+        "goal_path": node.goal_path.as_posix(),
+        "evidence_path": node.evidence_path.as_posix(),
+        "spec_path": node.spec_path.as_posix(),
+        "adr_path": node.adr_path.as_posix() if node.adr_path is not None else None,
+        "section_id": node.section_id,
+        "title": node.title,
+        "classification": node.classification,
+        "refinement_state": node.refinement_state,
+        "routes": node.routes,
+        "signals": node.signals,
+    }
+
+
+def _render_llm_prompt(prompt_inputs: dict[str, Any]) -> str:
+    return (
+        "You are refining a dp-codex campaign scaffold for a disciplined agent workflow.\n"
+        "Return JSON only, matching the supplied response contract. Do not include Markdown.\n"
+        "Draft semantic authoring metadata only: objectives, rationale, requirements, non-goals, "
+        "evidence cues, decisions, dependencies, read-first paths, and allowed paths.\n"
+        "Do not claim readiness, completion, verification, or evidence success. Do not propose raw "
+        "shell commands. Evidence commands must be argv arrays for registered commands.\n"
+        "Campaign inputs:\n"
+        f"{json.dumps(prompt_inputs, indent=2, sort_keys=True)}\n"
+    )
+
+
+def _read_llm_response(path: Path) -> CampaignRefineResult:
+    try:
+        raw = path.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        return _llm_response_input_error(
+            "missing_llm_response",
+            "$.llm_response",
+            f"LLM response file not found: {path.as_posix()}",
+        )
+    try:
+        payload = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        return _llm_response_input_error(
+            "malformed_llm_response",
+            "$.llm_response",
+            f"LLM response is not valid JSON: line {exc.lineno} column {exc.colno}.",
+        )
+    if not isinstance(payload, dict):
+        return _llm_response_input_error(
+            "llm_response_object_required",
+            "$.llm_response",
+            "LLM response must be a JSON object.",
+        )
+    return CampaignRefineResult(payload={"response": payload}, exit_code=0)
+
+
+def _llm_response_input_error(code: str, path: str, message: str) -> CampaignRefineResult:
     return CampaignRefineResult(
         payload={
             "ok": False,
             "command": "campaign.refine",
-            "error": {
-                "code": "llm_refine_not_implemented",
-                "path": "$.llm",
-                "message": (
-                    "LLM-assisted campaign refinement is an explicit authoring mode, "
-                    "but no calling-agent provider adapter is implemented yet."
-                ),
-            },
-            "provenance": {
-                "kind": "llm",
-                "provider": "calling_agent",
-                "provider_source": "calling_agent",
-                "model": "unknown",
-                "network_calls": True,
-                "prompt_hash": None,
-                "prompt_template": LLM_PROMPT_TEMPLATE,
-                "input_artifact_hashes": input_hashes,
-                "output_hash": None,
-                "dp_version": "unknown",
-                "linter_version": "0.1",
-                "reviewed": False,
-            },
+            "error": {"code": code, "path": path, "message": message},
         },
         exit_code=2,
     )
+
+
+def _validate_llm_response(
+    response: dict[str, Any],
+    request: dict[str, Any],
+    campaign_id: str,
+    planned_nodes: list[PlannedNode],
+) -> list[dict[str, str]]:
+    errors: list[dict[str, str]] = []
+    if response.get("schema_version") != LLM_RESPONSE_SCHEMA_VERSION:
+        errors.append(
+            _finding(
+                "unsupported_llm_response_schema",
+                "$.schema_version",
+                f"LLM response schema_version must be {LLM_RESPONSE_SCHEMA_VERSION}.",
+            )
+        )
+    if response.get("campaign_id") != campaign_id:
+        errors.append(
+            _finding(
+                "campaign_id_mismatch",
+                "$.campaign_id",
+                "LLM response campaign_id must match the CampaignManifest.",
+            )
+        )
+    if response.get("prompt_hash") != request["prompt_hash"]:
+        errors.append(
+            _finding(
+                "prompt_hash_mismatch",
+                "$.prompt_hash",
+                "LLM response prompt_hash must match the current campaign refinement request.",
+            )
+        )
+    for key in ("provider", "model", "created_at"):
+        if not isinstance(response.get(key), str) or not response[key]:
+            errors.append(
+                _finding(
+                    f"missing_{key}",
+                    f"$.{key}",
+                    f"LLM response must define {key}.",
+                )
+            )
+    provider_source = response.get("provider_source")
+    if provider_source not in LLM_PROVIDER_SOURCES:
+        errors.append(
+            _finding(
+                "invalid_provider_source",
+                "$.provider_source",
+                "provider_source must be calling_agent, environment, or explicit_config.",
+            )
+        )
+
+    known_goals = {node.goal_id for node in planned_nodes}
+    seen_goals: set[str] = set()
+    nodes = response.get("nodes")
+    if not isinstance(nodes, list) or not nodes:
+        errors.append(_finding("missing_nodes", "$.nodes", "LLM response must include nodes."))
+        return errors
+    for index, node in enumerate(nodes):
+        path = f"$.nodes[{index}]"
+        if not isinstance(node, dict):
+            errors.append(_finding("node_object_required", path, "Each node must be an object."))
+            continue
+        goal_id = node.get("goal_id")
+        if not isinstance(goal_id, str) or not goal_id:
+            errors.append(
+                _finding("missing_goal_id", f"{path}.goal_id", "Node must define goal_id.")
+            )
+        elif goal_id not in known_goals:
+            errors.append(
+                _finding(
+                    "unknown_goal_id",
+                    f"{path}.goal_id",
+                    f"LLM response references unknown goal_id: {goal_id}.",
+                )
+            )
+        elif goal_id in seen_goals:
+            errors.append(
+                _finding(
+                    "duplicate_goal_id",
+                    f"{path}.goal_id",
+                    f"LLM response repeats goal_id: {goal_id}.",
+                )
+            )
+        else:
+            seen_goals.add(goal_id)
+        _validate_string_list(node, "non_goals", f"{path}.non_goals", errors)
+        _validate_string_list(node, "requirements", f"{path}.requirements", errors)
+        _validate_string_list(node, "decisions", f"{path}.decisions", errors)
+        _validate_string_list(node, "dependencies", f"{path}.dependencies", errors)
+        _validate_path_list(node, "read_first", f"{path}.read_first", errors)
+        _validate_path_list(node, "allowed_paths", f"{path}.allowed_paths", errors)
+        _validate_llm_evidence(node.get("evidence"), f"{path}.evidence", errors)
+    return errors
+
+
+def _validate_string_list(
+    payload: dict[str, Any],
+    key: str,
+    path: str,
+    errors: list[dict[str, str]],
+) -> None:
+    value = payload.get(key, [])
+    if value is None:
+        return
+    if not isinstance(value, list) or any(not isinstance(item, str) for item in value):
+        errors.append(_finding("string_list_required", path, f"{key} must be a list of strings."))
+
+
+def _validate_path_list(
+    payload: dict[str, Any],
+    key: str,
+    path: str,
+    errors: list[dict[str, str]],
+) -> None:
+    value = payload.get(key, [])
+    if value is None:
+        return
+    if not isinstance(value, list):
+        errors.append(_finding("path_list_required", path, f"{key} must be a list of paths."))
+        return
+    for index, item in enumerate(value):
+        if not isinstance(item, str) or not _is_sane_relative_path(item):
+            errors.append(
+                _finding(
+                    "invalid_path",
+                    f"{path}[{index}]",
+                    f"{key} entries must be sane relative paths.",
+                )
+            )
+
+
+def _validate_llm_evidence(
+    evidence: Any,
+    path: str,
+    errors: list[dict[str, str]],
+) -> None:
+    if evidence is None:
+        return
+    if not isinstance(evidence, list):
+        errors.append(_finding("evidence_list_required", path, "evidence must be a list."))
+        return
+    for index, item in enumerate(evidence):
+        item_path = f"{path}[{index}]"
+        if not isinstance(item, dict):
+            errors.append(
+                _finding(
+                    "evidence_object_required",
+                    item_path,
+                    "Evidence item must be an object.",
+                )
+            )
+            continue
+        if item.get("kind") != "registered_command":
+            errors.append(
+                _finding(
+                    "unsupported_evidence_kind",
+                    f"{item_path}.kind",
+                    "Model-proposed evidence must use kind=registered_command.",
+                )
+            )
+        argv = item.get("argv")
+        if (
+            not isinstance(argv, list)
+            or not argv
+            or any(not isinstance(part, str) or not part for part in argv)
+        ):
+            errors.append(
+                _finding(
+                    "invalid_evidence_argv",
+                    f"{item_path}.argv",
+                    "Model-proposed evidence argv must be a non-empty string array.",
+                )
+            )
+            continue
+        if _argv_contains_raw_shell(argv):
+            errors.append(
+                _finding(
+                    "raw_shell_evidence",
+                    f"{item_path}.argv",
+                    "Model-proposed evidence must not contain raw shell commands.",
+                )
+            )
+
+
+def _llm_import_provenance(
+    campaign_path: Path,
+    campaign: dict[str, Any],
+    planned_nodes: list[PlannedNode],
+    *,
+    response_path: Path,
+    response: dict[str, Any],
+    prompt_hash: str,
+) -> dict[str, Any]:
+    return {
+        "kind": "llm",
+        "provider": response["provider"],
+        "provider_source": response["provider_source"],
+        "model": response["model"],
+        "network_calls": True,
+        "prompt_hash": prompt_hash,
+        "prompt_template": LLM_PROMPT_TEMPLATE,
+        "input_artifact_hashes": _input_artifact_hashes(campaign_path, campaign, planned_nodes),
+        "output_hash": _file_sha256(response_path),
+        "dp_version": "unknown",
+        "linter_version": "0.1",
+        "created_at": response["created_at"],
+        "reviewed": False,
+    }
 
 
 def _empty_beads_result(*, requested: bool) -> dict[str, Any]:
@@ -473,6 +927,93 @@ def _write_evidence_refinement(node: PlannedNode, provenance: dict[str, Any]) ->
     _write_json(node.evidence_path, evidence_plan)
 
 
+def _write_goal_llm_refinement(
+    node: PlannedNode,
+    response_node: dict[str, Any],
+    provenance: dict[str, Any],
+) -> None:
+    goal = _read_json_object(node.goal_path)
+    refinement = goal.setdefault("refinement", {})
+    if not isinstance(refinement, dict):
+        refinement = {}
+        goal["refinement"] = refinement
+    refinement["llm"] = _llm_node_metadata(response_node, provenance)
+    _write_json(node.goal_path, goal)
+
+
+def _write_evidence_llm_refinement(
+    node: PlannedNode,
+    response_node: dict[str, Any],
+    provenance: dict[str, Any],
+) -> None:
+    evidence_plan = _read_json_object(node.evidence_path)
+    refinement = evidence_plan.setdefault("refinement", {})
+    if not isinstance(refinement, dict):
+        refinement = {}
+        evidence_plan["refinement"] = refinement
+    refinement["llm"] = {
+        "goal_id": node.goal_id,
+        "evidence": _llm_evidence(response_node),
+        "provenance": provenance,
+    }
+    _write_json(node.evidence_path, evidence_plan)
+
+
+def _write_campaign_llm_refinement(
+    campaign_path: Path,
+    response: dict[str, Any],
+    *,
+    provenance: dict[str, Any],
+    response_path: Path,
+) -> None:
+    campaign = _read_json_object(campaign_path)
+    state = campaign.setdefault("state", {})
+    if isinstance(state, dict):
+        state["status"] = "draft"
+    refinement = campaign.setdefault("refinement", {})
+    if not isinstance(refinement, dict):
+        refinement = {}
+        campaign["refinement"] = refinement
+    refinement["llm"] = {
+        "mode": LLM_IMPORT_MODE,
+        "response_path": response_path.as_posix(),
+        "campaign_rationale": response.get("campaign_rationale"),
+        "nodes": [
+            {
+                "goal_id": node.get("goal_id"),
+                "objective": node.get("objective"),
+                "rationale": node.get("rationale"),
+            }
+            for node in response.get("nodes", [])
+            if isinstance(node, dict)
+        ],
+        "provenance": provenance,
+    }
+    _write_json(campaign_path, campaign)
+
+
+def _llm_node_metadata(response_node: dict[str, Any], provenance: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "objective": response_node.get("objective"),
+        "rationale": response_node.get("rationale"),
+        "non_goals": _string_list(response_node.get("non_goals")),
+        "requirements": _string_list(response_node.get("requirements")),
+        "evidence": _llm_evidence(response_node),
+        "decisions": _string_list(response_node.get("decisions")),
+        "dependencies": _string_list(response_node.get("dependencies")),
+        "read_first": _string_list(response_node.get("read_first")),
+        "allowed_paths": _string_list(response_node.get("allowed_paths")),
+        "provenance": provenance,
+    }
+
+
+def _llm_evidence(response_node: dict[str, Any]) -> list[dict[str, Any]]:
+    evidence = response_node.get("evidence")
+    if not isinstance(evidence, list):
+        return []
+    return [item for item in evidence if isinstance(item, dict)]
+
+
 def _goal_evidence_path(goal: dict[str, Any]) -> Path:
     evidence = goal.get("evidence")
     if not isinstance(evidence, dict) or not isinstance(evidence.get("evidence_plan"), str):
@@ -598,6 +1139,58 @@ def _string_list(value: Any) -> list[str]:
     return [item for item in value if isinstance(item, str) and item]
 
 
+def _response_nodes_by_goal(response: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    nodes = response.get("nodes")
+    if not isinstance(nodes, list):
+        return {}
+    return {
+        str(node["goal_id"]): node
+        for node in nodes
+        if isinstance(node, dict) and isinstance(node.get("goal_id"), str)
+    }
+
+
+def _input_artifact_hashes(
+    campaign_path: Path,
+    campaign: dict[str, Any],
+    planned_nodes: list[PlannedNode],
+) -> dict[str, str]:
+    input_hashes: dict[str, str] = {
+        "campaign": _file_sha256(campaign_path),
+    }
+    primary_spec = campaign.get("primary_spec")
+    if isinstance(primary_spec, dict) and isinstance(primary_spec.get("path"), str):
+        primary_path = Path(primary_spec["path"])
+        if primary_path.exists():
+            input_hashes["primary_spec"] = _file_sha256(primary_path)
+    for node in planned_nodes:
+        input_hashes[node.goal_path.as_posix()] = _file_sha256(node.goal_path)
+        input_hashes[node.evidence_path.as_posix()] = _file_sha256(node.evidence_path)
+    return input_hashes
+
+
+def _argv_contains_raw_shell(argv: list[str]) -> bool:
+    executable = Path(argv[0]).name.lower()
+    if executable in SHELL_EXECUTABLES:
+        return True
+    return any(any(pattern in part for pattern in SHELL_CONTROL_PATTERNS) for part in argv)
+
+
+def _is_sane_relative_path(value: str) -> bool:
+    if not value or value.startswith(("/", "~", "http://", "https://")):
+        return False
+    parts = Path(value).parts
+    return ".." not in parts
+
+
+def _finding(code: str, path: str, message: str) -> dict[str, str]:
+    return {
+        "code": code,
+        "path": path,
+        "message": message,
+    }
+
+
 def _next_adr_index(directory: Path) -> int:
     max_index = 0
     if directory.exists():
@@ -623,7 +1216,11 @@ def _file_sha256(path: Path) -> str:
     return f"sha256:{digest.hexdigest()}"
 
 
-def _json_sha256(payload: dict[str, Any]) -> str:
+def _text_sha256(value: str) -> str:
+    return f"sha256:{sha256(value.encode('utf-8')).hexdigest()}"
+
+
+def _json_sha256(payload: Any) -> str:
     encoded = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
     return f"sha256:{sha256(encoded).hexdigest()}"
 

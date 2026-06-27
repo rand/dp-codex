@@ -71,9 +71,12 @@ refinement metadata, and records artifact paths in the CampaignManifest while pr
 status. `--create-beads` requires `--write` and explicitly materializes Beads epic/issues through
 the Beads provider.
 
-Future `dp campaign refine --llm` is allowed to use the provider currently in use by the calling
-agent and may make network/model calls, but it is authoring-only. It must record provenance and feed
-outputs back through deterministic lint; it must not run in hooks/CI or make verification
+`dp campaign refine --llm --json` emits a deterministic request package for the provider currently
+in use by the calling agent. dp does not make the network/model call in this path. The calling agent
+writes a response artifact, and `dp campaign refine --llm-response <path> --write --json` imports
+that artifact only after deterministic validation of campaign id, prompt hash, provider provenance,
+known goal ids, path sanity, and argv-only evidence proposals without raw shell syntax. Imported
+model content remains draft authoring metadata; it must not run in hooks/CI or make verification
 judgments.
 
 ## Loop Runtime

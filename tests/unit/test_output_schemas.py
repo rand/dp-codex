@@ -192,3 +192,74 @@ def test_campaign_refine_json_output_matches_schema(
     assert exit_code == 0
     payload = json.loads(capsys.readouterr().out)
     validate(instance=payload, schema=schema)
+
+
+def test_campaign_refine_llm_request_and_response_match_schemas(
+    tmp_path: Path,
+    capsys,
+    monkeypatch,
+) -> None:
+    output_schema = json.loads(
+        Path("docs/schemas/campaign-refine-output.schema.json").read_text(encoding="utf-8")
+    )
+    response_schema = json.loads(
+        Path("docs/schemas/campaign-refine-llm-response.schema.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    primary_spec = tmp_path / "docs/primary/product.md"
+    primary_spec.parent.mkdir(parents=True)
+    primary_spec.write_text(
+        "# Product\n\n## Requirements\n\nThe CLI must refine campaign artifacts.\n\n"
+        "## Evidence\n\nRun campaign lint.\n",
+        encoding="utf-8",
+    )
+    monkeypatch.chdir(tmp_path)
+    assert (
+        cli_main.main(
+            [
+                "campaign",
+                "init",
+                "--primary-spec",
+                "docs/primary/product.md",
+                "--write",
+                "--json",
+            ]
+        )
+        == 0
+    )
+    init_payload = json.loads(capsys.readouterr().out)
+
+    assert (
+        cli_main.main(
+            ["campaign", "refine", init_payload["artifacts"]["campaign"], "--llm", "--json"]
+        )
+        == 0
+    )
+    request_payload = json.loads(capsys.readouterr().out)
+    validate(instance=request_payload, schema=output_schema)
+
+    campaign = json.loads(Path(init_payload["artifacts"]["campaign"]).read_text(encoding="utf-8"))
+    goal_path = Path(campaign["artifacts"]["goals"][0])
+    goal = json.loads(goal_path.read_text(encoding="utf-8"))
+    response = {
+        "schema_version": "0.1",
+        "campaign_id": request_payload["campaign_id"],
+        "prompt_hash": request_payload["request"]["prompt_hash"],
+        "provider": "openai",
+        "provider_source": "calling_agent",
+        "model": "gpt-test",
+        "created_at": "2026-06-27T00:00:00Z",
+        "nodes": [
+            {
+                "goal_id": goal["id"],
+                "evidence": [
+                    {
+                        "kind": "registered_command",
+                        "argv": ["dp", "goal", "lint", goal_path.as_posix(), "--json"],
+                    }
+                ],
+            }
+        ],
+    }
+    validate(instance=response, schema=response_schema)

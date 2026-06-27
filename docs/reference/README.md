@@ -26,5 +26,6 @@ Reference docs are lookup-oriented and terse by design.
 8. `/docs/schemas/campaign-lint-output.schema.json`
 9. `/docs/schemas/campaign-init-output.schema.json`
 10. `/docs/schemas/campaign-refine-output.schema.json`
+11. `/docs/schemas/campaign-refine-llm-response.schema.json`
 
 When you need a concept, use `/docs/concepts/`. When you need a sequence, use `/docs/guides/` or `/docs/runbooks/`.

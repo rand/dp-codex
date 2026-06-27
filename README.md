@@ -140,8 +140,10 @@ session can inspect repo artifacts and recover visible campaign state without ch
 scaffold from a local primary spec, including deterministic semantic-signal extraction for
 requirements, evidence, decisions, blockers, and dependency cues. `dp campaign refine ... --write`
 can deterministically materialize child spec/ADR stubs, GoalContract and EvidencePlan refinement
-metadata, and optionally Beads epics/issues with `--create-beads`. LLM-assisted refinement and
-supervised campaign running remain tracked follow-up work, not current features.
+metadata, and optionally Beads epics/issues with `--create-beads`. `dp campaign refine --llm`
+now emits an agent-mediated request package for the calling agent's model, and
+`--llm-response <response.json> --write` imports validated model output as draft refinement
+metadata. Supervised campaign running remains tracked follow-up work, not a current feature.
 
 ## Developer Commands
 
@@ -168,4 +170,5 @@ tmpdir="$(mktemp -d)"
 cp tests/fixtures/primary_specs/scaffold_full.md "$tmpdir/primary.md"
 (cd "$tmpdir" && dp campaign init --primary-spec primary.md --write --json)
 (cd "$tmpdir" && dp campaign refine docs/campaigns/CAMPAIGN-primary.json --json)
+(cd "$tmpdir" && dp campaign refine docs/campaigns/CAMPAIGN-primary.json --llm --json)
 ```

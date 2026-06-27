@@ -26,6 +26,8 @@ Generated artifacts must pass deterministic lint before they can be treated as r
 
 - The first GoalContract and EvidencePlan slices implement deterministic lint before any synthesis
   or execution command exists.
-- LLM-assisted campaign refinement remains a later authoring feature.
+- LLM-assisted campaign refinement is agent-mediated authoring: dp emits a request, the calling
+  agent performs any model call, and dp imports the response artifact only through deterministic
+  validation.
 - Validators must return structured errors that can feed a future authoring loop without making
   the model the judge.
