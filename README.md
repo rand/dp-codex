@@ -31,11 +31,12 @@ bd ready --claim --json
 make check
 ```
 
-Validate the current GoalContract fixture and inspect the emitted Codex handoff:
+In an adopting repository, a goal contract is a project artifact. Validate it and emit a Codex
+handoff from that repo's own goal file:
 
 ```bash
-dp goal lint tests/fixtures/goals/valid_spec_70_01.json --json
-dp goal emit tests/fixtures/goals/valid_spec_70_01.json --format codex --json
+dp goal lint docs/goals/GOAL-my-feature.json --json
+dp goal emit docs/goals/GOAL-my-feature.json --format codex --json
 ```
 
 Run an empirical end-to-end pilot in an isolated temporary repository:
@@ -111,4 +112,11 @@ make lint
 make typecheck
 make format
 make check
+```
+
+dp-codex contributors can smoke-test the checked-in GoalContract fixture:
+
+```bash
+dp goal lint tests/fixtures/goals/valid_spec_70_01.json --json
+dp goal emit tests/fixtures/goals/valid_spec_70_01.json --format codex --json
 ```
