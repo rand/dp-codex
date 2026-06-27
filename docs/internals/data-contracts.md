@@ -25,7 +25,7 @@ DP-Codex treats machine-readable output as a product surface, not a side effect.
 4. `dp task ... --json`
 5. `dp enforce ... --json`
 6. `dp goal lint ... --json`
-7. `dp goal status/claim/start/heartbeat/block/release/complete/emit ... --json`
+7. `dp goal status/claim/start/heartbeat/block/release/complete/verify/emit ... --json`
 8. `dp agent prompt ... --json`
 9. `dp evidence lint/run ... --json`
 10. `dp loop lint/status/next ... --json`

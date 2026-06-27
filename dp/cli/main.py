@@ -204,6 +204,7 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     goal_block_parser.add_argument("goal")
     goal_block_parser.add_argument("--reason", required=True)
+    goal_block_parser.add_argument("--write-artifact", action="store_true")
     goal_block_parser.add_argument("--json", action="store_true")
     goal_block_parser.set_defaults(handler=_run_goal_block)
 
@@ -715,7 +716,7 @@ def _run_goal_heartbeat(args: argparse.Namespace) -> int:
 
 def _run_goal_block(args: argparse.Namespace) -> int:
     return _emit_goal_command_result(
-        block_goal(Path(args.goal), reason=args.reason),
+        block_goal(Path(args.goal), reason=args.reason, write_artifact=args.write_artifact),
         args.json,
     )
 

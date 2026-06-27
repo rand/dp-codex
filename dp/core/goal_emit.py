@@ -53,7 +53,10 @@ def emit_goal_prompt(goal_path: Path, *, output_format: str) -> GoalEmitResult:
         "heartbeat": f"dp goal heartbeat {goal_path.as_posix()} --json",
         "complete": f"dp goal complete {goal_path.as_posix()} --evidence <run.json> --json",
         "verify": f"dp goal verify {goal_path.as_posix()} --evidence <run.json> --json",
-        "block": f"dp goal block {goal_path.as_posix()} --reason <reason> --json",
+        "block": (
+            f"dp goal block {goal_path.as_posix()} --reason <reason> "
+            "--write-artifact --json"
+        ),
         "release": f"dp goal release {goal_path.as_posix()} --reason <reason> --json",
     }
 

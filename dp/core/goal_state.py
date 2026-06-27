@@ -7,6 +7,7 @@ from hashlib import sha256
 from pathlib import Path
 from typing import Any
 
+from dp.core.blocker_routing import route_blocker_artifact
 from dp.core.events import append_jsonl_event, read_jsonl_events
 from dp.core.evidence_lint import lint_evidence_file
 from dp.core.goal_lint import GoalLintReport, lint_goal_file
@@ -249,6 +250,7 @@ def block_goal(
     goal_path: Path,
     *,
     reason: str,
+    write_artifact: bool = False,
     event_log: Path = DEFAULT_GOAL_EVENT_LOG,
 ) -> GoalCommandResult:
     lint_result = lint_goal_file(goal_path)
@@ -265,8 +267,19 @@ def block_goal(
 
     now = _utc_now()
     goal_id = _require_goal_id(lint_result.report)
+    routing_result = None
+    if write_artifact:
+        contract = _read_json_object(goal_path)
+        routing_result = route_blocker_artifact(
+            goal_path=goal_path,
+            goal_contract=contract,
+            reason=reason,
+        )
+
     event = _base_event("blocked", goal_id=goal_id, goal_path=goal_path, timestamp=now)
     event["reason"] = reason
+    if routing_result is not None:
+        event["routing"] = routing_result.routing
     append_result = append_jsonl_event(event_log, event)
     state = reconstruct_goal_state(
         goal_id=goal_id,
@@ -274,14 +287,20 @@ def block_goal(
         event_log=event_log,
         now=now,
     )
+    ok = routing_result is None or routing_result.error is None
+    payload = {
+        "ok": ok,
+        "command": "goal.block",
+        "event_log": append_result.path,
+        **state.to_dict(),
+    }
+    if routing_result is not None:
+        payload["routing"] = routing_result.routing
+        if routing_result.error is not None:
+            payload["error"] = routing_result.error
     return GoalCommandResult(
-        payload={
-            "ok": True,
-            "command": "goal.block",
-            "event_log": append_result.path,
-            **state.to_dict(),
-        },
-        exit_code=0,
+        payload=payload,
+        exit_code=0 if routing_result is None else routing_result.exit_code,
     )
 
 
@@ -510,6 +529,8 @@ def reconstruct_goal_state(
                 "reason": event.get("reason"),
                 "timestamp": event.get("timestamp"),
             }
+            if "routing" in event:
+                blocked["routing"] = event.get("routing")
         elif event_type == "released":
             state = "released"
             lease = None

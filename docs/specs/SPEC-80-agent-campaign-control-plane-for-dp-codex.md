@@ -17,7 +17,9 @@ agent-mediated: dp emits a request package for the calling agent provider and im
 response artifact only after deterministic validation. The first supervised runner slice is also
 implemented: `dp campaign run --driver codex --supervised` validates campaign state, resolves the
 current loop, claims one ready goal, emits the Codex handoff package, and stops without launching
-Codex, executing evidence, or marking work verified.
+Codex, executing evidence, or marking work verified. `dp goal block --write-artifact` now routes
+supported GoalContract blockers into deterministic spec, ADR, or EvidencePlan artifacts and records
+artifact/Beads metadata in the append-only blocked event.
 
 ## 1. Thesis
 
@@ -956,7 +958,7 @@ dp goal start <goal.json> --agent codex --json
 dp goal heartbeat <goal.json> --json
 dp goal complete <goal.json> --evidence <path> --json
 dp goal verify <goal.json> --evidence <path> --json
-dp goal block <goal.json> --reason needs_decision --json
+dp goal block <goal.json> --reason needs_decision --write-artifact --json
 dp goal release <goal.json> --reason <reason> --json
 ```
 
@@ -1185,7 +1187,7 @@ dp goal lint tests/fixtures/goals/valid_spec_70_01.json --json
 dp goal claim tests/fixtures/goals/valid_spec_70_01.json --agent codex --json
 dp goal start tests/fixtures/goals/valid_spec_70_01.json --agent codex --json
 dp goal emit tests/fixtures/goals/valid_spec_70_01.json --format codex --json
-dp goal block tests/fixtures/goals/valid_spec_70_01.json --reason needs_decision --json
+dp goal block tests/fixtures/goals/valid_spec_70_01.json --reason needs_decision --write-artifact --json
 pytest
 make check
 ```

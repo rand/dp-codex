@@ -19,7 +19,8 @@ The first state store is append-only JSONL under `.dp/goals/events.jsonl`.
 3. `dp goal start <goal.json> --agent <name> --json` MUST validate the goal and append a start
    event.
 4. `dp goal heartbeat <goal.json> --json` MUST append only when a non-stale claim exists.
-5. `dp goal block <goal.json> --reason <known-reason> --json` MUST append a structured blocker.
+5. `dp goal block <goal.json> --reason <known-reason> [--write-artifact] --json` MUST append a
+   structured blocker.
 6. `dp goal release <goal.json> --reason <text> --json` MUST append a release event.
 7. `dp goal complete <goal.json> --evidence <path> --json` MAY record `evidence_pending`, but
    MUST NOT claim behavioral verification until evidence validation exists.

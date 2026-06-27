@@ -10,22 +10,24 @@ GoalContract through dp without relying on chat memory.
 3. `dp goal claim/start/heartbeat/block/release`: append-only lifecycle events.
 4. `dp goal complete`: records an evidence path as `evidence_pending`; it does not verify success.
 5. `dp goal verify`: verifies a matching successful evidence run and records `verified`.
-6. `dp goal emit` and `dp agent prompt`: Codex-operable prompt emission from a valid contract.
-7. `dp evidence lint`: deterministic EvidencePlan validation without command execution.
-8. `dp evidence run`: controlled execution of linted registered checks with typed assertions.
-9. `dp loop lint/status/next`: deterministic LoopLedger validation, state reconstruction, and
+6. `dp goal block --write-artifact`: resolves GoalContract blocker routes into spec, ADR, or
+   EvidencePlan stubs and optional Beads follow-ups.
+7. `dp goal emit` and `dp agent prompt`: Codex-operable prompt emission from a valid contract.
+8. `dp evidence lint`: deterministic EvidencePlan validation without command execution.
+9. `dp evidence run`: controlled execution of linted registered checks with typed assertions.
+10. `dp loop lint/status/next`: deterministic LoopLedger validation, state reconstruction, and
    next-goal packaging.
-10. `dp campaign lint/status/recover`: deterministic CampaignManifest validation and recovery from
+11. `dp campaign lint/status/recover`: deterministic CampaignManifest validation and recovery from
    repo artifacts plus append-only goal events.
-11. `dp campaign init --primary-spec <path> --write`: conservative draft scaffold generation plus
+12. `dp campaign init --primary-spec <path> --write`: conservative draft scaffold generation plus
    deterministic semantic-signal extraction from a local primary spec.
-12. `dp campaign refine <campaign.json> --write`: deterministic authoring refinement into child
+13. `dp campaign refine <campaign.json> --write`: deterministic authoring refinement into child
     spec/ADR stubs, GoalContract/EvidencePlan refinement metadata, and optional Beads
     epics/issues.
-13. `dp campaign refine <campaign.json> --llm`: agent-mediated LLM refinement request emission.
-14. `dp campaign refine <campaign.json> --llm-response <response.json> --write`: deterministic
+14. `dp campaign refine <campaign.json> --llm`: agent-mediated LLM refinement request emission.
+15. `dp campaign refine <campaign.json> --llm-response <response.json> --write`: deterministic
     import of model-authored draft refinement metadata.
-15. `dp campaign run <campaign.json> --driver codex --supervised`: one-step supervised handoff
+16. `dp campaign run <campaign.json> --driver codex --supervised`: one-step supervised handoff
     that validates campaign state, claims one ready goal, emits the Codex package, and stops.
 
 ## What Does Not Exist Yet
@@ -61,7 +63,7 @@ dp goal heartbeat docs/goals/GOAL-example.json --json
 If blocked:
 
 ```bash
-dp goal block docs/goals/GOAL-example.json --reason needs_decision --json
+dp goal block docs/goals/GOAL-example.json --reason needs_decision --write-artifact --json
 ```
 
 Known block reasons are:
@@ -71,6 +73,17 @@ Known block reasons are:
 3. `needs_validator`
 4. `unsafe_scope`
 5. `budget_exhausted`
+
+Use `--write-artifact` when a blocked route should create the next process artifact. Supported
+route actions are:
+
+1. `create_spec_stub`: writes `docs/specs/BLOCKER-<goal>-<reason>.md`.
+2. `create_adr_stub`: writes a proposal ADR under `docs/adr/`.
+3. `create_evidence_stub`: writes a lintable EvidencePlan JSON under `docs/evidence/`.
+
+If the GoalContract route has `also_create_beads_issue: true`, dp attempts a Beads follow-up with
+`bd create ... --json`. Beads failures are reported in JSON and recorded in the blocked event; they
+do not erase the blocked state or any written artifact.
 
 If the agent session resets or the work should be released:
 

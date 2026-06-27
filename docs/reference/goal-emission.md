@@ -19,5 +19,7 @@ The Codex format includes:
 6. Iteration policy.
 7. Blocked-stop condition.
 8. `dp goal start`, `heartbeat`, `complete`, `verify`, `block`, and `release` commands.
+9. The block command uses `--write-artifact` so a blocker can route into the next spec, ADR, or
+   EvidencePlan artifact when the GoalContract declares a supported route.
 
 Emission does not execute evidence, call an LLM, or decide completion.

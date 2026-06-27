@@ -18,7 +18,9 @@ Goal: deliver predictable outcomes while coordinating specs, tasks, and verifica
 2. Use `dp decompose` when work spans multiple chunks.
 3. Maintain trace links as implementation evolves.
 4. Use ADRs for consequential design choices.
-5. Use `dp goal block ... --reason <known-reason> --json` when a GoalContract cannot safely proceed.
+5. Use `dp goal block ... --reason <known-reason> --write-artifact --json` when a GoalContract
+   cannot safely proceed and the blocker should create a spec, ADR, EvidencePlan, or Beads
+   follow-up.
 
 ## Recommended Loop For Each Task
 

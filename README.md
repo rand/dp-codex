@@ -24,7 +24,7 @@ It provides:
 4. Deterministic review and goal-backward verification
 5. Policy-driven pre-commit and pre-push enforcement
 6. Decomposition and progress snapshots for fast context recovery
-7. Goal contracts, append-only goal state, and Codex-operable goal prompts
+7. Goal contracts, append-only goal state, artifact-producing blockers, and Codex-operable goal prompts
 8. Evidence-plan linting and controlled execution for registered, deterministic checks
 9. Loop ledgers that select the next ready goal from repo artifacts and goal events
 10. Campaign manifests that recover visible campaign state from repo artifacts without chat memory
@@ -64,6 +64,13 @@ dp campaign status docs/campaigns/CAMPAIGN-my-project.json --json
 dp campaign recover docs/campaigns/CAMPAIGN-my-project.json --json
 dp loop next docs/loops/LOOP-my-campaign.json --claim --emit codex --json
 dp campaign run docs/campaigns/CAMPAIGN-my-project.json --driver codex --supervised --json
+```
+
+If a claimed goal blocks, route the blocker into the next disciplined artifact instead of leaving it
+as chat state:
+
+```bash
+dp goal block docs/goals/GOAL-my-feature.json --reason needs_decision --write-artifact --json
 ```
 
 Run an empirical end-to-end pilot in an isolated temporary repository:
@@ -135,10 +142,11 @@ M0-M6 milestone scope has been implemented and empirically validated; v1 readine
 `docs/release/v1-readiness.md`.
 
 SPEC-80 campaign-control work has started. The implemented foundation is GoalContract linting,
-append-only goal lifecycle state, Codex prompt emission, deterministic EvidencePlan linting,
-controlled EvidencePlan execution, evidence-run verification into goal state, and LoopLedger
-next-goal scheduling. CampaignManifest lint/status/recover is also implemented, so a future Codex
-session can inspect repo artifacts and recover visible campaign state without chat memory.
+append-only goal lifecycle state, deterministic blocker artifact routing, Codex prompt emission,
+deterministic EvidencePlan linting, controlled EvidencePlan execution, evidence-run verification
+into goal state, and LoopLedger next-goal scheduling. CampaignManifest lint/status/recover is also
+implemented, so a future Codex session can inspect repo artifacts and recover visible campaign
+state without chat memory.
 `dp campaign init --primary-spec ... --write --json` can now create a conservative draft campaign
 scaffold from a local primary spec, including deterministic semantic-signal extraction for
 requirements, evidence, decisions, blockers, and dependency cues. `dp campaign refine ... --write`
@@ -149,7 +157,9 @@ now emits an agent-mediated request package for the calling agent's model, and
 metadata. `dp campaign run <campaign.json> --driver codex --supervised --json` now provides the
 first supervised runner slice: it validates campaign state, resolves the current loop, claims one
 ready goal, emits the Codex handoff package, and stops without launching Codex, executing evidence,
-or marking work verified.
+or marking work verified. `dp goal block --write-artifact` now resolves GoalContract
+`blocked_routes` into spec, ADR, or EvidencePlan stubs and optional Beads follow-ups, with routing
+metadata recorded in the append-only goal event.
 
 ## Developer Commands
 

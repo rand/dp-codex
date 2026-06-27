@@ -14,6 +14,31 @@ Required top-level fields:
 8. `terminal_states.blocked`: blocker state.
 9. `boundaries`: required for campaign, goal, and node levels.
 
+Optional blocker routing:
+
+```json
+{
+  "blocked_routes": {
+    "needs_specification": {
+      "action": "create_spec_stub",
+      "also_create_beads_issue": true
+    },
+    "needs_decision": {
+      "action": "create_adr_stub",
+      "also_create_beads_issue": true
+    },
+    "needs_validator": {
+      "action": "create_evidence_stub",
+      "also_create_beads_issue": true
+    }
+  }
+}
+```
+
+`dp goal block --write-artifact` currently materializes `create_spec_stub`, `create_adr_stub`, and
+`create_evidence_stub`. Unsupported or missing routes still record the blocked event and return
+stable JSON explaining the route failure.
+
 Validation command:
 
 ```bash
@@ -52,3 +77,4 @@ Safety rules:
    substitutions are rejected in evidence strings.
 5. Evidence plan and boundary paths must be sane relative paths.
 6. Success states cannot rely on agent self-report or narration.
+7. Blocker routing is deterministic and does not call an LLM.

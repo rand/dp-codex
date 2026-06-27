@@ -34,7 +34,7 @@ Quick command reference by workflow.
 3. `dp goal claim <goal.json> --agent <name> [--lease 2h] [--json]`
 4. `dp goal start <goal.json> --agent <name> [--json]`
 5. `dp goal heartbeat <goal.json> [--json]`
-6. `dp goal block <goal.json> --reason <known-reason> [--json]`
+6. `dp goal block <goal.json> --reason <known-reason> [--write-artifact] [--json]`
 7. `dp goal release <goal.json> --reason "..." [--json]`
 8. `dp goal complete <goal.json> --evidence <run.json> [--json]`
 9. `dp goal verify <goal.json> --evidence <run.json> [--json]`
