@@ -65,6 +65,17 @@ blocker, and dependency cues, but it does not call an LLM, create Beads issues, 
 mark work verified, or infer LoopLedger dependency edges from prose. Generated campaign state stays
 `draft`.
 
+`dp campaign refine` is the next authoring step. Dry-run mode emits a plan and writes nothing.
+`--write` creates deterministic child spec/ADR stubs, updates GoalContract and EvidencePlan
+refinement metadata, and records artifact paths in the CampaignManifest while preserving `draft`
+status. `--create-beads` requires `--write` and explicitly materializes Beads epic/issues through
+the Beads provider.
+
+Future `dp campaign refine --llm` is allowed to use the provider currently in use by the calling
+agent and may make network/model calls, but it is authoring-only. It must record provenance and feed
+outputs back through deterministic lint; it must not run in hooks/CI or make verification
+judgments.
+
 ## Loop Runtime
 
 `dp loop` commands operate over explicit LoopLedger files and append-only goal events:

@@ -1,0 +1,166 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "error": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "path",
+        "message"
+      ],
+      "type": "object"
+    },
+    "provenance": {
+      "additionalProperties": true,
+      "properties": {
+        "dp_version": {
+          "type": "string"
+        },
+        "input_artifact_hashes": {
+          "additionalProperties": {
+            "pattern": "^sha256:[0-9a-f]{64}$",
+            "type": "string"
+          },
+          "type": "object"
+        },
+        "kind": {
+          "enum": [
+            "deterministic_refine",
+            "llm"
+          ],
+          "type": "string"
+        },
+        "linter_version": {
+          "type": "string"
+        },
+        "network_calls": {
+          "type": "boolean"
+        },
+        "output_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "prompt_hash": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "prompt_template": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "provider": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "provider_source": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "reviewed": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "kind",
+        "provider",
+        "provider_source",
+        "network_calls",
+        "input_artifact_hashes",
+        "output_hash",
+        "dp_version",
+        "linter_version",
+        "reviewed"
+      ],
+      "type": "object"
+    }
+  },
+  "oneOf": [
+    {
+      "additionalProperties": true,
+      "properties": {
+        "beads": {
+          "type": "object"
+        },
+        "campaign_id": {
+          "type": "string"
+        },
+        "command": {
+          "const": "campaign.refine"
+        },
+        "mode": {
+          "const": "deterministic_refine"
+        },
+        "message": {
+          "type": "string"
+        },
+        "ok": {
+          "const": true
+        },
+        "planned": {
+          "type": "object"
+        },
+        "provenance": {
+          "$ref": "#/$defs/provenance"
+        },
+        "written": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "ok",
+        "command",
+        "campaign_id",
+        "mode",
+        "written",
+        "provenance",
+        "planned",
+        "beads",
+        "message"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": true,
+      "properties": {
+        "command": {
+          "const": "campaign.refine"
+        },
+        "error": {
+          "$ref": "#/$defs/error"
+        },
+        "ok": {
+          "const": false
+        }
+      },
+      "required": [
+        "ok",
+        "command",
+        "error"
+      ],
+      "type": "object"
+    }
+  ],
+  "title": "Campaign refine output"
+}

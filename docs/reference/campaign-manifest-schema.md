@@ -54,6 +54,13 @@ Scaffold command:
 dp campaign init --primary-spec docs/primary/example.md --write --json
 ```
 
+Refinement command:
+
+```bash
+dp campaign refine docs/campaigns/CAMPAIGN-example.json --write --json
+dp campaign refine docs/campaigns/CAMPAIGN-example.json --write --create-beads --json
+```
+
 Exit codes:
 
 1. `0`: valid lint, successful status, or successful recovery.
@@ -68,3 +75,5 @@ Safety rules:
 3. Campaign status is derived from linted artifacts and append-only goal events.
 4. Recovery does not consult chat memory or hidden state.
 5. A goal in `evidence_pending` is not treated as verified.
+6. Refinement authoring preserves `draft` status until deterministic readiness gates exist.
+7. Beads epics/issues are materialized only through explicit write flags.

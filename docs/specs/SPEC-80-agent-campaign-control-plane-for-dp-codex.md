@@ -10,9 +10,10 @@ controlled EvidencePlan execution. Evidence-run verification can now advance mat
 `verified`. LoopLedger lint/status/next-goal scheduling, CampaignManifest lint/status/recover, and
 conservative primary-spec campaign scaffolding are also implemented. `dp campaign init` now records
 deterministic semantic signals from the primary spec, including requirement, evidence, decision,
-blocker, and dependency cues, while keeping generated campaigns in `draft`. Authoring-time semantic
-refinement into child specs/ADRs/validators/Beads work, LLM-assisted refinement, and supervised
-running remain planned follow-up work.
+blocker, and dependency cues, while keeping generated campaigns in `draft`. `dp campaign refine`
+can now deterministically materialize child spec/ADR stubs, GoalContract/EvidencePlan refinement
+metadata, and explicit Beads work while preserving draft status. LLM-assisted refinement and
+supervised running remain planned follow-up work.
 
 ## 1. Thesis
 
@@ -607,13 +608,13 @@ Target:
 
 ```bash
 dp campaign init --primary-spec <path-or-url> --write --json
+dp campaign refine <campaign.json> --write --json
+dp campaign refine <campaign.json> --write --create-beads --json
 dp campaign lint <campaign.json> --json
 dp campaign status <campaign.json> --json
 dp campaign recover <campaign.json> --json
 dp campaign refine <campaign.json> --llm --write --json
 ```
-
-Initial implementation may skip `refine`.
 
 ### 9.2 Loop commands
 
@@ -763,16 +764,27 @@ Record provenance for generated artifacts:
 ```json
 {
   "kind": "llm",
-  "provider": "configured-provider",
-  "model": "configured-model",
+  "provider": "calling_agent",
+  "provider_source": "calling_agent",
+  "model": "unknown-or-actual-model-id",
+  "network_calls": true,
   "prompt_hash": "sha256:...",
+  "prompt_template": "campaign-refine-calling-agent-v0.1",
   "input_artifact_hashes": {
     "primary_spec": "sha256:..."
   },
+  "output_hash": "sha256:...",
+  "dp_version": "unknown-or-version",
   "linter_version": "0.1",
+  "created_at": "UTC timestamp",
   "reviewed": false
 }
 ```
+
+For local Codex-driven workflows, the most appropriate LLM provider is the provider currently in use
+by the agent calling dp, usually Codex using a native OpenAI model. Network/model calls are expected
+only in explicit authoring commands such as `dp campaign refine --llm`; blocking gates, hooks, CI,
+evidence assertions, and verification judgments remain LLM-free.
 
 ## 12. Blocker routing
 
@@ -1055,6 +1067,17 @@ Initial mode may be deterministic and incomplete:
 * create `needs_refinement` markers where semantic decomposition is needed
 
 LLM-assisted refinement may come later, but schemas should support provenance.
+
+Implemented follow-up in SPEC-80.11:
+
+```bash
+dp campaign refine <campaign.json> --write --json
+dp campaign refine <campaign.json> --write --create-beads --json
+```
+
+Deterministic refinement writes child spec/ADR stubs, records GoalContract/EvidencePlan refinement
+metadata, and can explicitly materialize Beads work. It preserves `draft` campaign state and does
+not call an LLM or execute evidence.
 
 ### M8: Evidence execution
 

@@ -13,6 +13,7 @@ from dp.core.campaign_manifest import (
     campaign_status,
     lint_campaign_file,
 )
+from dp.core.campaign_refine import refine_campaign
 from dp.core.coverage import compute_trace_coverage
 from dp.core.decompose import decompose_items, resolve_context_window
 from dp.core.evidence_lint import lint_evidence_file
@@ -474,6 +475,17 @@ def _build_parser() -> argparse.ArgumentParser:
     campaign_recover_parser.add_argument("--json", action="store_true")
     campaign_recover_parser.set_defaults(handler=_run_campaign_recover)
 
+    campaign_refine_parser = campaign_subparsers.add_parser(
+        "refine",
+        help="Refine a draft campaign into authoring artifacts and optional Beads work.",
+    )
+    campaign_refine_parser.add_argument("campaign")
+    campaign_refine_parser.add_argument("--write", action="store_true")
+    campaign_refine_parser.add_argument("--create-beads", action="store_true")
+    campaign_refine_parser.add_argument("--llm", action="store_true")
+    campaign_refine_parser.add_argument("--json", action="store_true")
+    campaign_refine_parser.set_defaults(handler=_run_campaign_refine)
+
     return parser
 
 
@@ -831,6 +843,18 @@ def _run_campaign_status(args: argparse.Namespace) -> int:
 
 def _run_campaign_recover(args: argparse.Namespace) -> int:
     return _emit_campaign_command_result(campaign_recover(Path(args.campaign)), args.json)
+
+
+def _run_campaign_refine(args: argparse.Namespace) -> int:
+    return _emit_campaign_command_result(
+        refine_campaign(
+            Path(args.campaign),
+            write=args.write,
+            create_beads=args.create_beads,
+            llm=args.llm,
+        ),
+        args.json,
+    )
 
 
 def _emit_campaign_command_result(result: Any, json_output: bool) -> int:

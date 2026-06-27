@@ -19,12 +19,14 @@ GoalContract through dp without relying on chat memory.
    repo artifacts plus append-only goal events.
 11. `dp campaign init --primary-spec <path> --write`: conservative draft scaffold generation plus
    deterministic semantic-signal extraction from a local primary spec.
+12. `dp campaign refine <campaign.json> --write`: deterministic authoring refinement into child
+    spec/ADR stubs, GoalContract/EvidencePlan refinement metadata, and optional Beads
+    epics/issues.
 
 ## What Does Not Exist Yet
 
-1. Authoring-time semantic refinement into child specs, ADRs, validators, and Beads issues.
-2. LLM-assisted campaign refinement.
-3. A supervised campaign runner.
+1. LLM-assisted campaign refinement.
+2. A supervised campaign runner.
 
 Those are tracked as SPEC-80 follow-up issues.
 
@@ -140,6 +142,31 @@ The command writes a CampaignManifest, LoopLedger, draft GoalContracts, Evidence
 evidence, decision, blocker, and dependency cues for each generated node. Generated artifacts are
 linted, but the campaign remains `draft`: dependency cues are not inferred edges, and the command
 does not author child specs, ADRs, validators, Beads issues, or verified work.
+
+## Refine A Draft Campaign
+
+For a generated draft campaign, inspect planned refinement without writing:
+
+```bash
+dp campaign refine docs/campaigns/CAMPAIGN-example.json --json
+```
+
+Write deterministic child spec/ADR stubs and GoalContract/EvidencePlan refinement metadata:
+
+```bash
+dp campaign refine docs/campaigns/CAMPAIGN-example.json --write --json
+```
+
+Materialize Beads work only when explicitly requested:
+
+```bash
+dp campaign refine docs/campaigns/CAMPAIGN-example.json --write --create-beads --json
+```
+
+Refinement is still authoring, not verification. It keeps the campaign `draft`, does not execute
+evidence, and does not infer dependency edges from prose. Future `--llm` refinement is expected to
+use the calling agent's provider and model with provenance; deterministic gates remain responsible
+for readiness and completion.
 
 ## Safe Local Smoke Test
 

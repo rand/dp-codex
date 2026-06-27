@@ -36,8 +36,10 @@ user/CI command
 13. `/dp/core/campaign_manifest.py`: deterministic CampaignManifest lint, status, and recovery.
 14. `/dp/core/campaign_init.py`: conservative primary-spec campaign scaffolding with deterministic
     semantic-signal extraction.
-15. `/dp/core/events.py`: JSONL event helpers.
-16. `/dp/enforcement/engine.py`: executes policy-selected checks and bypass audit logging.
+15. `/dp/core/campaign_refine.py`: deterministic campaign authoring refinement and explicit Beads
+    materialization.
+16. `/dp/core/events.py`: JSONL event helpers.
+17. `/dp/enforcement/engine.py`: executes policy-selected checks and bypass audit logging.
 
 ## Design Constraints
 

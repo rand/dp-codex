@@ -57,6 +57,7 @@ When a campaign has a loop ledger, ask dp for the next ready goal:
 
 ```bash
 dp campaign init --primary-spec docs/primary/my-project.md --write --json
+dp campaign refine docs/campaigns/CAMPAIGN-my-project.json --write --json
 dp campaign lint docs/campaigns/CAMPAIGN-my-project.json --json
 dp campaign status docs/campaigns/CAMPAIGN-my-project.json --json
 dp campaign recover docs/campaigns/CAMPAIGN-my-project.json --json
@@ -121,6 +122,7 @@ Reference and contributor standards:
 - `docs/reference/loop-ledger-schema.md`
 - `docs/reference/campaign-manifest-schema.md`
 - `docs/reference/campaign-init.md`
+- `docs/reference/campaign-refine.md`
 - `docs/developer/contributor-handbook.md`
 - `docs/developer/documentation-style.md`
 
@@ -136,9 +138,10 @@ next-goal scheduling. CampaignManifest lint/status/recover is also implemented, 
 session can inspect repo artifacts and recover visible campaign state without chat memory.
 `dp campaign init --primary-spec ... --write --json` can now create a conservative draft campaign
 scaffold from a local primary spec, including deterministic semantic-signal extraction for
-requirements, evidence, decisions, blockers, and dependency cues. Authoring-time semantic
-refinement, LLM-assisted refinement, and supervised campaign running remain tracked follow-up work,
-not current features.
+requirements, evidence, decisions, blockers, and dependency cues. `dp campaign refine ... --write`
+can deterministically materialize child spec/ADR stubs, GoalContract and EvidencePlan refinement
+metadata, and optionally Beads epics/issues with `--create-beads`. LLM-assisted refinement and
+supervised campaign running remain tracked follow-up work, not current features.
 
 ## Developer Commands
 
@@ -164,4 +167,5 @@ dp campaign recover tests/fixtures/campaigns/valid_spec_80_06.json --json
 tmpdir="$(mktemp -d)"
 cp tests/fixtures/primary_specs/scaffold_full.md "$tmpdir/primary.md"
 (cd "$tmpdir" && dp campaign init --primary-spec primary.md --write --json)
+(cd "$tmpdir" && dp campaign refine docs/campaigns/CAMPAIGN-primary.json --json)
 ```

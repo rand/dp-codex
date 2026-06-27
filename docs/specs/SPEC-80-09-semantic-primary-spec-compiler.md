@@ -6,6 +6,10 @@ Parent: SPEC-80
 
 [SPEC-80.09]
 
+Implementation note, 2026-06-27: SPEC-80.11 consumes these deterministic compiler signals through
+`dp campaign refine`, which can write child spec/ADR stubs, GoalContract/EvidencePlan refinement
+metadata, and explicit Beads work while keeping the campaign draft.
+
 ## Intent
 
 The first campaign compiler was intentionally mechanical: Markdown headings became draft

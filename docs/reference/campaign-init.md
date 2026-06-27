@@ -30,6 +30,10 @@ Generated paths:
 4. `docs/goals/GOAL-<slug>-NNN.json`
 5. `docs/evidence/EVIDENCE-<slug>-NNN.json`
 
+Use `dp campaign refine <campaign.json> --write --json` after scaffold creation to materialize
+deterministic child spec/ADR stubs and GoalContract/EvidencePlan refinement metadata from the
+campaign cues.
+
 Exit codes:
 
 1. `0`: scaffold was written or already exists identically, and deterministic lints passed.
