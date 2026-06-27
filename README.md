@@ -78,11 +78,14 @@ as chat state:
 dp goal block docs/goals/GOAL-my-feature.json --reason needs_decision --write-artifact --json
 ```
 
-Run an empirical end-to-end pilot in an isolated temporary repository:
+Run the SPEC-80.19 campaign-control pilot in an isolated temporary repository:
 
 ```bash
-scripts/run_pilot_migration.sh
+pytest tests/test_campaign_pilot.py
 ```
+
+See `docs/runbooks/campaign-pilot.md` for the human and agent flows. The older migration pilot
+remains available at `scripts/run_pilot_migration.sh`.
 
 ## Reliability Model
 
