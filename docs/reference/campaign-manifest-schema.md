@@ -103,6 +103,19 @@ dp campaign refine docs/campaigns/CAMPAIGN-example.json --llm --json
 dp campaign refine docs/campaigns/CAMPAIGN-example.json --llm-response response.json --write --json
 ```
 
+Readiness command:
+
+```bash
+dp campaign ready docs/campaigns/CAMPAIGN-example.json --json
+dp campaign ready docs/campaigns/CAMPAIGN-example.json --write --json
+```
+
+`ready` is the deterministic promotion gate from authoring to execution. It requires linted
+campaign/loop/goal/evidence artifacts, explicit acyclic graph edges, node EvidencePlan alignment,
+child spec coverage, Beads issue ids, ADR coverage for decision-like nodes, resolved refinement
+metadata, and materialized LLM dependency hints. `--write` promotes `state.status` to `ready` and
+records readiness provenance only when those gates pass.
+
 Exit codes:
 
 1. `0`: valid lint, successful status/recovery, or prepared supervised run handoff.
@@ -120,7 +133,8 @@ Safety rules:
 5. Campaign status is derived from linted artifacts and append-only goal events.
 6. Recovery does not consult chat memory or hidden state.
 7. A goal in `evidence_pending` is not treated as verified.
-8. Refinement authoring preserves `draft` status until deterministic readiness gates exist.
+8. Refinement authoring preserves `draft` status until `dp campaign ready --write` passes.
 9. Beads epics/issues are materialized only through explicit write flags.
 10. Campaign events are progress records, not proof of behavioral completion.
 11. Beads lifecycle synchronization is explicit reconciliation, not hidden goal-command mutation.
+12. Campaign readiness is explicit deterministic promotion, not an LLM or compiler assertion.

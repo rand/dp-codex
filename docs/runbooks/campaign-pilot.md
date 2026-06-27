@@ -22,6 +22,9 @@ project.
 dp campaign init --primary-spec docs/primary/field-report-cli.md --write --json
 dp campaign refine docs/campaigns/CAMPAIGN-field-report-cli.json --write --create-beads --json
 dp campaign lint docs/campaigns/CAMPAIGN-field-report-cli.json --json
+dp campaign ready docs/campaigns/CAMPAIGN-field-report-cli.json --json
+# Resolve any readiness findings through reviewed child specs, ADRs, validators, Beads links, and edges.
+dp campaign ready docs/campaigns/CAMPAIGN-field-report-cli.json --write --json
 dp campaign run docs/campaigns/CAMPAIGN-field-report-cli.json --driver codex --supervised --json
 dp verify --goal docs/goals/GOAL-field-report-cli-001.json --json
 dp campaign recover docs/campaigns/CAMPAIGN-field-report-cli.json --json
@@ -69,10 +72,11 @@ summary artifacts under `docs/pilots/` inside that temp repo, and asserts:
 1. campaign init/refine artifacts exist;
 2. child specs and ADRs are written;
 3. Beads epic/task creation is requested and recorded;
-4. supervised campaign run emits a Codex handoff;
-5. `dp verify --goal` writes an evidence artifact and appends `verified`;
-6. blocker routing writes a disciplined artifact and Beads follow-up;
-7. campaign recovery returns deterministic actions.
+4. reviewed readiness metadata can promote the campaign to `ready`;
+5. supervised campaign run emits a Codex handoff only after readiness;
+6. `dp verify --goal` writes an evidence artifact and appends `verified`;
+7. blocker routing writes a disciplined artifact and Beads follow-up;
+8. campaign recovery returns deterministic actions.
 
 The pilot is a control-plane proof. It does not claim the deterministic campaign scaffold
 semantically implements the Field Report CLI.

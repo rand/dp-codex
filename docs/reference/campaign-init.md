@@ -32,7 +32,8 @@ Generated paths:
 
 Use `dp campaign refine <campaign.json> --write --json` after scaffold creation to materialize
 deterministic child spec/ADR stubs and GoalContract/EvidencePlan refinement metadata from the
-campaign cues.
+campaign cues. Use `dp campaign ready <campaign.json> --write --json` only after refinement
+markers, validator gaps, decision coverage, Beads links, and dependency hints have been resolved.
 
 Exit codes:
 
@@ -51,3 +52,5 @@ Safety rules:
 6. Dependency cues are not converted into LoopLedger `depends_on` edges.
 7. `needs_refinement` is expected; it records missing semantic decomposition, validator gaps, and
    decision markers.
+8. Generated scaffolds are expected to fail `dp campaign ready` until reviewed authoring artifacts
+   replace placeholders with executable graph contracts.

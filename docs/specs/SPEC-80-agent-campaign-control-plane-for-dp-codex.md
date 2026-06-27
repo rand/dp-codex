@@ -24,7 +24,11 @@ deterministic resume handoff, and `dp campaign run --supervised` records new cla
 `.dp/campaigns/events.jsonl` while resuming active claims instead of claiming over them.
 `dp campaign sync-beads` now explicitly reconciles current LoopLedger dependency edges and
 append-only goal lifecycle events back to Beads with dry-run and `--write` modes, without treating
-Beads status as verification proof.
+Beads status as verification proof. `dp campaign ready` now provides deterministic promotion from
+draft authoring artifacts to executable campaign graphs: it requires linted artifacts, explicit
+acyclic loop edges, aligned node evidence, child specs, Beads issue links, resolved ADR coverage
+for decision-like nodes, no unresolved `needs_*` metadata, and materialized LLM dependency hints
+before setting `state.status=ready`.
 
 ## 1. Thesis
 

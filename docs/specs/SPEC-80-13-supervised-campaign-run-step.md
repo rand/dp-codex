@@ -43,8 +43,10 @@ in the background.
 10. The command MUST NOT launch Codex or any other agent process.
 11. The command MUST NOT execute evidence.
 12. The command MUST NOT verify goals or advance campaign state to verified.
-13. Unsupported drivers, missing `--supervised`, invalid campaigns, and no-ready-work outcomes MUST
-   produce stable JSON and explicit exit codes.
+13. The command MUST refuse draft CampaignManifests and instruct callers to run deterministic
+    readiness promotion first.
+14. Unsupported drivers, missing `--supervised`, draft campaigns, invalid campaigns, and
+    no-ready-work outcomes MUST produce stable JSON and explicit exit codes.
 
 ## Output Shape
 
@@ -89,6 +91,9 @@ run result.
    `R(C)` does not append `verified` events.
 7. Driver scope:
    unsupported drivers fail with exit code `2`.
+8. Draft boundary:
+   if `C.state.status == draft`, the command appends no claim event and returns
+   `error.code == campaign_not_ready`.
 
 ## Non-Goals
 

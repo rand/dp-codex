@@ -56,11 +56,12 @@ Quick command reference by workflow.
 
 1. `dp campaign init --primary-spec <path> --write [--json]`
 2. `dp campaign refine <campaign.json> [--write] [--create-beads] [--llm] [--llm-response <path>] [--json]`
-3. `dp campaign lint <campaign.json> [--json]`
-4. `dp campaign status <campaign.json> [--json]`
-5. `dp campaign recover <campaign.json> [--json]`
-6. `dp campaign run <campaign.json> --driver codex --supervised [--agent codex] [--lease 2h] [--json]`
-7. `dp campaign sync-beads <campaign.json> [--write] [--json]`
+3. `dp campaign ready <campaign.json> [--write] [--json]`
+4. `dp campaign lint <campaign.json> [--json]`
+5. `dp campaign status <campaign.json> [--json]`
+6. `dp campaign recover <campaign.json> [--json]`
+7. `dp campaign run <campaign.json> --driver codex --supervised [--agent codex] [--lease 2h] [--json]`
+8. `dp campaign sync-beads <campaign.json> [--write] [--json]`
 
 ## Review And Verification
 

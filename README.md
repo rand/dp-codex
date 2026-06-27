@@ -30,8 +30,9 @@ It provides:
 10. Campaign manifests that recover visible campaign state from repo artifacts without chat memory
 11. Conservative campaign scaffolding from local primary specs
 12. Campaign resume handoffs and event logs for future agent sessions
-13. A supervised campaign run step that claims one next goal and emits a Codex-operable handoff
-14. Explicit Beads lifecycle synchronization for campaign dependencies and goal state
+13. Deterministic campaign readiness promotion from draft authoring artifacts to executable graphs
+14. A supervised campaign run step that claims one next goal and emits a Codex-operable handoff
+15. Explicit Beads lifecycle synchronization for campaign dependencies and goal state
 
 ## Quick Start
 
@@ -61,7 +62,10 @@ When a campaign has a loop ledger, ask dp for the next ready goal:
 
 ```bash
 dp campaign init --primary-spec docs/primary/my-project.md --write --json
-dp campaign refine docs/campaigns/CAMPAIGN-my-project.json --write --json
+dp campaign refine docs/campaigns/CAMPAIGN-my-project.json --write --create-beads --json
+dp campaign ready docs/campaigns/CAMPAIGN-my-project.json --json
+# Resolve any reported spec, ADR, evidence, Beads-link, or dependency findings.
+dp campaign ready docs/campaigns/CAMPAIGN-my-project.json --write --json
 dp campaign lint docs/campaigns/CAMPAIGN-my-project.json --json
 dp campaign status docs/campaigns/CAMPAIGN-my-project.json --json
 dp campaign recover docs/campaigns/CAMPAIGN-my-project.json --json
@@ -166,7 +170,11 @@ can deterministically materialize child spec/ADR stubs, GoalContract and Evidenc
 metadata, and optionally Beads epics/issues with `--create-beads`. `dp campaign refine --llm`
 now emits an agent-mediated request package for the calling agent's model, and
 `--llm-response <response.json> --write` imports validated model output as draft refinement
-metadata. `dp campaign run <campaign.json> --driver codex --supervised --json` now provides the
+metadata. `dp campaign ready <campaign.json> --write --json` promotes a campaign from draft to
+ready only when deterministic graph-readiness gates pass: linted artifacts, explicit acyclic
+dependencies, node EvidencePlan alignment, child specs, Beads issue links, resolved decision/ADR
+coverage, and no unresolved `needs_*` or LLM dependency hints. `dp campaign run <campaign.json>
+--driver codex --supervised --json` now provides the
 first supervised runner slice: it validates campaign state, resolves the current loop, claims one
 ready goal, emits the Codex handoff package, and stops without launching Codex, executing evidence,
 or marking work verified. If a current-loop goal already has an active non-stale claim, `campaign

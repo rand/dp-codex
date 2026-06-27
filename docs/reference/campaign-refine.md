@@ -35,3 +35,15 @@ validation: campaign id, prompt hash, provider provenance, known goal ids, path 
 argv-only evidence proposals without raw shell syntax. Imported model content is recorded as draft
 authoring metadata on the campaign, GoalContracts, and EvidencePlans. It never marks work ready,
 complete, or verified. LLM judgment is never a blocking gate or verification result.
+
+After deterministic or LLM-assisted refinement, run:
+
+```bash
+dp campaign ready docs/campaigns/CAMPAIGN-example.json --json
+```
+
+The readiness gate reports any remaining blockers: unresolved `needs_*` metadata, missing child
+specs, missing validators, missing ADRs for decision nodes, missing Beads issue links, or LLM
+dependency hints that have not been turned into LoopLedger `depends_on` edges. Only
+`dp campaign ready --write` may promote `state.status` to `ready`, and only after those findings
+are resolved in artifacts.

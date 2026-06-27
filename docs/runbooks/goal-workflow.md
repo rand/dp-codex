@@ -27,19 +27,20 @@ GoalContract through dp without relying on chat memory.
 14. `dp campaign refine <campaign.json> --write`: deterministic authoring refinement into child
     spec/ADR stubs, GoalContract/EvidencePlan refinement metadata, and optional Beads
     epics/issues.
-14. `dp campaign refine <campaign.json> --llm`: agent-mediated LLM refinement request emission.
-15. `dp campaign refine <campaign.json> --llm-response <response.json> --write`: deterministic
+15. `dp campaign refine <campaign.json> --llm`: agent-mediated LLM refinement request emission.
+16. `dp campaign refine <campaign.json> --llm-response <response.json> --write`: deterministic
     import of model-authored draft refinement metadata.
-16. `dp campaign run <campaign.json> --driver codex --supervised`: one-step supervised handoff
+17. `dp campaign ready <campaign.json> --write`: deterministic promotion from draft authoring
+    artifacts to a ready campaign graph.
+18. `dp campaign run <campaign.json> --driver codex --supervised`: one-step supervised handoff
     that validates campaign state, claims one ready goal, emits the Codex package, and stops.
-17. `dp campaign sync-beads <campaign.json> --write`: explicit reconciliation from LoopLedger and
+19. `dp campaign sync-beads <campaign.json> --write`: explicit reconciliation from LoopLedger and
     goal events back to Beads dependency/status surfaces.
 
 ## What Does Not Exist Yet
 
-1. Richer semantic graph hardening beyond the response import metadata.
-2. Direct Codex process launch.
-3. Background or multi-goal autonomous campaign running.
+1. Direct Codex process launch.
+2. Background or multi-goal autonomous campaign running.
 
 Those are tracked as SPEC-80 follow-up issues.
 
@@ -259,6 +260,25 @@ Refinement is still authoring, not verification. It keeps the campaign `draft`, 
 evidence, and does not infer dependency edges from prose. LLM-assisted response import records
 provider/model provenance and rejects unknown goals, prompt-hash mismatches, unsafe paths, and raw
 shell evidence proposals. Deterministic gates remain responsible for readiness and completion.
+
+## Promote A Campaign To Ready
+
+After scaffold/refine has produced reviewed artifacts, run the readiness gate:
+
+```bash
+dp campaign ready docs/campaigns/CAMPAIGN-example.json --json
+```
+
+If it passes, promote the CampaignManifest explicitly:
+
+```bash
+dp campaign ready docs/campaigns/CAMPAIGN-example.json --write --json
+```
+
+`ready` is stricter than `lint`: every loop node needs evidence alignment, child spec coverage,
+Beads issue linkage, resolved decision/ADR coverage, no unresolved `needs_*` metadata, and any
+LLM dependency hints materialized as `depends_on` edges. The command does not execute evidence,
+mutate Beads, call an LLM, launch Codex, or verify goals.
 
 ## Safe Local Smoke Test
 

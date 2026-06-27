@@ -84,6 +84,36 @@ def run_campaign_once(
             exit_code=status_result.exit_code,
         )
 
+    manifest_state = status_result.payload.get("manifest_state")
+    manifest_status = (
+        manifest_state.get("status") if isinstance(manifest_state, dict) else None
+    )
+    if manifest_status == "draft":
+        return CampaignRunResult(
+            payload={
+                **_base_payload(
+                    driver=driver,
+                    supervised=supervised,
+                    campaign_id=campaign_id,
+                ),
+                "ok": False,
+                "status": status_result.payload,
+                "error": {
+                    "code": "campaign_not_ready",
+                    "message": (
+                        "Campaign is still draft; run dp campaign ready --write before "
+                        "supervised handoff."
+                    ),
+                    "path": "$.state.status",
+                },
+                "commands": {
+                    "ready": f"dp campaign ready {campaign_path.as_posix()} --write --json"
+                },
+                "stop_conditions": _stop_conditions(),
+            },
+            exit_code=1,
+        )
+
     resume = _resume_from_status(status_result.payload)
     if resume is not None and resume.get("action") == "resume_claimed_goal":
         return CampaignRunResult(

@@ -1,0 +1,175 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "check": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "ok": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "name",
+        "ok"
+      ],
+      "type": "object"
+    },
+    "finding": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "path",
+        "message"
+      ],
+      "type": "object"
+    },
+    "readiness": {
+      "additionalProperties": true,
+      "properties": {
+        "llm_judgment": {
+          "const": false
+        },
+        "mode": {
+          "const": "deterministic_campaign_ready"
+        },
+        "network_calls": {
+          "const": false
+        },
+        "provenance": {
+          "additionalProperties": true,
+          "properties": {
+            "input_artifact_hashes": {
+              "additionalProperties": {
+                "pattern": "^sha256:[0-9a-f]{64}$",
+                "type": "string"
+              },
+              "type": "object"
+            },
+            "kind": {
+              "const": "deterministic_campaign_ready"
+            },
+            "linter_version": {
+              "type": "string"
+            },
+            "network_calls": {
+              "const": false
+            },
+            "output_hash": {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            }
+          },
+          "required": [
+            "kind",
+            "network_calls",
+            "input_artifact_hashes",
+            "output_hash",
+            "linter_version"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "mode",
+        "network_calls",
+        "llm_judgment",
+        "provenance"
+      ],
+      "type": "object"
+    }
+  },
+  "additionalProperties": true,
+  "properties": {
+    "campaign_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "checks": {
+      "items": {
+        "$ref": "#/$defs/check"
+      },
+      "type": "array"
+    },
+    "command": {
+      "const": "campaign.ready"
+    },
+    "errors": {
+      "items": {
+        "$ref": "#/$defs/finding"
+      },
+      "type": "array"
+    },
+    "ok": {
+      "type": "boolean"
+    },
+    "readiness": {
+      "$ref": "#/$defs/readiness"
+    },
+    "ready": {
+      "type": "boolean"
+    },
+    "state": {
+      "additionalProperties": false,
+      "properties": {
+        "after": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "before": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "before",
+        "after"
+      ],
+      "type": "object"
+    },
+    "warnings": {
+      "items": {
+        "$ref": "#/$defs/finding"
+      },
+      "type": "array"
+    },
+    "write": {
+      "type": "boolean"
+    },
+    "written": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "ok",
+    "command",
+    "campaign_id",
+    "write",
+    "written",
+    "ready",
+    "checks",
+    "errors",
+    "warnings"
+  ],
+  "title": "Campaign ready output",
+  "type": "object"
+}

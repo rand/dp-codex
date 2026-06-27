@@ -280,7 +280,48 @@ def test_campaign_run_json_output_matches_schema(
         ]
     )
 
-    assert exit_code == 0
+    assert exit_code == 1
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["error"]["code"] == "campaign_not_ready"
+    validate(instance=payload, schema=schema)
+
+
+def test_campaign_ready_json_output_matches_schema(
+    tmp_path: Path,
+    capsys,
+    monkeypatch,
+) -> None:
+    schema = json.loads(
+        Path("docs/schemas/campaign-ready-output.schema.json").read_text(encoding="utf-8")
+    )
+    primary_spec = tmp_path / "docs/primary/product.md"
+    primary_spec.parent.mkdir(parents=True)
+    primary_spec.write_text(
+        "# Product\n\n## Requirements\n\nThe campaign must become ready.\n\n"
+        "## Evidence\n\nRun campaign ready schema tests.\n",
+        encoding="utf-8",
+    )
+    monkeypatch.chdir(tmp_path)
+    assert (
+        cli_main.main(
+            [
+                "campaign",
+                "init",
+                "--primary-spec",
+                "docs/primary/product.md",
+                "--write",
+                "--json",
+            ]
+        )
+        == 0
+    )
+    init_payload = json.loads(capsys.readouterr().out)
+
+    exit_code = cli_main.main(
+        ["campaign", "ready", init_payload["artifacts"]["campaign"], "--json"]
+    )
+
+    assert exit_code == 1
     payload = json.loads(capsys.readouterr().out)
     validate(instance=payload, schema=schema)
 

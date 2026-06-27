@@ -14,6 +14,7 @@ from dp.core.campaign_manifest import (
     campaign_status,
     lint_campaign_file,
 )
+from dp.core.campaign_readiness import ready_campaign
 from dp.core.campaign_refine import refine_campaign
 from dp.core.campaign_run import run_campaign_once
 from dp.core.coverage import compute_trace_coverage
@@ -485,6 +486,15 @@ def _build_parser() -> argparse.ArgumentParser:
     campaign_recover_parser.add_argument("--json", action="store_true")
     campaign_recover_parser.set_defaults(handler=_run_campaign_recover)
 
+    campaign_ready_parser = campaign_subparsers.add_parser(
+        "ready",
+        help="Promote a draft campaign to ready when deterministic graph gates pass.",
+    )
+    campaign_ready_parser.add_argument("campaign")
+    campaign_ready_parser.add_argument("--write", action="store_true")
+    campaign_ready_parser.add_argument("--json", action="store_true")
+    campaign_ready_parser.set_defaults(handler=_run_campaign_ready)
+
     campaign_refine_parser = campaign_subparsers.add_parser(
         "refine",
         help="Refine a draft campaign into authoring artifacts and optional Beads work.",
@@ -879,6 +889,13 @@ def _run_campaign_status(args: argparse.Namespace) -> int:
 
 def _run_campaign_recover(args: argparse.Namespace) -> int:
     return _emit_campaign_command_result(campaign_recover(Path(args.campaign)), args.json)
+
+
+def _run_campaign_ready(args: argparse.Namespace) -> int:
+    return _emit_campaign_command_result(
+        ready_campaign(Path(args.campaign), write=args.write),
+        args.json,
+    )
 
 
 def _run_campaign_refine(args: argparse.Namespace) -> int:

@@ -24,6 +24,11 @@ The command:
 It does not launch Codex, run evidence, verify a goal, infer completion, or loop in the
 background.
 
+For generated campaigns, run `dp campaign ready <campaign.json> --write --json` before using
+`campaign run` as the execution entrypoint. `campaign run` refuses manifests whose
+`state.status` is still `draft` and returns a `campaign_not_ready` error with the exact readiness
+promotion command. This keeps draft compiler/refinement markers out of agent handoffs.
+
 Successful output has command `campaign.run`, mode `supervised_once`, `autonomous: false`, and
 `launched: false`. When a new goal is claimed, the `next` object is the `loop.next` package
 containing the goal id, read-first paths, evidence plan, allowed paths, lease, Codex `/goal` text,

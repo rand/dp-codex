@@ -58,6 +58,14 @@ def test_spec80_field_report_campaign_pilot(
     assert loop_status["ok"] is True
     assert loop_status["ready_node_ids"]
 
+    _resolve_campaign_readiness(campaign_path, loop_path, goal_paths, evidence_paths)
+    ready_payload = _run_json(
+        ["campaign", "ready", campaign_path.as_posix(), "--write", "--json"],
+        capsys,
+    )
+    assert ready_payload["ready"] is True
+    assert ready_payload["written"] is True
+
     handoff = _run_json(
         [
             "campaign",
@@ -128,6 +136,7 @@ def test_spec80_field_report_campaign_pilot(
             "created_issue_count": len(refine_payload["beads"]["issue_ids"]),
             "operation_count": len(refine_payload["beads"]["operations"]),
         },
+        "ready_promoted": ready_payload["written"],
         "first_handoff_emitted": handoff["ok"],
         "active_recovery_action": active_recovery["resume"]["action"],
         "evidence_artifact": evidence_artifact.as_posix(),
@@ -194,6 +203,61 @@ def _first_goal_with_route(goal_paths: list[Path], route: str) -> Path:
         if isinstance(routes, dict) and route in routes:
             return path
     raise AssertionError(f"No generated goal declared blocked route {route}.")
+
+
+def _resolve_campaign_readiness(
+    campaign_path: Path,
+    loop_path: Path,
+    goal_paths: list[Path],
+    evidence_paths: list[Path],
+) -> None:
+    campaign = _read_json(campaign_path)
+    campaign.pop("needs_refinement", None)
+    compiler = campaign.get("compiler")
+    if isinstance(compiler, dict):
+        compiler["ready_for_implementation"] = True
+        for node in compiler.get("nodes", []):
+            if isinstance(node, dict):
+                node["classification"] = "implementation"
+                node["refinement_state"] = "implementation_candidate"
+                node["routes"] = []
+
+    loop = _read_json(loop_path)
+    issue_ids = campaign["artifacts"]["beads_issues"]
+    for index, node in enumerate(loop["nodes"]):
+        node["beads_issue_id"] = issue_ids[index]
+    loop_path.write_text(json.dumps(loop, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    for goal_path in goal_paths:
+        goal = _read_json(goal_path)
+        goal.pop("needs_refinement", None)
+        for key in ("compiler", "refinement"):
+            metadata = goal.get(key)
+            if isinstance(metadata, dict):
+                metadata["classification"] = "implementation"
+                if "refinement_state" in metadata:
+                    metadata["refinement_state"] = "implementation_candidate"
+                if "state" in metadata:
+                    metadata["state"] = "implementation_candidate"
+                metadata["routes"] = []
+        goal_path.write_text(json.dumps(goal, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    for evidence_path in evidence_paths:
+        evidence = _read_json(evidence_path)
+        refinement = evidence.get("refinement")
+        if isinstance(refinement, dict):
+            refinement["classification"] = "implementation"
+            refinement["state"] = "implementation_candidate"
+            refinement["routes"] = []
+        evidence_path.write_text(
+            json.dumps(evidence, indent=2, sort_keys=True) + "\n",
+            encoding="utf-8",
+        )
+
+    campaign_path.write_text(
+        json.dumps(campaign, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
 
 
 def _write_pilot_summary(summary: dict) -> dict[str, Path]:
