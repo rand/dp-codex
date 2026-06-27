@@ -14,8 +14,10 @@ blocker, and dependency cues, while keeping generated campaigns in `draft`. `dp 
 can now deterministically materialize child spec/ADR stubs, GoalContract/EvidencePlan refinement
 metadata, and explicit Beads work while preserving draft status. LLM-assisted refinement is now
 agent-mediated: dp emits a request package for the calling agent provider and imports an explicit
-response artifact only after deterministic validation. Supervised running remains planned
-follow-up work.
+response artifact only after deterministic validation. The first supervised runner slice is also
+implemented: `dp campaign run --driver codex --supervised` validates campaign state, resolves the
+current loop, claims one ready goal, emits the Codex handoff package, and stops without launching
+Codex, executing evidence, or marking work verified.
 
 ## 1. Thesis
 
@@ -706,7 +708,9 @@ dp agent launch --goal <goal.json> --driver codex
 dp campaign run <campaign.json> --driver codex --supervised
 ```
 
-Do not implement `launch` or `campaign run` first. The control plane must work manually before it runs agents.
+`dp campaign run --driver codex --supervised` is now implemented as a one-step supervised handoff
+over the manual protocol. `dp agent launch` and any background or multi-goal autonomous runner
+remain out of scope until the supervised protocol proves reliable.
 
 ## 10. Codex `/goal` emission
 
@@ -1139,13 +1143,16 @@ Do not use hand-authored truth booleans as behavioral proof of goal completion.
 
 ### M10: Supervised campaign runner
 
-Only after manual protocol works:
+Implemented first slice:
 
 ```bash
 dp campaign run <campaign.json> --driver codex --supervised
 ```
 
-This should be a thin adapter over the same commands Codex can call manually. The protocol comes first, the runner comes last.
+This is a thin adapter over the same commands Codex can call manually. It validates the campaign,
+resolves the current loop, claims one ready goal through `loop.next`, emits the Codex handoff, and
+stops. It does not launch Codex, execute evidence, verify completion, or loop across multiple
+goals.
 
 ## 15. Acceptance criteria
 

@@ -22,5 +22,7 @@ contracts. It does not replace Beads and does not start with a background runner
 - Beads remains the issue and dependency substrate.
 - Manual `dp goal ...` and future `dp loop next ...` protocol comes before supervised running.
 - Agent prompts are derived from valid contracts and include lifecycle commands.
-- A future runner, if added, must be a thin adapter over the same protocol Codex can operate
-  manually.
+- A supervised runner is acceptable only as a thin, one-step adapter over the same protocol Codex
+  can operate manually.
+- `dp campaign run --driver codex --supervised` may claim and emit one handoff, but it must not
+  launch Codex, execute evidence, verify completion, or continue in the background.

@@ -79,6 +79,12 @@ known goal ids, path sanity, and argv-only evidence proposals without raw shell 
 model content remains draft authoring metadata; it must not run in hooks/CI or make verification
 judgments.
 
+`dp campaign run <campaign.json> --driver codex --supervised --json` is a supervised operation
+adapter, not an autonomous runner. It validates campaign status, resolves the current loop, calls
+the same ready-node path as `dp loop next --claim --emit codex`, returns one Codex handoff package,
+and exits. It records only the underlying claim event. It does not launch Codex, execute evidence,
+append verified events, or continue to additional goals.
+
 ## Loop Runtime
 
 `dp loop` commands operate over explicit LoopLedger files and append-only goal events:

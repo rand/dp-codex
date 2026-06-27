@@ -48,6 +48,16 @@ dp campaign status <campaign.json> --json
 dp campaign recover <campaign.json> --json
 ```
 
+Supervised handoff command:
+
+```bash
+dp campaign run <campaign.json> --driver codex --supervised --json
+```
+
+`run` validates campaign state, resolves `state.current_loop`, claims one ready goal through the
+LoopLedger protocol, emits a Codex handoff package, and stops. It does not launch an agent, execute
+evidence, or mark a campaign or goal verified.
+
 Scaffold command:
 
 ```bash
@@ -65,8 +75,8 @@ dp campaign refine docs/campaigns/CAMPAIGN-example.json --llm-response response.
 
 Exit codes:
 
-1. `0`: valid lint, successful status, or successful recovery.
-2. `1`: invalid loaded manifest, or recovery found missing or invalid artifacts.
+1. `0`: valid lint, successful status/recovery, or prepared supervised run handoff.
+2. `1`: invalid loaded manifest, recovery found missing or invalid artifacts, or no ready run handoff.
 3. `2`: missing manifest file, malformed JSON, non-object JSON, unsupported schema, or unsupported
    command input.
 
@@ -76,8 +86,9 @@ Safety rules:
 2. `dp campaign refine --llm` is explicit authoring: dp emits a request and imports a response
    artifact; the calling agent performs any model/network call.
 3. Campaign commands never execute evidence checks.
-4. Campaign status is derived from linted artifacts and append-only goal events.
-4. Recovery does not consult chat memory or hidden state.
-5. A goal in `evidence_pending` is not treated as verified.
-6. Refinement authoring preserves `draft` status until deterministic readiness gates exist.
-7. Beads epics/issues are materialized only through explicit write flags.
+4. `dp campaign run` claims at most one ready goal and remains a supervised single-step adapter.
+5. Campaign status is derived from linted artifacts and append-only goal events.
+6. Recovery does not consult chat memory or hidden state.
+7. A goal in `evidence_pending` is not treated as verified.
+8. Refinement authoring preserves `draft` status until deterministic readiness gates exist.
+9. Beads epics/issues are materialized only through explicit write flags.

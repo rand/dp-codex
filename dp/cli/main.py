@@ -14,6 +14,7 @@ from dp.core.campaign_manifest import (
     lint_campaign_file,
 )
 from dp.core.campaign_refine import refine_campaign
+from dp.core.campaign_run import run_campaign_once
 from dp.core.coverage import compute_trace_coverage
 from dp.core.decompose import decompose_items, resolve_context_window
 from dp.core.evidence_lint import lint_evidence_file
@@ -487,6 +488,18 @@ def _build_parser() -> argparse.ArgumentParser:
     campaign_refine_parser.add_argument("--json", action="store_true")
     campaign_refine_parser.set_defaults(handler=_run_campaign_refine)
 
+    campaign_run_parser = campaign_subparsers.add_parser(
+        "run",
+        help="Prepare one supervised Codex handoff from the current campaign loop.",
+    )
+    campaign_run_parser.add_argument("campaign")
+    campaign_run_parser.add_argument("--driver", default="codex")
+    campaign_run_parser.add_argument("--agent", default="codex")
+    campaign_run_parser.add_argument("--lease", default="2h")
+    campaign_run_parser.add_argument("--supervised", action="store_true")
+    campaign_run_parser.add_argument("--json", action="store_true")
+    campaign_run_parser.set_defaults(handler=_run_campaign_run)
+
     return parser
 
 
@@ -854,6 +867,19 @@ def _run_campaign_refine(args: argparse.Namespace) -> int:
             create_beads=args.create_beads,
             llm=args.llm,
             llm_response=Path(args.llm_response) if args.llm_response is not None else None,
+        ),
+        args.json,
+    )
+
+
+def _run_campaign_run(args: argparse.Namespace) -> int:
+    return _emit_campaign_command_result(
+        run_campaign_once(
+            Path(args.campaign),
+            driver=args.driver,
+            supervised=args.supervised,
+            agent=args.agent,
+            lease=args.lease,
         ),
         args.json,
     )

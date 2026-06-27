@@ -1,0 +1,86 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "error": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "path",
+        "message"
+      ],
+      "type": "object"
+    }
+  },
+  "additionalProperties": true,
+  "properties": {
+    "autonomous": {
+      "const": false
+    },
+    "campaign_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "command": {
+      "const": "campaign.run"
+    },
+    "driver": {
+      "type": "string"
+    },
+    "error": {
+      "$ref": "#/$defs/error"
+    },
+    "launched": {
+      "const": false
+    },
+    "message": {
+      "type": "string"
+    },
+    "mode": {
+      "const": "supervised_once"
+    },
+    "next": {
+      "type": "object"
+    },
+    "ok": {
+      "type": "boolean"
+    },
+    "status": {
+      "type": "object"
+    },
+    "stop_conditions": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
+    "supervised": {
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "ok",
+    "command",
+    "mode",
+    "driver",
+    "campaign_id",
+    "supervised",
+    "autonomous",
+    "launched",
+    "stop_conditions"
+  ],
+  "title": "Campaign run output",
+  "type": "object"
+}

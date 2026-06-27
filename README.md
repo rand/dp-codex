@@ -29,6 +29,7 @@ It provides:
 9. Loop ledgers that select the next ready goal from repo artifacts and goal events
 10. Campaign manifests that recover visible campaign state from repo artifacts without chat memory
 11. Conservative campaign scaffolding from local primary specs
+12. A supervised campaign run step that claims one next goal and emits a Codex-operable handoff
 
 ## Quick Start
 
@@ -62,6 +63,7 @@ dp campaign lint docs/campaigns/CAMPAIGN-my-project.json --json
 dp campaign status docs/campaigns/CAMPAIGN-my-project.json --json
 dp campaign recover docs/campaigns/CAMPAIGN-my-project.json --json
 dp loop next docs/loops/LOOP-my-campaign.json --claim --emit codex --json
+dp campaign run docs/campaigns/CAMPAIGN-my-project.json --driver codex --supervised --json
 ```
 
 Run an empirical end-to-end pilot in an isolated temporary repository:
@@ -123,6 +125,7 @@ Reference and contributor standards:
 - `docs/reference/campaign-manifest-schema.md`
 - `docs/reference/campaign-init.md`
 - `docs/reference/campaign-refine.md`
+- `docs/reference/campaign-run.md`
 - `docs/developer/contributor-handbook.md`
 - `docs/developer/documentation-style.md`
 
@@ -143,7 +146,10 @@ can deterministically materialize child spec/ADR stubs, GoalContract and Evidenc
 metadata, and optionally Beads epics/issues with `--create-beads`. `dp campaign refine --llm`
 now emits an agent-mediated request package for the calling agent's model, and
 `--llm-response <response.json> --write` imports validated model output as draft refinement
-metadata. Supervised campaign running remains tracked follow-up work, not a current feature.
+metadata. `dp campaign run <campaign.json> --driver codex --supervised --json` now provides the
+first supervised runner slice: it validates campaign state, resolves the current loop, claims one
+ready goal, emits the Codex handoff package, and stops without launching Codex, executing evidence,
+or marking work verified.
 
 ## Developer Commands
 
@@ -171,4 +177,5 @@ cp tests/fixtures/primary_specs/scaffold_full.md "$tmpdir/primary.md"
 (cd "$tmpdir" && dp campaign init --primary-spec primary.md --write --json)
 (cd "$tmpdir" && dp campaign refine docs/campaigns/CAMPAIGN-primary.json --json)
 (cd "$tmpdir" && dp campaign refine docs/campaigns/CAMPAIGN-primary.json --llm --json)
+(cd "$tmpdir" && dp campaign run docs/campaigns/CAMPAIGN-primary.json --driver codex --supervised --json)
 ```

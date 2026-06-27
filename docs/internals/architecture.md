@@ -4,7 +4,7 @@ DP-Codex intentionally separates process logic from integration surfaces.
 
 ## Layering
 
-1. Core engine (`/dp/core/`): parsing, validation, review, verify, decomposition, progress, goal lint, goal state, goal emission, evidence lint/run, loop-ledger scheduling, campaign manifest recovery, and campaign scaffolding.
+1. Core engine (`/dp/core/`): parsing, validation, review, verify, decomposition, progress, goal lint, goal state, goal emission, evidence lint/run, loop-ledger scheduling, campaign manifest recovery, campaign scaffolding, and supervised campaign handoff.
 2. CLI layer (`/dp/cli/main.py`): command parsing, orchestration, output formatting, exit codes.
 3. Provider layer (`/dp/providers/`): external systems (currently Beads via `bd`).
 4. Enforcement layer (`/dp/enforcement/`): policy-driven checks for hooks and CI.
@@ -38,8 +38,10 @@ user/CI command
     semantic-signal extraction.
 15. `/dp/core/campaign_refine.py`: deterministic campaign authoring refinement, explicit Beads
     materialization, and agent-mediated LLM refinement request/response import.
-16. `/dp/core/events.py`: JSONL event helpers.
-17. `/dp/enforcement/engine.py`: executes policy-selected checks and bypass audit logging.
+16. `/dp/core/campaign_run.py`: supervised one-step campaign handoff over the existing loop-next
+    and goal-claim protocol.
+17. `/dp/core/events.py`: JSONL event helpers.
+18. `/dp/enforcement/engine.py`: executes policy-selected checks and bypass audit logging.
 
 ## Design Constraints
 

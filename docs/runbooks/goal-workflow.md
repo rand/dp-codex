@@ -25,11 +25,14 @@ GoalContract through dp without relying on chat memory.
 13. `dp campaign refine <campaign.json> --llm`: agent-mediated LLM refinement request emission.
 14. `dp campaign refine <campaign.json> --llm-response <response.json> --write`: deterministic
     import of model-authored draft refinement metadata.
+15. `dp campaign run <campaign.json> --driver codex --supervised`: one-step supervised handoff
+    that validates campaign state, claims one ready goal, emits the Codex package, and stops.
 
 ## What Does Not Exist Yet
 
 1. Richer semantic graph hardening beyond the response import metadata.
-2. A supervised campaign runner.
+2. Direct Codex process launch.
+3. Background or multi-goal autonomous campaign running.
 
 Those are tracked as SPEC-80 follow-up issues.
 
@@ -131,6 +134,23 @@ dp campaign recover docs/campaigns/CAMPAIGN-example.json --json
 `recover` reads the manifest, declared artifacts, loop ledgers, goal contracts, evidence plans, and
 `.dp/goals/events.jsonl`. It does not use chat history, call an LLM, execute evidence, or infer
 success from agent narration.
+
+## Run One Supervised Campaign Step
+
+When a campaign has a current loop, ask dp to prepare exactly one Codex handoff:
+
+```bash
+dp campaign run docs/campaigns/CAMPAIGN-example.json --driver codex --supervised --json
+```
+
+The returned `next` object is the same package produced by `dp loop next --claim --emit codex`.
+It includes the Codex `/goal`, read-first paths, evidence plan, lease, allowed paths, and lifecycle
+commands for `start`, `heartbeat`, `complete`, `verify`, `block`, and `release`.
+
+This command is supervised by design. It claims at most one ready goal and exits. It does not launch
+Codex, run evidence, verify the goal, or continue to another node. Use the emitted lifecycle
+commands to operate the claimed goal, then call `dp campaign run` again when the campaign is ready
+for another handoff.
 
 ## Scaffold From A Primary Spec
 
