@@ -5,6 +5,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from dp.core.campaign_events import (
+    DEFAULT_CAMPAIGN_EVENT_LOG,
+    append_campaign_handoff_event,
+)
 from dp.core.campaign_manifest import CampaignCommandResult, campaign_status
 from dp.core.goal_state import DEFAULT_GOAL_EVENT_LOG
 from dp.core.loop_ledger import loop_next
@@ -27,6 +31,7 @@ def run_campaign_once(
     agent: str,
     lease: str,
     event_log: Path = DEFAULT_GOAL_EVENT_LOG,
+    campaign_event_log: Path = DEFAULT_CAMPAIGN_EVENT_LOG,
 ) -> CampaignRunResult:
     if not supervised:
         return _usage_error(
@@ -53,7 +58,11 @@ def run_campaign_once(
             message="Agent must be non-empty.",
         )
 
-    status_result = campaign_status(campaign_path, event_log=event_log)
+    status_result = campaign_status(
+        campaign_path,
+        event_log=event_log,
+        campaign_event_log=campaign_event_log,
+    )
     campaign_id = _campaign_id_from_status(status_result.payload)
     if status_result.exit_code != 0:
         return CampaignRunResult(
@@ -73,6 +82,25 @@ def run_campaign_once(
                 "stop_conditions": _stop_conditions(),
             },
             exit_code=status_result.exit_code,
+        )
+
+    resume = _resume_from_status(status_result.payload)
+    if resume is not None and resume.get("action") == "resume_claimed_goal":
+        return CampaignRunResult(
+            payload={
+                **_base_payload(
+                    driver=driver,
+                    supervised=supervised,
+                    campaign_id=campaign_id,
+                ),
+                "ok": True,
+                "status": status_result.payload,
+                "next": resume,
+                "resume": resume,
+                "stop_conditions": _stop_conditions(),
+                "message": "Existing claimed goal should be resumed.",
+            },
+            exit_code=0,
         )
 
     loop_path_result = _current_loop_path(campaign_path)
@@ -101,25 +129,40 @@ def run_campaign_once(
         event_log=event_log,
     )
     ok = next_result.exit_code == 0
-    return CampaignRunResult(
-        payload={
-            **_base_payload(
-                driver=driver,
-                supervised=supervised,
-                campaign_id=campaign_id,
-            ),
-            "ok": ok,
-            "status": status_result.payload,
-            "next": next_result.payload,
-            "stop_conditions": _stop_conditions(),
-            "message": (
-                "Supervised campaign step prepared."
-                if ok
-                else "Supervised campaign step could not prepare a ready goal."
-            ),
-        },
-        exit_code=next_result.exit_code,
-    )
+    payload = {
+        **_base_payload(
+            driver=driver,
+            supervised=supervised,
+            campaign_id=campaign_id,
+        ),
+        "ok": ok,
+        "status": status_result.payload,
+        "next": next_result.payload,
+        "resume": status_result.payload.get("resume"),
+        "stop_conditions": _stop_conditions(),
+        "message": (
+            "Supervised campaign step prepared."
+            if ok
+            else "Supervised campaign step could not prepare a ready goal."
+        ),
+    }
+    if ok and campaign_id is not None:
+        append_result = append_campaign_handoff_event(
+            event_log=campaign_event_log,
+            campaign_id=campaign_id,
+            campaign_path=campaign_path,
+            loop_id=str(next_result.payload["loop_id"]),
+            node_id=str(next_result.payload["node_id"]),
+            goal_id=str(next_result.payload["goal_id"]),
+            goal_path=str(next_result.payload["goal_path"]),
+            agent=agent,
+            lease=next_result.payload.get("lease")
+            if isinstance(next_result.payload.get("lease"), dict)
+            else None,
+        )
+        payload["campaign_event_log"] = append_result.path
+        payload["campaign_event"] = append_result.event
+    return CampaignRunResult(payload=payload, exit_code=next_result.exit_code)
 
 
 def _current_loop_path(campaign_path: Path) -> CampaignCommandResult:
@@ -254,6 +297,11 @@ def _campaign_id_from_status(payload: dict[str, Any]) -> str | None:
         if isinstance(lint_campaign_id, str):
             return lint_campaign_id
     return None
+
+
+def _resume_from_status(payload: dict[str, Any]) -> dict[str, Any] | None:
+    resume = payload.get("resume")
+    return resume if isinstance(resume, dict) else None
 
 
 def _stop_conditions() -> list[str]:

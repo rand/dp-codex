@@ -18,7 +18,7 @@ GoalContract through dp without relying on chat memory.
 10. `dp loop lint/status/next`: deterministic LoopLedger validation, state reconstruction, and
    next-goal packaging.
 11. `dp campaign lint/status/recover`: deterministic CampaignManifest validation and recovery from
-   repo artifacts plus append-only goal events.
+   repo artifacts plus append-only goal and campaign events.
 12. `dp campaign init --primary-spec <path> --write`: conservative draft scaffold generation plus
    deterministic semantic-signal extraction from a local primary spec.
 13. `dp campaign refine <campaign.json> --write`: deterministic authoring refinement into child
@@ -146,7 +146,15 @@ dp campaign recover docs/campaigns/CAMPAIGN-example.json --json
 
 `recover` reads the manifest, declared artifacts, loop ledgers, goal contracts, evidence plans, and
 `.dp/goals/events.jsonl`. It does not use chat history, call an LLM, execute evidence, or infer
-success from agent narration.
+success from agent narration. It also summarizes `.dp/campaigns/events.jsonl` and emits a `resume`
+object with one of these actions:
+
+1. `resume_claimed_goal`
+2. `verify_evidence`
+3. `resolve_blocker`
+4. `claim_next_goal`
+5. `campaign_verified`
+6. `no_ready_work`
 
 ## Run One Supervised Campaign Step
 
@@ -159,6 +167,10 @@ dp campaign run docs/campaigns/CAMPAIGN-example.json --driver codex --supervised
 The returned `next` object is the same package produced by `dp loop next --claim --emit codex`.
 It includes the Codex `/goal`, read-first paths, evidence plan, lease, allowed paths, and lifecycle
 commands for `start`, `heartbeat`, `complete`, `verify`, `block`, and `release`.
+
+If the current loop already has an active non-stale claim, `campaign run` returns a
+`campaign.resume` package for that goal instead of claiming another node. If it does claim a new
+goal, it appends a `handoff_claimed` event to `.dp/campaigns/events.jsonl`.
 
 This command is supervised by design. It claims at most one ready goal and exits. It does not launch
 Codex, run evidence, verify the goal, or continue to another node. Use the emitted lifecycle

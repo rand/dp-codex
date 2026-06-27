@@ -33,6 +33,12 @@
         "null"
       ]
     },
+    "campaign_event": {
+      "type": "object"
+    },
+    "campaign_event_log": {
+      "type": "string"
+    },
     "command": {
       "const": "campaign.run"
     },
@@ -58,6 +64,9 @@
       "type": "boolean"
     },
     "status": {
+      "type": "object"
+    },
+    "resume": {
       "type": "object"
     },
     "stop_conditions": {

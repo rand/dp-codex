@@ -48,15 +48,31 @@ dp campaign status <campaign.json> --json
 dp campaign recover <campaign.json> --json
 ```
 
+Both commands include:
+
+1. `events`: summary of `.dp/campaigns/events.jsonl` for the campaign.
+2. `resume`: deterministic next-action package derived from the current loop and event logs.
+
+Resume actions:
+
+1. `resume_claimed_goal`: continue an active non-stale claim.
+2. `verify_evidence`: verify a goal with recorded evidence pending.
+3. `resolve_blocker`: resolve a blocked goal before moving dependent work.
+4. `claim_next_goal`: run the supervised handoff command to claim ready work.
+5. `campaign_verified`: all current-loop goals are verified.
+6. `no_ready_work`: no active, blocked, evidence-pending, ready, or verified action is available.
+
 Supervised handoff command:
 
 ```bash
 dp campaign run <campaign.json> --driver codex --supervised --json
 ```
 
-`run` validates campaign state, resolves `state.current_loop`, claims one ready goal through the
-LoopLedger protocol, emits a Codex handoff package, and stops. It does not launch an agent, execute
-evidence, or mark a campaign or goal verified.
+`run` validates campaign state, resolves `state.current_loop`, and uses the same resume decision as
+`recover`. If a current-loop goal is already actively claimed, `run` returns that resume package
+without a new claim. Otherwise it claims one ready goal through the LoopLedger protocol, appends a
+campaign `handoff_claimed` event under `.dp/campaigns/events.jsonl`, emits a Codex handoff package,
+and stops. It does not launch an agent, execute evidence, or mark a campaign or goal verified.
 
 Scaffold command:
 
@@ -92,3 +108,4 @@ Safety rules:
 7. A goal in `evidence_pending` is not treated as verified.
 8. Refinement authoring preserves `draft` status until deterministic readiness gates exist.
 9. Beads epics/issues are materialized only through explicit write flags.
+10. Campaign events are progress records, not proof of behavioral completion.

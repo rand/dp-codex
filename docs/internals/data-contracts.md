@@ -16,6 +16,7 @@ DP-Codex treats machine-readable output as a product surface, not a side effect.
 10. `/docs/schemas/campaign-refine-output.schema.json`
 11. `/docs/schemas/campaign-refine-llm-response.schema.json`
 12. `/docs/schemas/campaign-run-output.schema.json`
+13. `/.dp/campaigns/events.jsonl` append-only campaign handoff events.
 
 ## Contracted Command Families
 
@@ -30,6 +31,7 @@ DP-Codex treats machine-readable output as a product surface, not a side effect.
 9. `dp evidence lint/run ... --json`
 10. `dp loop lint/status/next ... --json`
 11. `dp campaign init/refine/lint/status/recover/run ... --json`
+12. `.dp/campaigns/events.jsonl` records.
 
 ## Stability Expectations
 

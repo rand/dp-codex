@@ -6,7 +6,9 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any
 
+from dp.core.campaign_events import DEFAULT_CAMPAIGN_EVENT_LOG, campaign_event_summary
 from dp.core.evidence_lint import lint_evidence_file
+from dp.core.goal_emit import emit_goal_prompt
 from dp.core.goal_lint import lint_goal_file
 from dp.core.goal_state import DEFAULT_GOAL_EVENT_LOG
 from dp.core.loop_ledger import lint_loop_file, loop_status
@@ -96,6 +98,7 @@ def campaign_status(
     campaign_path: Path,
     *,
     event_log: Path = DEFAULT_GOAL_EVENT_LOG,
+    campaign_event_log: Path = DEFAULT_CAMPAIGN_EVENT_LOG,
 ) -> CampaignCommandResult:
     validation = _validate_campaign_file(campaign_path)
     if validation.result.exit_code != 0 or validation.contract is None:
@@ -121,6 +124,15 @@ def campaign_status(
         )
 
     summary = _campaign_summary(contract, loop_result.payload)
+    events = campaign_event_summary(
+        campaign_id=contract.campaign_id,
+        event_log=campaign_event_log,
+    )
+    resume = _resume_handoff(
+        contract=contract,
+        campaign_path=campaign_path,
+        loop_payload=loop_result.payload,
+    )
     payload = {
         "ok": True,
         "command": "campaign.status",
@@ -134,6 +146,8 @@ def campaign_status(
         },
         "artifacts": _artifact_summary(contract),
         "loop": loop_result.payload,
+        "events": events,
+        "resume": resume,
         "summary": summary,
     }
     return CampaignCommandResult(payload=payload, exit_code=0)
@@ -143,6 +157,7 @@ def campaign_recover(
     campaign_path: Path,
     *,
     event_log: Path = DEFAULT_GOAL_EVENT_LOG,
+    campaign_event_log: Path = DEFAULT_CAMPAIGN_EVENT_LOG,
 ) -> CampaignCommandResult:
     validation = _validate_campaign_file(campaign_path)
     missing_artifacts = _missing_artifacts(validation.result.report)
@@ -159,7 +174,11 @@ def campaign_recover(
             exit_code=validation.result.exit_code,
         )
 
-    status_result = campaign_status(campaign_path, event_log=event_log)
+    status_result = campaign_status(
+        campaign_path,
+        event_log=event_log,
+        campaign_event_log=campaign_event_log,
+    )
     if status_result.exit_code != 0:
         return CampaignCommandResult(
             payload={
@@ -183,6 +202,8 @@ def campaign_recover(
             "lint": validation.result.report.to_dict(),
             "missing_artifacts": missing_artifacts,
             "status": status_result.payload,
+            "events": status_result.payload.get("events"),
+            "resume": status_result.payload.get("resume"),
         },
         exit_code=0,
     )
@@ -637,6 +658,184 @@ def _artifact_summary(contract: CampaignContract) -> dict[str, Any]:
         "evidence_plans": list(contract.artifact_paths["evidence_plans"]),
         "loops": list(contract.artifact_paths["loops"]),
     }
+
+
+def _resume_handoff(
+    *,
+    contract: CampaignContract,
+    campaign_path: Path,
+    loop_payload: dict[str, Any],
+) -> dict[str, Any]:
+    nodes = _loop_nodes(loop_payload)
+    loop_id = _non_empty_string(loop_payload.get("loop_id")) or str(contract.state["current_loop"])
+    stale_claims = _stale_claims(nodes)
+
+    for node in nodes:
+        if _node_state(node) in {"claimed", "started", "pursuing"}:
+            return _node_resume(
+                action="resume_claimed_goal",
+                reason="A current-loop goal has an active non-stale claim.",
+                campaign_id=contract.campaign_id,
+                loop_id=loop_id,
+                campaign_path=campaign_path,
+                node=node,
+                stale_claims=stale_claims,
+                include_codex_goal=True,
+            )
+
+    for node in nodes:
+        if _node_state(node) == "evidence_pending":
+            evidence = _last_event_text(node, "evidence")
+            return _node_resume(
+                action="verify_evidence",
+                reason="A current-loop goal has recorded evidence pending verification.",
+                campaign_id=contract.campaign_id,
+                loop_id=loop_id,
+                campaign_path=campaign_path,
+                node=node,
+                stale_claims=stale_claims,
+                evidence=evidence,
+            )
+
+    for node in nodes:
+        if _node_state(node) == "blocked":
+            return _node_resume(
+                action="resolve_blocker",
+                reason="A current-loop goal is blocked and must be resolved before dependent work.",
+                campaign_id=contract.campaign_id,
+                loop_id=loop_id,
+                campaign_path=campaign_path,
+                node=node,
+                stale_claims=stale_claims,
+            )
+
+    for node in nodes:
+        if _node_state(node) == "ready":
+            return _node_resume(
+                action="claim_next_goal",
+                reason="A current-loop goal is ready to claim.",
+                campaign_id=contract.campaign_id,
+                loop_id=loop_id,
+                campaign_path=campaign_path,
+                node=node,
+                stale_claims=stale_claims,
+            )
+
+    if nodes and all(_node_state(node) == "verified" for node in nodes):
+        return {
+            "command": "campaign.resume",
+            "action": "campaign_verified",
+            "reason": "All current-loop goals are verified.",
+            "campaign_id": contract.campaign_id,
+            "loop_id": loop_id,
+            "stale_claims": stale_claims,
+            "commands": {
+                "status": f"dp campaign status {campaign_path.as_posix()} --json",
+                "recover": f"dp campaign recover {campaign_path.as_posix()} --json",
+            },
+        }
+
+    return {
+        "command": "campaign.resume",
+        "action": "no_ready_work",
+        "reason": "No current-loop goal is active, blocked, evidence-pending, ready, or verified.",
+        "campaign_id": contract.campaign_id,
+        "loop_id": loop_id,
+        "stale_claims": stale_claims,
+        "commands": {
+            "status": f"dp campaign status {campaign_path.as_posix()} --json",
+            "recover": f"dp campaign recover {campaign_path.as_posix()} --json",
+            "campaign_run": (
+                f"dp campaign run {campaign_path.as_posix()} --driver codex --supervised --json"
+            ),
+        },
+    }
+
+
+def _node_resume(
+    *,
+    action: str,
+    reason: str,
+    campaign_id: str,
+    loop_id: str,
+    campaign_path: Path,
+    node: dict[str, Any],
+    stale_claims: list[dict[str, Any]],
+    evidence: str | None = None,
+    include_codex_goal: bool = False,
+) -> dict[str, Any]:
+    goal_path = _node_text(node, "goal_path") or "<goal.json>"
+    verify_evidence = evidence or "<run.json>"
+    commands = {
+        "status": f"dp goal status {goal_path} --json",
+        "start": f"dp goal start {goal_path} --agent codex --json",
+        "heartbeat": f"dp goal heartbeat {goal_path} --json",
+        "complete": f"dp goal complete {goal_path} --evidence <run.json> --json",
+        "verify": f"dp goal verify {goal_path} --evidence {verify_evidence} --json",
+        "block": f"dp goal block {goal_path} --reason <reason> --write-artifact --json",
+        "release": f"dp goal release {goal_path} --reason <reason> --json",
+        "campaign_run": (
+            f"dp campaign run {campaign_path.as_posix()} --driver codex --supervised --json"
+        ),
+    }
+    resume: dict[str, Any] = {
+        "command": "campaign.resume",
+        "action": action,
+        "reason": reason,
+        "campaign_id": campaign_id,
+        "loop_id": loop_id,
+        "node_id": _node_text(node, "node_id"),
+        "goal_id": _node_text(node, "goal_id"),
+        "goal_path": goal_path,
+        "beads_issue_id": _node_text(node, "beads_issue_id"),
+        "lease": node.get("lease") if isinstance(node.get("lease"), dict) else None,
+        "blocked": node.get("blocked") if isinstance(node.get("blocked"), dict) else None,
+        "evidence": evidence,
+        "evidence_plan": _node_text(node, "evidence_plan"),
+        "stale_claims": stale_claims,
+        "commands": commands,
+    }
+    if include_codex_goal:
+        codex_goal = _codex_goal(goal_path)
+        if codex_goal is not None:
+            resume["codex_goal"] = codex_goal
+    return resume
+
+
+def _stale_claims(nodes: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    stale: list[dict[str, Any]] = []
+    for node in nodes:
+        lease = node.get("lease")
+        if not isinstance(lease, dict) or lease.get("stale") is not True:
+            continue
+        stale.append(
+            {
+                "node_id": _node_text(node, "node_id"),
+                "goal_id": _node_text(node, "goal_id"),
+                "holder": lease.get("holder"),
+                "expires_at": lease.get("expires_at"),
+            }
+        )
+    return stale
+
+
+def _last_event_text(node: dict[str, Any], field: str) -> str | None:
+    last_event = node.get("last_event")
+    if not isinstance(last_event, dict):
+        return None
+    return _non_empty_string(last_event.get(field))
+
+
+def _node_text(node: dict[str, Any], field: str) -> str | None:
+    return _non_empty_string(node.get(field))
+
+
+def _codex_goal(goal_path: str) -> str | None:
+    emit_result = emit_goal_prompt(Path(goal_path), output_format="codex")
+    if emit_result.exit_code != 0:
+        return None
+    codex_goal = emit_result.payload.get("codex_goal")
+    return codex_goal if isinstance(codex_goal, str) else None
 
 
 def _loop_nodes(loop_payload: dict[str, Any]) -> list[dict[str, Any]]:

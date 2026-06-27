@@ -19,7 +19,9 @@ implemented: `dp campaign run --driver codex --supervised` validates campaign st
 current loop, claims one ready goal, emits the Codex handoff package, and stops without launching
 Codex, executing evidence, or marking work verified. `dp goal block --write-artifact` now routes
 supported GoalContract blockers into deterministic spec, ADR, or EvidencePlan artifacts and records
-artifact/Beads metadata in the append-only blocked event.
+artifact/Beads metadata in the append-only blocked event. `dp campaign status/recover` now emit a
+deterministic resume handoff, and `dp campaign run --supervised` records new claimed handoffs in
+`.dp/campaigns/events.jsonl` while resuming active claims instead of claiming over them.
 
 ## 1. Thesis
 
