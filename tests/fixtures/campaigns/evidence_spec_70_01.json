@@ -1,0 +1,26 @@
+{
+  "schema_version": "0.1",
+  "id": "EVIDENCE-SPEC-70.01",
+  "goal_id": "GOAL-SPEC-70.01",
+  "checks": [
+    {
+      "id": "doctor-json",
+      "kind": "registered_command",
+      "argv": [
+        "dp",
+        "doctor",
+        "--json"
+      ],
+      "timeout_seconds": 30,
+      "success_exit_codes": [
+        0
+      ],
+      "assertions": [
+        {
+          "type": "stdout_json"
+        }
+      ],
+      "mutation_policy": "read_only"
+    }
+  ]
+}

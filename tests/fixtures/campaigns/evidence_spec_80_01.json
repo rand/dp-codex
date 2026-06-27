@@ -1,0 +1,33 @@
+{
+  "schema_version": "0.1",
+  "id": "EVIDENCE-SPEC-80.01",
+  "goal_id": "GOAL-SPEC-80.01-LINT",
+  "checks": [
+    {
+      "id": "goal-lint",
+      "kind": "registered_command",
+      "argv": [
+        "dp",
+        "goal",
+        "lint",
+        "tests/fixtures/goals/valid_spec_70_01.json",
+        "--json"
+      ],
+      "timeout_seconds": 30,
+      "success_exit_codes": [
+        0
+      ],
+      "assertions": [
+        {
+          "type": "stdout_json"
+        },
+        {
+          "type": "json_path_equals",
+          "path": "$.valid",
+          "value": true
+        }
+      ],
+      "mutation_policy": "read_only"
+    }
+  ]
+}

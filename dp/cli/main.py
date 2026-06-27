@@ -7,6 +7,11 @@ from pathlib import Path
 from typing import Any, Callable, Sequence, TextIO, cast
 
 from dp.core.adr import create_adr, list_adrs, show_adr, update_adr_status
+from dp.core.campaign_manifest import (
+    campaign_recover,
+    campaign_status,
+    lint_campaign_file,
+)
 from dp.core.coverage import compute_trace_coverage
 from dp.core.decompose import decompose_items, resolve_context_window
 from dp.core.evidence_lint import lint_evidence_file
@@ -410,6 +415,36 @@ def _build_parser() -> argparse.ArgumentParser:
     loop_next_parser.add_argument("--json", action="store_true")
     loop_next_parser.set_defaults(handler=_run_loop_next)
 
+    campaign_parser = subparsers.add_parser("campaign")
+    campaign_subparsers = campaign_parser.add_subparsers(
+        dest="campaign_command",
+        required=True,
+    )
+
+    campaign_lint_parser = campaign_subparsers.add_parser(
+        "lint",
+        help="Validate a CampaignManifest without executing campaign work.",
+    )
+    campaign_lint_parser.add_argument("campaign")
+    campaign_lint_parser.add_argument("--json", action="store_true")
+    campaign_lint_parser.set_defaults(handler=_run_campaign_lint)
+
+    campaign_status_parser = campaign_subparsers.add_parser(
+        "status",
+        help="Reconstruct campaign state from manifest artifacts and goal events.",
+    )
+    campaign_status_parser.add_argument("campaign")
+    campaign_status_parser.add_argument("--json", action="store_true")
+    campaign_status_parser.set_defaults(handler=_run_campaign_status)
+
+    campaign_recover_parser = campaign_subparsers.add_parser(
+        "recover",
+        help="Report whether campaign state can be recovered without chat memory.",
+    )
+    campaign_recover_parser.add_argument("campaign")
+    campaign_recover_parser.add_argument("--json", action="store_true")
+    campaign_recover_parser.set_defaults(handler=_run_campaign_recover)
+
     return parser
 
 
@@ -709,6 +744,59 @@ def _run_loop_next(args: argparse.Namespace) -> int:
         ),
         args.json,
     )
+
+
+def _run_campaign_lint(args: argparse.Namespace) -> int:
+    result = lint_campaign_file(Path(args.campaign))
+
+    if args.json:
+        print(json.dumps(result.report.to_dict(), sort_keys=True))
+        return result.exit_code
+
+    if result.report.valid:
+        print(f"Campaign valid: {result.report.campaign_id}")
+        return 0
+
+    print(f"Campaign invalid: {result.report.campaign_id or '<unknown>'}")
+    for error in result.report.errors:
+        print(f"- [{error.code}] {error.path}: {error.message}")
+    for warning in result.report.warnings:
+        print(f"- [warning:{warning.code}] {warning.path}: {warning.message}")
+    return result.exit_code
+
+
+def _run_campaign_status(args: argparse.Namespace) -> int:
+    return _emit_campaign_command_result(campaign_status(Path(args.campaign)), args.json)
+
+
+def _run_campaign_recover(args: argparse.Namespace) -> int:
+    return _emit_campaign_command_result(campaign_recover(Path(args.campaign)), args.json)
+
+
+def _emit_campaign_command_result(result: Any, json_output: bool) -> int:
+    if json_output:
+        print(json.dumps(result.payload, sort_keys=True))
+        return int(result.exit_code)
+
+    if result.payload.get("ok") is True:
+        command = result.payload.get("command")
+        campaign_id = result.payload.get("campaign_id")
+        if command == "campaign.recover":
+            print(f"Campaign recoverable: {campaign_id}")
+        else:
+            print(f"Campaign ok: {campaign_id}")
+        return int(result.exit_code)
+
+    print(f"Campaign command failed: {result.payload.get('command', '<unknown>')}")
+    error = result.payload.get("error")
+    if isinstance(error, dict):
+        print(f"- [{error.get('code')}] {error.get('message')}")
+    lint = result.payload.get("lint")
+    if isinstance(lint, dict):
+        for item in lint.get("errors", []):
+            if isinstance(item, dict):
+                print(f"- [{item.get('code')}] {item.get('path')}: {item.get('message')}")
+    return int(result.exit_code)
 
 
 def _emit_loop_command_result(result: Any, json_output: bool) -> int:

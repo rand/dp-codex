@@ -1,0 +1,27 @@
+{
+  "schema_version": "0.1",
+  "id": "LOOP-SPEC-80.06",
+  "title": "SPEC-80.06 campaign manifest fixture loop",
+  "nodes": [
+    {
+      "id": "beads-doctor",
+      "kind": "goal",
+      "goal_id": "GOAL-SPEC-70.01",
+      "goal_path": "tests/fixtures/goals/valid_spec_70_01.json",
+      "beads_issue_id": "dpcx-66l",
+      "depends_on": [],
+      "evidence_plan": "tests/fixtures/campaigns/evidence_spec_70_01.json"
+    },
+    {
+      "id": "goal-lint",
+      "kind": "goal",
+      "goal_id": "GOAL-SPEC-80.01-LINT",
+      "goal_path": "tests/fixtures/goals/valid_campaign_node.json",
+      "beads_issue_id": "dpcx-pb5.1",
+      "depends_on": [
+        "beads-doctor"
+      ],
+      "evidence_plan": "tests/fixtures/campaigns/evidence_spec_80_01.json"
+    }
+  ]
+}

@@ -92,3 +92,17 @@ def test_loop_lint_json_output_matches_schema(capsys) -> None:
     assert exit_code == 0
     payload = json.loads(capsys.readouterr().out)
     validate(instance=payload, schema=schema)
+
+
+def test_campaign_lint_json_output_matches_schema(capsys) -> None:
+    schema = json.loads(
+        Path("docs/schemas/campaign-lint-output.schema.json").read_text(encoding="utf-8")
+    )
+
+    exit_code = cli_main.main(
+        ["campaign", "lint", "tests/fixtures/campaigns/valid_spec_80_06.json", "--json"]
+    )
+
+    assert exit_code == 0
+    payload = json.loads(capsys.readouterr().out)
+    validate(instance=payload, schema=schema)

@@ -11,9 +11,9 @@ files.
 
 It provides:
 
-1. A `dp` command surface for traceability, task workflow, ADRs, review, verify, decompose, progress, policy, enforcement, and agent-operable goals.
+1. A `dp` command surface for traceability, task workflow, ADRs, review, verify, decompose, progress, policy, enforcement, and agent-operable campaigns.
 2. Governance controls that run consistently in local hooks and CI.
-3. Typed goal and evidence-plan contracts that keep Codex work bounded, resumable, and inspectable.
+3. Typed campaign, goal, loop, and evidence-plan contracts that keep Codex work bounded, resumable, and inspectable.
 4. End-to-end documentation for users from first-time adopters to maintainers.
 
 ## Core Workflows
@@ -27,6 +27,7 @@ It provides:
 7. Goal contracts, append-only goal state, and Codex-operable goal prompts
 8. Evidence-plan linting for registered, deterministic checks
 9. Loop ledgers that select the next ready goal from repo artifacts and goal events
+10. Campaign manifests that recover visible campaign state from repo artifacts without chat memory
 
 ## Quick Start
 
@@ -51,6 +52,9 @@ dp goal emit docs/goals/GOAL-my-feature.json --format codex --json
 When a campaign has a loop ledger, ask dp for the next ready goal:
 
 ```bash
+dp campaign lint docs/campaigns/CAMPAIGN-my-project.json --json
+dp campaign status docs/campaigns/CAMPAIGN-my-project.json --json
+dp campaign recover docs/campaigns/CAMPAIGN-my-project.json --json
 dp loop next docs/loops/LOOP-my-campaign.json --claim --emit codex --json
 ```
 
@@ -110,6 +114,7 @@ Reference and contributor standards:
 - `docs/reference/goal-emission.md`
 - `docs/reference/evidence-plan-schema.md`
 - `docs/reference/loop-ledger-schema.md`
+- `docs/reference/campaign-manifest-schema.md`
 - `docs/developer/contributor-handbook.md`
 - `docs/developer/documentation-style.md`
 
@@ -120,9 +125,10 @@ M0-M6 milestone scope has been implemented and empirically validated; v1 readine
 
 SPEC-80 campaign-control work has started. The implemented foundation is GoalContract linting,
 append-only goal lifecycle state, Codex prompt emission, deterministic EvidencePlan linting, and
-LoopLedger next-goal scheduling. Evidence execution, campaign manifests, primary-spec compilation,
-LLM-assisted refinement, and supervised campaign running remain tracked follow-up work, not current
-features.
+LoopLedger next-goal scheduling. CampaignManifest lint/status/recover is also implemented, so a
+future Codex session can inspect repo artifacts and recover visible campaign state without chat
+memory. Evidence execution, primary-spec compilation, LLM-assisted refinement, and supervised
+campaign running remain tracked follow-up work, not current features.
 
 ## Developer Commands
 
@@ -143,4 +149,5 @@ dp goal lint tests/fixtures/goals/valid_spec_70_01.json --json
 dp goal emit tests/fixtures/goals/valid_spec_70_01.json --format codex --json
 dp evidence lint tests/fixtures/evidence/valid_spec_80_05.json --json
 dp loop next tests/fixtures/loops/valid_spec_80_04.json --emit codex --json
+dp campaign recover tests/fixtures/campaigns/valid_spec_80_06.json --json
 ```

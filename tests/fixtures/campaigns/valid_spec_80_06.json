@@ -1,0 +1,39 @@
+{
+  "schema_version": "0.1",
+  "id": "CAMPAIGN-SPEC-80.06",
+  "title": "SPEC-80.06 campaign manifest fixture",
+  "primary_spec": {
+    "path": "docs/specs/SPEC-80-agent-campaign-control-plane-for-dp-codex.md",
+    "input_hash": "sha256:0123456789abcdef"
+  },
+  "artifacts": {
+    "specs": [
+      "docs/specs/SPEC-80-06-campaign-manifests.md"
+    ],
+    "adrs": [
+      "docs/adr/ADR-0005-dp-is-a-campaign-control-plane-not-an-agent-runner.md"
+    ],
+    "goals": [
+      "tests/fixtures/goals/valid_spec_70_01.json",
+      "tests/fixtures/goals/valid_campaign_node.json"
+    ],
+    "evidence_plans": [
+      "tests/fixtures/campaigns/evidence_spec_70_01.json",
+      "tests/fixtures/campaigns/evidence_spec_80_01.json"
+    ],
+    "loops": [
+      "tests/fixtures/campaigns/loop_spec_80_06.json"
+    ],
+    "beads_epics": [
+      "dpcx-pb5"
+    ],
+    "beads_issues": [
+      "dpcx-pb5.6"
+    ]
+  },
+  "state": {
+    "status": "active",
+    "current_loop": "LOOP-SPEC-80.06",
+    "current_goal": null
+  }
+}

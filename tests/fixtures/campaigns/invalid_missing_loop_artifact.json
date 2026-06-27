@@ -1,0 +1,24 @@
+{
+  "schema_version": "0.1",
+  "id": "CAMPAIGN-MISSING-LOOP",
+  "title": "Campaign with missing loop",
+  "primary_spec": {
+    "path": "docs/specs/SPEC-80-agent-campaign-control-plane-for-dp-codex.md"
+  },
+  "artifacts": {
+    "goals": [
+      "tests/fixtures/goals/valid_spec_70_01.json"
+    ],
+    "evidence_plans": [
+      "tests/fixtures/campaigns/evidence_spec_70_01.json"
+    ],
+    "loops": [
+      "tests/fixtures/campaigns/missing_loop.json"
+    ]
+  },
+  "state": {
+    "status": "active",
+    "current_loop": "LOOP-MISSING",
+    "current_goal": null
+  }
+}

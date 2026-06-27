@@ -6,9 +6,9 @@ Scope: principled upgrade to dp-codex so a comprehensive primary spec can be com
 
 Implementation note, 2026-06-27: the foundation is implemented for GoalContract linting,
 append-only goal lifecycle state, Codex prompt emission, and deterministic EvidencePlan linting.
-LoopLedger lint/status/next-goal scheduling is also implemented. Evidence execution, campaign
-manifests, primary-spec campaign scaffolding, LLM-assisted refinement, and supervised running
-remain planned follow-up work.
+LoopLedger lint/status/next-goal scheduling and CampaignManifest lint/status/recover are also
+implemented. Evidence execution, primary-spec campaign scaffolding, LLM-assisted refinement, and
+supervised running remain planned follow-up work.
 
 ## 1. Thesis
 

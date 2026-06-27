@@ -13,11 +13,13 @@ GoalContract through dp without relying on chat memory.
 6. `dp evidence lint`: deterministic EvidencePlan validation without command execution.
 7. `dp loop lint/status/next`: deterministic LoopLedger validation, state reconstruction, and
    next-goal packaging.
+8. `dp campaign lint/status/recover`: deterministic CampaignManifest validation and recovery from
+   repo artifacts plus append-only goal events.
 
 ## What Does Not Exist Yet
 
 1. `dp evidence run`.
-2. `dp campaign init/status/recover`.
+2. `dp campaign init`.
 3. LLM-assisted campaign refinement.
 4. A supervised campaign runner.
 
@@ -103,6 +105,21 @@ dp loop next docs/loops/LOOP-example.json --claim --emit codex --json
 `next` skips blocked nodes and active claims. Dependencies unlock only when dependency goal state is
 verified; `evidence_pending` remains evidence recorded, not proof of completion.
 
+## Recover Campaign State
+
+When a repository has a CampaignManifest, validate it and recover visible campaign state before
+continuing work:
+
+```bash
+dp campaign lint docs/campaigns/CAMPAIGN-example.json --json
+dp campaign status docs/campaigns/CAMPAIGN-example.json --json
+dp campaign recover docs/campaigns/CAMPAIGN-example.json --json
+```
+
+`recover` reads the manifest, declared artifacts, loop ledgers, goal contracts, evidence plans, and
+`.dp/goals/events.jsonl`. It does not use chat history, call an LLM, execute evidence, or infer
+success from agent narration.
+
 ## Safe Local Smoke Test
 
 Use the checked-in fixture when you want to verify the command surface without writing events:
@@ -111,4 +128,5 @@ Use the checked-in fixture when you want to verify the command surface without w
 dp goal lint tests/fixtures/goals/valid_spec_70_01.json --json
 dp goal emit tests/fixtures/goals/valid_spec_70_01.json --format codex --json
 dp loop next tests/fixtures/loops/valid_spec_80_04.json --emit codex --json
+dp campaign recover tests/fixtures/campaigns/valid_spec_80_06.json --json
 ```

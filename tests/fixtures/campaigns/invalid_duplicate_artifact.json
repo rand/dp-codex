@@ -1,0 +1,25 @@
+{
+  "schema_version": "0.1",
+  "id": "CAMPAIGN-DUPLICATE",
+  "title": "Campaign with duplicate artifacts",
+  "primary_spec": {
+    "path": "docs/specs/SPEC-80-agent-campaign-control-plane-for-dp-codex.md"
+  },
+  "artifacts": {
+    "goals": [
+      "tests/fixtures/goals/valid_spec_70_01.json",
+      "tests/fixtures/goals/valid_spec_70_01.json"
+    ],
+    "evidence_plans": [
+      "tests/fixtures/campaigns/evidence_spec_70_01.json"
+    ],
+    "loops": [
+      "tests/fixtures/campaigns/loop_spec_80_06.json"
+    ]
+  },
+  "state": {
+    "status": "active",
+    "current_loop": "LOOP-SPEC-80.06",
+    "current_goal": null
+  }
+}
