@@ -1,0 +1,31 @@
+{
+  "schema_version": "0.1",
+  "id": "GOAL-UNKNOWN-BLOCKER",
+  "title": "Reject unknown blocker routes",
+  "level": "goal",
+  "objective": "Reject blocker routes that dp cannot map to a disciplined artifact.",
+  "evidence": {
+    "verification_commands": [
+      "pytest tests/test_goal_lint.py"
+    ],
+    "trace_ids": [
+      "SPEC-80.01"
+    ]
+  },
+  "boundaries": {
+    "allowed_paths": [
+      "dp",
+      "tests"
+    ]
+  },
+  "terminal_states": {
+    "success": "Known blocker route tests pass.",
+    "blocked": "A route type is ambiguous."
+  },
+  "blocked_routes": {
+    "ask_chat": {
+      "action": "send_message",
+      "also_create_beads_issue": false
+    }
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "schema_version": "0.1",
+  "id": "GOAL-SELF-REPORT",
+  "title": "Reject self report success",
+  "level": "goal",
+  "objective": "Reject success states that rely on agent narration instead of evidence.",
+  "evidence": {
+    "verification_commands": [
+      "pytest tests/test_goal_lint.py"
+    ],
+    "trace_ids": [
+      "SPEC-80.01"
+    ]
+  },
+  "boundaries": {
+    "allowed_paths": [
+      "dp",
+      "tests"
+    ]
+  },
+  "terminal_states": {
+    "success": "Codex says the work is done.",
+    "blocked": "The evidence boundary is ambiguous."
+  }
+}

@@ -1,0 +1,108 @@
+{
+  "schema_version": "0.1",
+  "id": "GOAL-SPEC-70.01",
+  "title": "Make SPEC-70.01 true",
+  "source": {
+    "kind": "spec",
+    "id": "SPEC-70.01",
+    "path": "docs/specs/SPEC-70-01-beads-doctor.md",
+    "input_hash": "sha256:0123456789abcdef"
+  },
+  "level": "goal",
+  "objective": "Implement the SPEC-70.01 Beads doctor baseline with deterministic health checks, stable JSON output, explicit exit codes, and current Beads command guidance.",
+  "non_goals": [
+    "Do not add network-dependent checks.",
+    "Do not restore removed bd sync behavior."
+  ],
+  "checkpoints": [
+    {
+      "id": "SPEC-70.01-R1",
+      "description": "dp doctor reports Beads health without mutating tracker state.",
+      "source_ref": "SPEC-70.01"
+    }
+  ],
+  "evidence": {
+    "evidence_plan": "docs/evidence/EVIDENCE-SPEC-70.01.json",
+    "verification_commands": [
+      "dp doctor --json",
+      "pytest tests/unit/test_cli_task.py",
+      "make check"
+    ],
+    "trace_ids": [
+      "SPEC-70.01"
+    ]
+  },
+  "boundaries": {
+    "read_first": [
+      "docs/specs/SPEC-70-01-beads-doctor.md",
+      "dp/providers/beads.py",
+      "dp/cli/main.py"
+    ],
+    "preferred_paths": [
+      "dp/providers",
+      "dp/cli",
+      "tests",
+      "docs"
+    ],
+    "allowed_paths": [
+      "dp",
+      "tests",
+      "docs",
+      "README.md",
+      "AGENTS.md"
+    ],
+    "forbidden_paths": [],
+    "allowed_commands": [
+      "dp doctor --json",
+      "pytest tests/unit/test_cli_task.py",
+      "make check"
+    ]
+  },
+  "iteration_policy": {
+    "mode": "smallest_relevant_check_first",
+    "max_attempts": 5,
+    "after_each_attempt": [
+      "record changed files",
+      "run the smallest relevant failing check",
+      "repair failures before broadening scope"
+    ]
+  },
+  "terminal_states": {
+    "success": "The linked evidence commands pass and SPEC-70.01 requirements are represented in deterministic tests and docs.",
+    "blocked": "Required Beads behavior, fixture setup, or provider semantics are missing.",
+    "budget_exhausted": "Iteration budget is exhausted without satisfying evidence.",
+    "unsafe_scope": "Required changes exceed declared boundaries."
+  },
+  "blocked_routes": {
+    "needs_specification": {
+      "action": "create_spec_stub",
+      "also_create_beads_issue": true
+    },
+    "needs_decision": {
+      "action": "create_adr_stub",
+      "also_create_beads_issue": true
+    },
+    "needs_validator": {
+      "action": "create_evidence_stub",
+      "also_create_beads_issue": true
+    },
+    "unsafe_scope": {
+      "action": "create_scope_decision",
+      "also_create_beads_issue": true
+    }
+  },
+  "outputs": {
+    "codex_goal": "/goal Implement the SPEC-70.01 Beads doctor baseline..."
+  },
+  "provenance": {
+    "generated_by": {
+      "kind": "human",
+      "model": null,
+      "provider": null,
+      "prompt_hash": null,
+      "input_artifact_hashes": {},
+      "linter_version": "0.1",
+      "reviewed": true
+    }
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "schema_version": "9.9",
+  "id": "GOAL-UNSUPPORTED-SCHEMA",
+  "title": "Unsupported schema",
+  "level": "goal",
+  "objective": "Demonstrate unsupported schema exit semantics."
+}

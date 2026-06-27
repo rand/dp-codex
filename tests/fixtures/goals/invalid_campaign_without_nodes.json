@@ -1,0 +1,26 @@
+{
+  "schema_version": "0.1",
+  "id": "GOAL-ONE-GIANT-CAMPAIGN",
+  "title": "One giant campaign",
+  "level": "campaign",
+  "objective": "Deliver a full campaign as one objective without decomposed nodes.",
+  "evidence": {
+    "verification_commands": [
+      "make check"
+    ],
+    "trace_ids": [
+      "SPEC-80.01"
+    ]
+  },
+  "boundaries": {
+    "allowed_paths": [
+      "dp",
+      "tests",
+      "docs"
+    ]
+  },
+  "terminal_states": {
+    "success": "The campaign is verified by evidence.",
+    "blocked": "The campaign cannot be decomposed."
+  }
+}

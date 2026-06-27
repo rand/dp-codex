@@ -1,0 +1,17 @@
+{
+  "schema_version": "0.1",
+  "id": "GOAL-MISSING-EVIDENCE",
+  "title": "Implement goal lint CLI",
+  "level": "goal",
+  "objective": "Implement deterministic goal lint CLI behavior with structured errors and explicit exit codes.",
+  "boundaries": {
+    "allowed_paths": [
+      "dp",
+      "tests"
+    ]
+  },
+  "terminal_states": {
+    "success": "The goal lint CLI tests pass.",
+    "blocked": "Required schema behavior is ambiguous."
+  }
+}

@@ -9,6 +9,17 @@ from typing import Any, Callable, Sequence, TextIO, cast
 from dp.core.adr import create_adr, list_adrs, show_adr, update_adr_status
 from dp.core.coverage import compute_trace_coverage
 from dp.core.decompose import decompose_items, resolve_context_window
+from dp.core.goal_emit import emit_goal_prompt
+from dp.core.goal_lint import lint_goal_file
+from dp.core.goal_state import (
+    block_goal,
+    claim_goal,
+    complete_goal,
+    goal_status,
+    heartbeat_goal,
+    release_goal,
+    start_goal,
+)
 from dp.core.policy import load_policy_config
 from dp.core.progress import (
     ProgressReport,
@@ -128,6 +139,88 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     doctor_parser.add_argument("--json", action="store_true")
     doctor_parser.set_defaults(handler=_run_doctor)
+
+    goal_parser = subparsers.add_parser("goal")
+    goal_subparsers = goal_parser.add_subparsers(dest="goal_command", required=True)
+
+    goal_lint_parser = goal_subparsers.add_parser(
+        "lint",
+        help="Validate a GoalContract without model calls or side effects.",
+    )
+    goal_lint_parser.add_argument("goal")
+    goal_lint_parser.add_argument("--json", action="store_true")
+    goal_lint_parser.set_defaults(handler=_run_goal_lint)
+
+    goal_status_parser = goal_subparsers.add_parser(
+        "status",
+        help="Reconstruct goal lifecycle state from append-only events.",
+    )
+    goal_status_parser.add_argument("goal")
+    goal_status_parser.add_argument("--json", action="store_true")
+    goal_status_parser.set_defaults(handler=_run_goal_status)
+
+    goal_claim_parser = goal_subparsers.add_parser(
+        "claim",
+        help="Claim a valid goal with a finite lease.",
+    )
+    goal_claim_parser.add_argument("goal")
+    goal_claim_parser.add_argument("--agent", required=True)
+    goal_claim_parser.add_argument("--lease", default="2h")
+    goal_claim_parser.add_argument("--json", action="store_true")
+    goal_claim_parser.set_defaults(handler=_run_goal_claim)
+
+    goal_start_parser = goal_subparsers.add_parser(
+        "start",
+        help="Record that an agent started a valid goal.",
+    )
+    goal_start_parser.add_argument("goal")
+    goal_start_parser.add_argument("--agent", required=True)
+    goal_start_parser.add_argument("--json", action="store_true")
+    goal_start_parser.set_defaults(handler=_run_goal_start)
+
+    goal_heartbeat_parser = goal_subparsers.add_parser(
+        "heartbeat",
+        help="Record a heartbeat for the active goal claim.",
+    )
+    goal_heartbeat_parser.add_argument("goal")
+    goal_heartbeat_parser.add_argument("--json", action="store_true")
+    goal_heartbeat_parser.set_defaults(handler=_run_goal_heartbeat)
+
+    goal_block_parser = goal_subparsers.add_parser(
+        "block",
+        help="Record a structured blocker for a goal.",
+    )
+    goal_block_parser.add_argument("goal")
+    goal_block_parser.add_argument("--reason", required=True)
+    goal_block_parser.add_argument("--json", action="store_true")
+    goal_block_parser.set_defaults(handler=_run_goal_block)
+
+    goal_release_parser = goal_subparsers.add_parser(
+        "release",
+        help="Release a goal claim with a reason.",
+    )
+    goal_release_parser.add_argument("goal")
+    goal_release_parser.add_argument("--reason", required=True)
+    goal_release_parser.add_argument("--json", action="store_true")
+    goal_release_parser.set_defaults(handler=_run_goal_release)
+
+    goal_complete_parser = goal_subparsers.add_parser(
+        "complete",
+        help="Record evidence for a goal without declaring behavioral verification.",
+    )
+    goal_complete_parser.add_argument("goal")
+    goal_complete_parser.add_argument("--evidence", required=True)
+    goal_complete_parser.add_argument("--json", action="store_true")
+    goal_complete_parser.set_defaults(handler=_run_goal_complete)
+
+    goal_emit_parser = goal_subparsers.add_parser(
+        "emit",
+        help="Emit an agent-operable goal prompt from a valid contract.",
+    )
+    goal_emit_parser.add_argument("goal")
+    goal_emit_parser.add_argument("--format", choices=["codex"], default="codex")
+    goal_emit_parser.add_argument("--json", action="store_true")
+    goal_emit_parser.set_defaults(handler=_run_goal_emit)
 
     adr_parser = subparsers.add_parser("adr")
     adr_subparsers = adr_parser.add_subparsers(dest="adr_command", required=True)
@@ -254,6 +347,18 @@ def _build_parser() -> argparse.ArgumentParser:
     task_close_parser.add_argument("--reason", required=True)
     task_close_parser.add_argument("--json", action="store_true")
     task_close_parser.set_defaults(handler=_run_task_close)
+
+    agent_parser = subparsers.add_parser("agent")
+    agent_subparsers = agent_parser.add_subparsers(dest="agent_command", required=True)
+
+    agent_prompt_parser = agent_subparsers.add_parser(
+        "prompt",
+        help="Emit an agent prompt from a valid GoalContract.",
+    )
+    agent_prompt_parser.add_argument("--goal", required=True)
+    agent_prompt_parser.add_argument("--format", choices=["codex"], default="codex")
+    agent_prompt_parser.add_argument("--json", action="store_true")
+    agent_prompt_parser.set_defaults(handler=_run_agent_prompt)
 
     return parser
 
@@ -425,6 +530,103 @@ def _run_doctor(args: argparse.Namespace) -> int:
     if health.recovery_hint is not None:
         print(f"recovery: {health.recovery_hint}", file=sys.stderr)
     return 0 if health.ok else 2
+
+
+def _run_goal_lint(args: argparse.Namespace) -> int:
+    result = lint_goal_file(Path(args.goal))
+
+    if args.json:
+        print(json.dumps(result.report.to_dict(), sort_keys=True))
+        return result.exit_code
+
+    if result.report.valid:
+        print(f"Goal valid: {result.report.goal_id}")
+        return 0
+
+    print(f"Goal invalid: {result.report.goal_id or '<unknown>'}")
+    for error in result.report.errors:
+        print(f"- [{error.code}] {error.path}: {error.message}")
+    for warning in result.report.warnings:
+        print(f"- [warning:{warning.code}] {warning.path}: {warning.message}")
+    return result.exit_code
+
+
+def _run_goal_status(args: argparse.Namespace) -> int:
+    return _emit_goal_command_result(goal_status(Path(args.goal)), args.json)
+
+
+def _run_goal_claim(args: argparse.Namespace) -> int:
+    return _emit_goal_command_result(
+        claim_goal(Path(args.goal), agent=args.agent, lease=args.lease),
+        args.json,
+    )
+
+
+def _run_goal_start(args: argparse.Namespace) -> int:
+    return _emit_goal_command_result(
+        start_goal(Path(args.goal), agent=args.agent),
+        args.json,
+    )
+
+
+def _run_goal_heartbeat(args: argparse.Namespace) -> int:
+    return _emit_goal_command_result(heartbeat_goal(Path(args.goal)), args.json)
+
+
+def _run_goal_block(args: argparse.Namespace) -> int:
+    return _emit_goal_command_result(
+        block_goal(Path(args.goal), reason=args.reason),
+        args.json,
+    )
+
+
+def _run_goal_release(args: argparse.Namespace) -> int:
+    return _emit_goal_command_result(
+        release_goal(Path(args.goal), reason=args.reason),
+        args.json,
+    )
+
+
+def _run_goal_complete(args: argparse.Namespace) -> int:
+    return _emit_goal_command_result(
+        complete_goal(Path(args.goal), evidence_path=Path(args.evidence)),
+        args.json,
+    )
+
+
+def _run_goal_emit(args: argparse.Namespace) -> int:
+    result = emit_goal_prompt(Path(args.goal), output_format=args.format)
+    return _emit_goal_command_result(result, args.json)
+
+
+def _run_agent_prompt(args: argparse.Namespace) -> int:
+    result = emit_goal_prompt(Path(args.goal), output_format=args.format)
+    if result.payload.get("ok") is True:
+        result.payload["command"] = "agent.prompt"
+    return _emit_goal_command_result(result, args.json)
+
+
+def _emit_goal_command_result(result: Any, json_output: bool) -> int:
+    if json_output:
+        print(json.dumps(result.payload, sort_keys=True))
+        return int(result.exit_code)
+
+    if result.payload.get("ok") is True:
+        if "codex_goal" in result.payload:
+            print(result.payload["codex_goal"])
+        else:
+            state = result.payload.get("state", "ok")
+            goal_id = result.payload.get("goal_id", "<unknown>")
+            print(f"Goal {goal_id}: {state}")
+        return int(result.exit_code)
+
+    error = result.payload.get("error")
+    if isinstance(error, dict):
+        message = error.get("message", "goal command failed.")
+    else:
+        message = "goal command failed."
+    print(f"dp goal error: {message}", file=sys.stderr)
+    return int(result.exit_code)
 
 
 def _run_adr_create(args: argparse.Namespace) -> int:

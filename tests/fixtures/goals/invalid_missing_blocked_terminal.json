@@ -1,0 +1,24 @@
+{
+  "schema_version": "0.1",
+  "id": "GOAL-MISSING-BLOCKED",
+  "title": "Implement goal lint CLI",
+  "level": "goal",
+  "objective": "Implement deterministic goal lint CLI behavior with structured errors and explicit exit codes.",
+  "evidence": {
+    "verification_commands": [
+      "pytest tests/test_goal_lint.py"
+    ],
+    "trace_ids": [
+      "SPEC-80.01"
+    ]
+  },
+  "boundaries": {
+    "allowed_paths": [
+      "dp",
+      "tests"
+    ]
+  },
+  "terminal_states": {
+    "success": "The goal lint CLI tests pass."
+  }
+}

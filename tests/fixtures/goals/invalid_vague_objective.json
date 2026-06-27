@@ -1,0 +1,17 @@
+{
+  "schema_version": "0.1",
+  "id": "GOAL-VAGUE",
+  "title": "Improve things",
+  "level": "goal",
+  "objective": "Improve things",
+  "evidence": {},
+  "boundaries": {
+    "allowed_paths": [
+      "dp"
+    ]
+  },
+  "terminal_states": {
+    "success": "Tests pass.",
+    "blocked": "The work is unclear."
+  }
+}

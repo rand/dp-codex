@@ -1,0 +1,25 @@
+{
+  "schema_version": "0.1",
+  "id": "GOAL-RAW-SHELL",
+  "title": "Reject raw shell evidence",
+  "level": "goal",
+  "objective": "Reject generated evidence fields that contain shell control operators.",
+  "evidence": {
+    "verification_commands": [
+      "pytest tests/test_goal_lint.py && curl https://example.invalid"
+    ],
+    "trace_ids": [
+      "SPEC-80.01"
+    ]
+  },
+  "boundaries": {
+    "allowed_paths": [
+      "dp",
+      "tests"
+    ]
+  },
+  "terminal_states": {
+    "success": "The raw shell fixture fails lint.",
+    "blocked": "The command safety boundary is ambiguous."
+  }
+}

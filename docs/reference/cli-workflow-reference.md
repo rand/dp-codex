@@ -27,6 +27,19 @@ Quick command reference by workflow.
 1. `dp decompose --item "..." [--preset codex-small|codex-medium|codex-large] [--json]`
 2. `dp progress [--output-dir ...] [--watch] [--previous ...] [--json]`
 
+## Agent Goals
+
+1. `dp goal lint <goal.json> [--json]`
+2. `dp goal status <goal.json> [--json]`
+3. `dp goal claim <goal.json> --agent <name> [--lease 2h] [--json]`
+4. `dp goal start <goal.json> --agent <name> [--json]`
+5. `dp goal heartbeat <goal.json> [--json]`
+6. `dp goal block <goal.json> --reason <known-reason> [--json]`
+7. `dp goal release <goal.json> --reason "..." [--json]`
+8. `dp goal complete <goal.json> --evidence <run.json> [--json]`
+9. `dp goal emit <goal.json> --format codex [--json]`
+10. `dp agent prompt --goal <goal.json> --format codex [--json]`
+
 ## Review And Verification
 
 1. `dp review [--json]`
