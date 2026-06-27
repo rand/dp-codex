@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import hashlib
 import importlib
 import json
 from pathlib import Path
 
-from jsonschema import validate
+import pytest
+from jsonschema import ValidationError, validate
 
 import dp.core.codex_preflight as codex_preflight
 from dp.core.review import ReviewReport
@@ -52,6 +54,61 @@ def test_verify_json_output_matches_schema(tmp_path: Path, capsys) -> None:
     assert exit_code == 0
     payload = json.loads(capsys.readouterr().out)
     validate(instance=payload, schema=schema)
+
+
+def test_verify_manifest_schema_accepts_structured_evidence(tmp_path: Path) -> None:
+    schema = json.loads(
+        Path("docs/schemas/verify-manifest.schema.json").read_text(encoding="utf-8")
+    )
+    artifact = tmp_path / "artifacts/proof.txt"
+    artifact.parent.mkdir(parents=True, exist_ok=True)
+    artifact.write_text("ok", encoding="utf-8")
+    digest = hashlib.sha256(artifact.read_bytes()).hexdigest()
+
+    validate(
+        instance={
+            "truths": [{"id": "T1", "verified": True}],
+            "artifacts": [
+                {
+                    "id": "A1",
+                    "path": "./artifacts/proof.txt",
+                    "sha256": f"sha256:{digest}",
+                    "command": {
+                        "argv": ["dp", "verify", "--json"],
+                        "cwd": ".",
+                        "exit_code": 0,
+                        "success_exit_codes": [0],
+                    },
+                    "task_id": "dpcx-ea9.3",
+                    "spec_id": "SPEC-70.04",
+                }
+            ],
+            "links": [{"truth_id": "T1", "artifact_id": "A1"}],
+        },
+        schema=schema,
+    )
+
+
+def test_verify_manifest_schema_rejects_shell_command_string() -> None:
+    schema = json.loads(
+        Path("docs/schemas/verify-manifest.schema.json").read_text(encoding="utf-8")
+    )
+
+    with pytest.raises(ValidationError):
+        validate(
+            instance={
+                "truths": [{"id": "T1", "verified": True}],
+                "artifacts": [
+                    {
+                        "id": "A1",
+                        "path": "artifacts/proof.txt",
+                        "command": "dp verify --json",
+                    }
+                ],
+                "links": [{"truth_id": "T1", "artifact_id": "A1"}],
+            },
+            schema=schema,
+        )
 
 
 def test_verify_goal_json_output_matches_schema(tmp_path: Path, capsys, monkeypatch) -> None:
@@ -475,9 +532,7 @@ def test_campaign_sync_beads_json_output_matches_schema(
     monkeypatch,
 ) -> None:
     schema = json.loads(
-        Path("docs/schemas/campaign-sync-beads-output.schema.json").read_text(
-            encoding="utf-8"
-        )
+        Path("docs/schemas/campaign-sync-beads-output.schema.json").read_text(encoding="utf-8")
     )
     primary_spec = tmp_path / "docs/primary/product.md"
     primary_spec.parent.mkdir(parents=True)
@@ -520,9 +575,7 @@ def test_campaign_refine_llm_request_and_response_match_schemas(
         Path("docs/schemas/campaign-refine-output.schema.json").read_text(encoding="utf-8")
     )
     response_schema = json.loads(
-        Path("docs/schemas/campaign-refine-llm-response.schema.json").read_text(
-            encoding="utf-8"
-        )
+        Path("docs/schemas/campaign-refine-llm-response.schema.json").read_text(encoding="utf-8")
     )
     primary_spec = tmp_path / "docs/primary/product.md"
     primary_spec.parent.mkdir(parents=True)

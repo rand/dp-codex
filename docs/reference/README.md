@@ -24,18 +24,19 @@ Reference docs are lookup-oriented and terse by design.
 1. `/docs/schemas/policy.schema.json`
 2. `/docs/schemas/review-output.schema.json`
 3. `/docs/schemas/verify-output.schema.json`
-4. `/docs/schemas/goal-lint-output.schema.json`
-5. `/docs/schemas/evidence-lint-output.schema.json`
-6. `/docs/schemas/evidence-run-output.schema.json`
-7. `/docs/schemas/loop-lint-output.schema.json`
-8. `/docs/schemas/campaign-lint-output.schema.json`
-9. `/docs/schemas/campaign-init-output.schema.json`
-10. `/docs/schemas/campaign-refine-output.schema.json`
-11. `/docs/schemas/campaign-refine-llm-response.schema.json`
-12. `/docs/schemas/campaign-ready-output.schema.json`
-13. `/docs/schemas/campaign-run-output.schema.json`
-14. `/docs/schemas/agent-launch-output.schema.json`
-15. `/docs/schemas/campaign-sync-beads-output.schema.json`
-16. `/docs/schemas/codex-preflight-output.schema.json`
+4. `/docs/schemas/verify-manifest.schema.json`
+5. `/docs/schemas/goal-lint-output.schema.json`
+6. `/docs/schemas/evidence-lint-output.schema.json`
+7. `/docs/schemas/evidence-run-output.schema.json`
+8. `/docs/schemas/loop-lint-output.schema.json`
+9. `/docs/schemas/campaign-lint-output.schema.json`
+10. `/docs/schemas/campaign-init-output.schema.json`
+11. `/docs/schemas/campaign-refine-output.schema.json`
+12. `/docs/schemas/campaign-refine-llm-response.schema.json`
+13. `/docs/schemas/campaign-ready-output.schema.json`
+14. `/docs/schemas/campaign-run-output.schema.json`
+15. `/docs/schemas/agent-launch-output.schema.json`
+16. `/docs/schemas/campaign-sync-beads-output.schema.json`
+17. `/docs/schemas/codex-preflight-output.schema.json`
 
 When you need a concept, use `/docs/concepts/`. When you need a sequence, use `/docs/guides/` or `/docs/runbooks/`.

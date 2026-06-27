@@ -197,6 +197,9 @@ follow-ups, with routing metadata recorded in the append-only goal event.
 `dp campaign sync-beads <campaign.json> --write --json` now reconciles current loop dependencies
 and goal lifecycle state back to Beads through explicit `bd dep add`, `bd update`, and `bd close`
 operations while leaving dp evidence verification as the source of completion truth.
+Goal-backward `dp verify` manifests preserve legacy artifact existence checks while optionally
+validating recorded SHA-256 digests, command outcomes, Beads issue ids, and spec ids for stronger
+campaign closeout evidence.
 
 ## Developer Commands
 

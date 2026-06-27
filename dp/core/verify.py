@@ -1,12 +1,18 @@
 from __future__ import annotations
 
+import hashlib
 import json
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Literal
 
 LevelStatus = Literal["verified", "incomplete", "failed"]
 OverallStatus = Literal["verified", "incomplete", "failed"]
+
+SPEC_ID_PATTERN = re.compile(r"^SPEC-\d{2}\.\d{2}$")
+TASK_ID_PATTERN = re.compile(r"^[a-z][a-z0-9]*-[a-z0-9]+(?:\.[a-z0-9]+)*$")
+SHA256_PATTERN = re.compile(r"^(?:sha256:)?[a-fA-F0-9]{64}$")
 
 
 @dataclass(frozen=True)
@@ -108,6 +114,7 @@ def _verify_truths(truths: Any) -> tuple[VerifyLevelResult, set[str]]:
     )
 
 
+# @trace SPEC-70.04
 def _verify_artifacts(artifacts: Any, manifest_root: Path) -> tuple[VerifyLevelResult, set[str]]:
     if not isinstance(artifacts, list) or not artifacts:
         return (
@@ -139,10 +146,16 @@ def _verify_artifacts(artifacts: Any, manifest_root: Path) -> tuple[VerifyLevelR
             details.append(f"{artifact_id} missing path.")
             continue
         artifact_path = _resolve_artifact_path(path_value, manifest_root)
-        if artifact_path.exists():
-            passed += 1
-        else:
+        if not artifact_path.exists():
             details.append(f"{artifact_id} path does not exist: {path_value}")
+            continue
+
+        evidence_details = _validate_artifact_evidence(item, artifact_path, artifact_id=artifact_id)
+        if evidence_details:
+            details.extend(evidence_details)
+            continue
+
+        passed += 1
 
     status = _derive_level_status(passed=passed, total=len(artifacts), details=details)
     return (
@@ -226,3 +239,108 @@ def _resolve_artifact_path(path_value: str, manifest_root: Path) -> Path:
     if path_value.startswith("./") or path_value.startswith("../"):
         return manifest_root / candidate
     return Path.cwd() / candidate
+
+
+def _validate_artifact_evidence(
+    artifact: dict[str, Any],
+    artifact_path: Path,
+    *,
+    artifact_id: str,
+) -> list[str]:
+    details: list[str] = []
+
+    if "sha256" in artifact:
+        details.extend(_validate_sha256(artifact["sha256"], artifact_path, artifact_id=artifact_id))
+
+    if "command" in artifact:
+        details.extend(_validate_command_record(artifact["command"], artifact_id=artifact_id))
+
+    if "task_id" in artifact:
+        task_id = artifact["task_id"]
+        if not isinstance(task_id, str) or not TASK_ID_PATTERN.fullmatch(task_id.strip()):
+            details.append(f"{artifact_id} task_id must look like a Beads id such as dpcx-ea9.3.")
+
+    if "spec_id" in artifact:
+        spec_id = artifact["spec_id"]
+        if not isinstance(spec_id, str) or not SPEC_ID_PATTERN.fullmatch(spec_id.strip()):
+            details.append(f"{artifact_id} spec_id must look like SPEC-70.04.")
+
+    return details
+
+
+def _validate_sha256(value: Any, artifact_path: Path, *, artifact_id: str) -> list[str]:
+    if not isinstance(value, str) or not SHA256_PATTERN.fullmatch(value.strip()):
+        return [
+            f"{artifact_id} sha256 must be a 64-character hex digest, "
+            "optionally prefixed by sha256:."
+        ]
+
+    expected = value.strip().lower().removeprefix("sha256:")
+    try:
+        actual = hashlib.sha256(artifact_path.read_bytes()).hexdigest()
+    except OSError as exc:
+        return [f"{artifact_id} sha256 could not be computed: {exc}"]
+
+    if actual != expected:
+        return [f"{artifact_id} sha256 mismatch: expected {expected}, got {actual}."]
+    return []
+
+
+def _validate_command_record(command: Any, *, artifact_id: str) -> list[str]:
+    if isinstance(command, str):
+        return [f"{artifact_id} command must be an object with argv array, not a shell string."]
+    if not isinstance(command, dict):
+        return [f"{artifact_id} command must be an object."]
+
+    details: list[str] = []
+    argv = command.get("argv")
+    if not isinstance(argv, list) or not argv:
+        details.append(f"{artifact_id} command.argv must be a non-empty array of strings.")
+    else:
+        for index, value in enumerate(argv):
+            if not isinstance(value, str) or not value.strip():
+                details.append(f"{artifact_id} command.argv[{index}] must be a non-empty string.")
+
+    exit_code = command.get("exit_code")
+    if not _is_plain_int(exit_code):
+        details.append(f"{artifact_id} command.exit_code must be an integer.")
+
+    success_exit_codes = command.get("success_exit_codes")
+    if not isinstance(success_exit_codes, list) or not success_exit_codes:
+        details.append(
+            f"{artifact_id} command.success_exit_codes must be a non-empty array of integers."
+        )
+    else:
+        invalid_indexes = [
+            index for index, value in enumerate(success_exit_codes) if not _is_plain_int(value)
+        ]
+        for index in invalid_indexes:
+            details.append(f"{artifact_id} command.success_exit_codes[{index}] must be an integer.")
+        if _is_plain_int(exit_code) and not invalid_indexes and exit_code not in success_exit_codes:
+            details.append(
+                f"{artifact_id} command.exit_code {exit_code} is not in success_exit_codes."
+            )
+
+    cwd = command.get("cwd")
+    if cwd is not None and not _is_sane_relative_path(cwd):
+        details.append(f"{artifact_id} command.cwd must be a sane relative path.")
+
+    return details
+
+
+def _is_plain_int(value: Any) -> bool:
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
+def _is_sane_relative_path(value: Any) -> bool:
+    if not isinstance(value, str):
+        return False
+    stripped = value.strip()
+    if not stripped or "\x00" in stripped or "\\" in stripped:
+        return False
+    if stripped.startswith(("~", "http://", "https://")):
+        return False
+    candidate = Path(stripped)
+    if candidate.is_absolute():
+        return False
+    return ".." not in candidate.parts

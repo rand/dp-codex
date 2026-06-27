@@ -1,0 +1,171 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "artifact": {
+      "additionalProperties": true,
+      "properties": {
+        "command": {
+          "$ref": "#/$defs/command_record"
+        },
+        "id": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "path": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "sha256": {
+          "pattern": "^(sha256:)?[A-Fa-f0-9]{64}$",
+          "type": "string"
+        },
+        "spec_id": {
+          "pattern": "^SPEC-[0-9]{2}\\.[0-9]{2}$",
+          "type": "string"
+        },
+        "task_id": {
+          "pattern": "^[a-z][a-z0-9]*-[a-z0-9]+(\\.[a-z0-9]+)*$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "path"
+      ],
+      "type": "object"
+    },
+    "command_record": {
+      "additionalProperties": true,
+      "properties": {
+        "argv": {
+          "items": {
+            "minLength": 1,
+            "type": "string"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "cwd": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "exit_code": {
+          "type": "integer"
+        },
+        "success_exit_codes": {
+          "items": {
+            "type": "integer"
+          },
+          "minItems": 1,
+          "type": "array"
+        }
+      },
+      "required": [
+        "argv",
+        "exit_code",
+        "success_exit_codes"
+      ],
+      "type": "object"
+    },
+    "link": {
+      "additionalProperties": true,
+      "allOf": [
+        {
+          "anyOf": [
+            {
+              "required": [
+                "truth_id"
+              ]
+            },
+            {
+              "required": [
+                "truth"
+              ]
+            }
+          ]
+        },
+        {
+          "anyOf": [
+            {
+              "required": [
+                "artifact_id"
+              ]
+            },
+            {
+              "required": [
+                "artifact"
+              ]
+            }
+          ]
+        }
+      ],
+      "properties": {
+        "artifact": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "artifact_id": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "truth": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "truth_id": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "type": "object"
+    },
+    "truth": {
+      "additionalProperties": true,
+      "properties": {
+        "id": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "statement": {
+          "type": "string"
+        },
+        "verified": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "verified"
+      ],
+      "type": "object"
+    }
+  },
+  "additionalProperties": true,
+  "properties": {
+    "artifacts": {
+      "items": {
+        "$ref": "#/$defs/artifact"
+      },
+      "type": "array"
+    },
+    "links": {
+      "items": {
+        "$ref": "#/$defs/link"
+      },
+      "type": "array"
+    },
+    "truths": {
+      "items": {
+        "$ref": "#/$defs/truth"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "truths",
+    "artifacts",
+    "links"
+  ],
+  "title": "dp verify manifest",
+  "type": "object"
+}
