@@ -16,6 +16,7 @@ from dp.core.campaign_manifest import (
 from dp.core.coverage import compute_trace_coverage
 from dp.core.decompose import decompose_items, resolve_context_window
 from dp.core.evidence_lint import lint_evidence_file
+from dp.core.evidence_run import run_evidence_file
 from dp.core.goal_emit import emit_goal_prompt
 from dp.core.goal_lint import lint_goal_file
 from dp.core.goal_state import (
@@ -382,6 +383,14 @@ def _build_parser() -> argparse.ArgumentParser:
     evidence_lint_parser.add_argument("--json", action="store_true")
     evidence_lint_parser.set_defaults(handler=_run_evidence_lint)
 
+    evidence_run_parser = evidence_subparsers.add_parser(
+        "run",
+        help="Run a linted EvidencePlan with registered argv checks and typed assertions.",
+    )
+    evidence_run_parser.add_argument("evidence")
+    evidence_run_parser.add_argument("--json", action="store_true")
+    evidence_run_parser.set_defaults(handler=_run_evidence_run)
+
     loop_parser = subparsers.add_parser("loop")
     loop_subparsers = loop_parser.add_subparsers(
         dest="loop_command",
@@ -717,6 +726,23 @@ def _run_evidence_lint(args: argparse.Namespace) -> int:
         print(f"- [{error.code}] {error.path}: {error.message}")
     for warning in result.report.warnings:
         print(f"- [warning:{warning.code}] {warning.path}: {warning.message}")
+    return result.exit_code
+
+
+def _run_evidence_run(args: argparse.Namespace) -> int:
+    result = run_evidence_file(Path(args.evidence))
+
+    if args.json:
+        print(json.dumps(result.payload, sort_keys=True))
+        return result.exit_code
+
+    if result.payload["ok"] is True:
+        print(f"Evidence checks passed: {result.payload['evidence_id']}")
+    else:
+        error = result.payload.get("error") or {}
+        print(f"Evidence checks failed: {result.payload['evidence_id'] or '<unknown>'}")
+        if error:
+            print(f"- [{error['code']}] {error['path']}: {error['message']}")
     return result.exit_code
 
 

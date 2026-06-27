@@ -38,8 +38,16 @@ This document describes how commands are dispatched and how outcomes are encoded
 2. `1`: loaded JSON, but invalid plan.
 3. `2`: missing file, malformed JSON, non-object JSON, unsupported schema, or incomplete input.
 
-Evidence linting rejects raw shell strings and only accepts registered command checks. Execution is
-reserved for a future controlled evidence runner.
+`dp evidence run` first applies the same lint gate. If lint fails, no checks are executed and the
+lint exit code is preserved. If lint succeeds, the executor runs registered argv-array checks with
+`shell=False`, declared timeouts, existing relative cwd values, a controlled environment allowlist,
+and typed assertions:
+
+1. `0`: every check passed.
+2. `1`: a loaded plan is invalid, or a valid check failed, timed out, or could not run safely.
+3. `2`: missing file, malformed JSON, non-object JSON, unsupported schema, or incomplete input.
+
+Evidence runtime does not call an LLM, execute raw shell strings, or mark goals verified.
 
 ## Loop Runtime
 
@@ -53,7 +61,8 @@ reserved for a future controlled evidence runner.
 4. `dp loop next --claim` writes through the existing `dp goal claim` event path.
 5. `dp loop next --emit codex` packages the selected GoalContract as a Codex-operable handoff.
 
-Loop commands do not compile primary specs, execute evidence, call an LLM, or run agents.
+Loop commands do not compile primary specs, call an LLM, run agents, or execute evidence
+implicitly. Evidence execution is explicit through `dp evidence run`.
 
 ## Provider Boundary
 

@@ -22,8 +22,13 @@ invalid in structured evidence fields.
 Goal lint may accept declarative verification command cues for human/Codex readability, but it
 rejects shell control operators and never executes them.
 
+`dp evidence run` must first pass `dp evidence lint`, invoke subprocesses with `shell=False`, use
+declared timeouts, reject missing cwd values, and evaluate typed assertions. Plan JSON does not
+provide arbitrary environment variables; the runner supplies a small controlled environment
+allowlist.
+
 ## Consequences
 
 - `dp goal complete` records evidence as `evidence_pending` until evidence validation exists.
-- Future `dp evidence run` must not use `shell=True`.
+- `dp evidence run` must not use `shell=True`.
 - Lint can block unsafe generated evidence before any executor exists.

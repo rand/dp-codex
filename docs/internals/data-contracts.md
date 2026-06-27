@@ -9,9 +9,10 @@ DP-Codex treats machine-readable output as a product surface, not a side effect.
 3. `/docs/schemas/policy.schema.json`
 4. `/docs/schemas/goal-lint-output.schema.json`
 5. `/docs/schemas/evidence-lint-output.schema.json`
-6. `/docs/schemas/loop-lint-output.schema.json`
-7. `/docs/schemas/campaign-lint-output.schema.json`
-8. `/docs/schemas/campaign-init-output.schema.json`
+6. `/docs/schemas/evidence-run-output.schema.json`
+7. `/docs/schemas/loop-lint-output.schema.json`
+8. `/docs/schemas/campaign-lint-output.schema.json`
+9. `/docs/schemas/campaign-init-output.schema.json`
 
 ## Contracted Command Families
 
@@ -23,7 +24,7 @@ DP-Codex treats machine-readable output as a product surface, not a side effect.
 6. `dp goal lint ... --json`
 7. `dp goal status/claim/start/heartbeat/block/release/complete/emit ... --json`
 8. `dp agent prompt ... --json`
-9. `dp evidence lint ... --json`
+9. `dp evidence lint/run ... --json`
 10. `dp loop lint/status/next ... --json`
 11. `dp campaign init/lint/status/recover ... --json`
 

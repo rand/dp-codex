@@ -5,10 +5,11 @@ Audience: local Codex, future dp maintainers
 Scope: principled upgrade to dp-codex so a comprehensive primary spec can be compiled into a disciplined, agent-operable campaign of specs, ADRs, validators, tests, Beads work, goals, evidence, and loops.
 
 Implementation note, 2026-06-27: the foundation is implemented for GoalContract linting,
-append-only goal lifecycle state, Codex prompt emission, and deterministic EvidencePlan linting.
-LoopLedger lint/status/next-goal scheduling, CampaignManifest lint/status/recover, and conservative
-primary-spec campaign scaffolding are also implemented. Evidence execution, semantic primary-spec
-campaign compilation, LLM-assisted refinement, and supervised running remain planned follow-up work.
+append-only goal lifecycle state, Codex prompt emission, deterministic EvidencePlan linting, and
+controlled EvidencePlan execution. LoopLedger lint/status/next-goal scheduling, CampaignManifest
+lint/status/recover, and conservative primary-spec campaign scaffolding are also implemented.
+Semantic primary-spec campaign compilation, LLM-assisted refinement, verified evidence-to-goal
+completion, and supervised running remain planned follow-up work.
 
 ## 1. Thesis
 
@@ -681,7 +682,8 @@ dp evidence lint <evidence.json> --json
 dp evidence run <evidence.json> --json
 ```
 
-Do not implement evidence execution before lint, registry, timeout, and assertion semantics are clear.
+Evidence execution is valid only behind deterministic lint, registered argv commands, declared
+timeouts, controlled cwd/env, and typed assertion semantics.
 
 ### 9.5 Agent commands
 
@@ -1048,7 +1050,7 @@ LLM-assisted refinement may come later, but schemas should support provenance.
 
 ### M8: Evidence execution
 
-Implement only after evidence lint is stable:
+Implemented in SPEC-80.08 after evidence lint stabilized:
 
 ```bash
 dp evidence run <evidence.json> --json

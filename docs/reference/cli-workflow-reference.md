@@ -43,6 +43,7 @@ Quick command reference by workflow.
 ## Evidence Plans
 
 1. `dp evidence lint <evidence.json> [--json]`
+2. `dp evidence run <evidence.json> [--json]`
 
 ## Loop Ledgers
 

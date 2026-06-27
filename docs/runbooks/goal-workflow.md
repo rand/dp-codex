@@ -11,18 +11,19 @@ GoalContract through dp without relying on chat memory.
 4. `dp goal complete`: records an evidence path as `evidence_pending`; it does not verify success.
 5. `dp goal emit` and `dp agent prompt`: Codex-operable prompt emission from a valid contract.
 6. `dp evidence lint`: deterministic EvidencePlan validation without command execution.
-7. `dp loop lint/status/next`: deterministic LoopLedger validation, state reconstruction, and
+7. `dp evidence run`: controlled execution of linted registered checks with typed assertions.
+8. `dp loop lint/status/next`: deterministic LoopLedger validation, state reconstruction, and
    next-goal packaging.
-8. `dp campaign lint/status/recover`: deterministic CampaignManifest validation and recovery from
+9. `dp campaign lint/status/recover`: deterministic CampaignManifest validation and recovery from
    repo artifacts plus append-only goal events.
-9. `dp campaign init --primary-spec <path> --write`: conservative draft scaffold generation from a
+10. `dp campaign init --primary-spec <path> --write`: conservative draft scaffold generation from a
    local primary spec.
 
 ## What Does Not Exist Yet
 
-1. `dp evidence run`.
-2. Semantic primary-spec campaign compilation.
-3. LLM-assisted campaign refinement.
+1. Semantic primary-spec campaign compilation.
+2. LLM-assisted campaign refinement.
+3. Verified evidence-to-goal completion.
 4. A supervised campaign runner.
 
 Those are tracked as SPEC-80 follow-up issues.
@@ -75,6 +76,7 @@ When an evidence plan exists, lint it before recording or relying on evidence:
 
 ```bash
 dp evidence lint docs/evidence/EVIDENCE-example.json --json
+dp evidence run docs/evidence/EVIDENCE-example.json --json
 ```
 
 ```bash
@@ -82,7 +84,7 @@ dp goal complete docs/goals/GOAL-example.json --evidence docs/evidence-runs/RUN-
 ```
 
 This records `evidence_pending`. It intentionally does not mark the goal verified because the
-evidence executor and goal-verification integration are future work.
+goal-verification integration is future work.
 
 ## Emit A Codex Prompt
 
@@ -141,6 +143,7 @@ Use the checked-in fixture when you want to verify the command surface without w
 ```bash
 dp goal lint tests/fixtures/goals/valid_spec_70_01.json --json
 dp goal emit tests/fixtures/goals/valid_spec_70_01.json --format codex --json
+dp evidence run tests/fixtures/evidence/valid_run_goal_lint.json --json
 dp loop next tests/fixtures/loops/valid_spec_80_04.json --emit codex --json
 dp campaign recover tests/fixtures/campaigns/valid_spec_80_06.json --json
 ```

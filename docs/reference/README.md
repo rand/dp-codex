@@ -20,8 +20,9 @@ Reference docs are lookup-oriented and terse by design.
 3. `/docs/schemas/verify-output.schema.json`
 4. `/docs/schemas/goal-lint-output.schema.json`
 5. `/docs/schemas/evidence-lint-output.schema.json`
-6. `/docs/schemas/loop-lint-output.schema.json`
-7. `/docs/schemas/campaign-lint-output.schema.json`
-8. `/docs/schemas/campaign-init-output.schema.json`
+6. `/docs/schemas/evidence-run-output.schema.json`
+7. `/docs/schemas/loop-lint-output.schema.json`
+8. `/docs/schemas/campaign-lint-output.schema.json`
+9. `/docs/schemas/campaign-init-output.schema.json`
 
 When you need a concept, use `/docs/concepts/`. When you need a sequence, use `/docs/guides/` or `/docs/runbooks/`.

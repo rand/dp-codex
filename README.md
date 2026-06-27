@@ -25,7 +25,7 @@ It provides:
 5. Policy-driven pre-commit and pre-push enforcement
 6. Decomposition and progress snapshots for fast context recovery
 7. Goal contracts, append-only goal state, and Codex-operable goal prompts
-8. Evidence-plan linting for registered, deterministic checks
+8. Evidence-plan linting and controlled execution for registered, deterministic checks
 9. Loop ledgers that select the next ready goal from repo artifacts and goal events
 10. Campaign manifests that recover visible campaign state from repo artifacts without chat memory
 11. Conservative campaign scaffolding from local primary specs
@@ -47,6 +47,7 @@ before relying on it:
 ```bash
 dp goal lint docs/goals/GOAL-my-feature.json --json
 dp evidence lint docs/evidence/EVIDENCE-my-feature.json --json
+dp evidence run docs/evidence/EVIDENCE-my-feature.json --json
 dp goal emit docs/goals/GOAL-my-feature.json --format codex --json
 ```
 
@@ -127,13 +128,13 @@ M0-M6 milestone scope has been implemented and empirically validated; v1 readine
 `docs/release/v1-readiness.md`.
 
 SPEC-80 campaign-control work has started. The implemented foundation is GoalContract linting,
-append-only goal lifecycle state, Codex prompt emission, deterministic EvidencePlan linting, and
-LoopLedger next-goal scheduling. CampaignManifest lint/status/recover is also implemented, so a
-future Codex session can inspect repo artifacts and recover visible campaign state without chat
-memory. `dp campaign init --primary-spec ... --write --json` can now create a conservative draft
-campaign scaffold from a local primary spec. Evidence execution, semantic primary-spec compilation,
-LLM-assisted refinement, and supervised campaign running remain tracked follow-up work, not current
-features.
+append-only goal lifecycle state, Codex prompt emission, deterministic EvidencePlan linting,
+controlled EvidencePlan execution, and LoopLedger next-goal scheduling. CampaignManifest
+lint/status/recover is also implemented, so a future Codex session can inspect repo artifacts and
+recover visible campaign state without chat memory. `dp campaign init --primary-spec ... --write
+--json` can now create a conservative draft campaign scaffold from a local primary spec. Semantic
+primary-spec compilation, LLM-assisted refinement, verified evidence-to-goal completion, and
+supervised campaign running remain tracked follow-up work, not current features.
 
 ## Developer Commands
 
@@ -153,6 +154,7 @@ dp-codex contributors can smoke-test the checked-in goal and evidence fixtures:
 dp goal lint tests/fixtures/goals/valid_spec_70_01.json --json
 dp goal emit tests/fixtures/goals/valid_spec_70_01.json --format codex --json
 dp evidence lint tests/fixtures/evidence/valid_spec_80_05.json --json
+dp evidence run tests/fixtures/evidence/valid_run_goal_lint.json --json
 dp loop next tests/fixtures/loops/valid_spec_80_04.json --emit codex --json
 dp campaign recover tests/fixtures/campaigns/valid_spec_80_06.json --json
 tmpdir="$(mktemp -d)"
