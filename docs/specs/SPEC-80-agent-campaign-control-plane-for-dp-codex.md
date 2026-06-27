@@ -1263,6 +1263,19 @@ dp verify --goal docs/goals/<goal>.json --evidence docs/evidence-runs/RUN-<goal-
 
 and a new Codex session can recover campaign state from repo artifacts without chat memory.
 
+Full SPEC-80 completion also requires the end-to-end agent experience gates that make the control
+plane usable in adopting repositories:
+
+* current Beads claim/intake ergonomics with scoped context extraction
+* repo-scoped Codex hook/config guidance that remains deterministic and opt-in
+* verification evidence stronger than file existence where configured
+* flow pilots and friction metrics for realistic human and agent workflows
+* an ADR-quality decision on CLI-only, Codex skill, MCP, or plugin packaging
+* primary-spec intake tested against both concise roadmap specs and large architecture/system specs
+
+These items are part of SPEC-80 completion, even when their implementation is tracked through
+existing M7 Beads issues.
+
 ## 16. Development discipline
 
 Use dp to improve dp.

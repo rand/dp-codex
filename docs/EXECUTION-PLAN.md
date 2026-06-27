@@ -250,6 +250,9 @@ Separate stable process logic from agent-platform integration.
 3. Agent-facing adapters remain thin and supervised: they emit contracts,
    record state, and stop; they do not become background autonomous runners or
    verification judges.
+4. The flow is usable in adopting repositories, not only dp-codex: current
+   Beads claim ergonomics, Codex repo integration, hardened evidence, flow
+   pilots, and packaging decisions are completion gates for SPEC-80.
 
 ### Tasks
 
@@ -267,6 +270,9 @@ Separate stable process logic from agent-platform integration.
    direct process launch.
 6. Prove end-to-end human and agent flows in isolated pilot tests, not by
    self-reported agent completion.
+7. Treat the remaining M7 modernization issues as SPEC-80 completion
+   dependencies: task intake, Codex hooks/config, evidence quality, flow
+   friction metrics, and skill/MCP/plugin packaging evaluation.
 
 ### Current Implemented Surface
 
@@ -275,9 +281,11 @@ Separate stable process logic from agent-platform integration.
    LoopLedger lint/status/next, CampaignManifest lint/status/recover/init,
    deterministic refine, agent-mediated LLM refinement import, campaign
    readiness, campaign run, campaign sync-beads, managed run, and agent launch.
-2. Remaining tracked work includes primary-spec intake/source UX adapters and
-   any future direct Codex subprocess launch or multi-goal supervised runner,
-   only after the manual and managed protocols remain reliable.
+2. Remaining tracked work includes primary-spec intake/source UX adapters,
+   semantic graph hardening against realistic primary specs, and the
+   M7-derived end-to-end agent experience gates required for SPEC-80 closure.
+   Any future direct Codex subprocess launch or multi-goal supervised runner
+   remains conditional on the manual and managed protocols staying reliable.
 
 ### Exit Criteria
 
@@ -286,7 +294,14 @@ Separate stable process logic from agent-platform integration.
    synchronized to Beads, and recovered by a future session.
 2. All campaign-control command families have stable JSON output, explicit exit
    semantics, schema or focused CLI tests, and reference/runbook docs.
-3. `make check`, trace validation/coverage, dp verify, and dp doctor pass before
+3. Codex can claim current Beads work with scoped context, use repo-scoped
+   deterministic integration guidance, and close work with structured evidence
+   beyond file existence where configured.
+4. Flow pilots report setup recovery, claim latency, evidence completeness,
+   blocker routing, and false-positive enforcement friction.
+5. The project has an ADR-quality packaging decision for CLI-only, Codex skill,
+   MCP, or plugin distribution.
+6. `make check`, trace validation/coverage, dp verify, and dp doctor pass before
    closing implementation slices.
 
 ## 7. Codex Optimization Strategy
