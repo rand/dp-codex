@@ -31,6 +31,7 @@ PRE_PUSH_CHECK_ORDER = (
 ENFORCEMENT_SPEC_GLOB = "docs/specs/**/*.md"
 ENFORCEMENT_TRACE_GLOB_PRIMARY = "dp/**/*.py"
 ENFORCEMENT_TRACE_GLOB_SECONDARY = "scripts/**/*.py"
+ENFORCEMENT_TRACE_GLOB_TESTS = "tests/**/*.py"
 
 CHECK_COMMANDS = {
     "lint": ("make", "lint"),
@@ -49,6 +50,8 @@ CHECK_COMMANDS = {
         ENFORCEMENT_TRACE_GLOB_PRIMARY,
         "--trace-glob",
         ENFORCEMENT_TRACE_GLOB_SECONDARY,
+        "--trace-glob",
+        ENFORCEMENT_TRACE_GLOB_TESTS,
     ),
     "trace_coverage": (
         "uv",
@@ -63,6 +66,8 @@ CHECK_COMMANDS = {
         ENFORCEMENT_TRACE_GLOB_PRIMARY,
         "--trace-glob",
         ENFORCEMENT_TRACE_GLOB_SECONDARY,
+        "--trace-glob",
+        ENFORCEMENT_TRACE_GLOB_TESTS,
     ),
     "task_health": ("uv", "run", "dp", "doctor", "--json"),
     "review": ("uv", "run", "dp", "review", "--json"),

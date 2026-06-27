@@ -9,6 +9,31 @@ FULL_PRIMARY_SPEC = Path("tests/fixtures/primary_specs/scaffold_full.md")
 SEMANTIC_PRIMARY_SPEC = Path("tests/fixtures/primary_specs/semantic_signals.md")
 
 
+# @trace SPEC-80.21
+def test_campaign_init_previews_without_write(
+    tmp_path: Path,
+    monkeypatch,
+    capsys,
+) -> None:
+    primary_spec = _copy_primary_spec(tmp_path, FULL_PRIMARY_SPEC, "docs/primary/product.md")
+    monkeypatch.chdir(tmp_path)
+
+    exit_code = main(["campaign", "init", "--primary-spec", primary_spec.as_posix(), "--json"])
+
+    assert exit_code == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["ok"] is True
+    assert payload["write"] is False
+    assert payload["written"] is False
+    assert payload["preview"] is True
+    assert payload["primary_spec"]["kind"] == "local_path"
+    assert payload["lint"]["campaign"]["valid"] is True
+    assert payload["next_commands"]["write"].endswith("--write --json")
+    assert payload["next_commands"]["refine"].endswith("--write --json")
+    assert not Path(payload["artifacts"]["campaign"]).exists()
+    assert not Path(payload["artifacts"]["loop"]).exists()
+
+
 def test_campaign_init_writes_valid_draft_scaffold(
     tmp_path: Path,
     monkeypatch,
@@ -26,6 +51,10 @@ def test_campaign_init_writes_valid_draft_scaffold(
     assert payload["ok"] is True
     assert payload["command"] == "campaign.init"
     assert payload["campaign_id"] == "CAMPAIGN-product"
+    assert payload["write"] is True
+    assert payload["written"] is True
+    assert payload["preview"] is False
+    assert payload["primary_spec"]["kind"] == "local_path"
     assert payload["primary_spec"]["sha256"].startswith("sha256:")
     assert payload["needs_refinement"] is True
     assert [section["title"] for section in payload["sections"]] == [
@@ -176,21 +205,56 @@ def test_campaign_init_sparse_spec_writes_refinement_routes(
     assert {item["route"] for item in marker["markers"]} == routes
 
 
-def test_campaign_init_requires_write(
+def test_campaign_init_rejects_url_source_with_stable_diagnostic(
     tmp_path: Path,
     monkeypatch,
     capsys,
 ) -> None:
-    primary_spec = _copy_primary_spec(tmp_path, FULL_PRIMARY_SPEC, "docs/primary/product.md")
     monkeypatch.chdir(tmp_path)
 
-    exit_code = main(["campaign", "init", "--primary-spec", primary_spec.as_posix(), "--json"])
+    exit_code = main(
+        ["campaign", "init", "--primary-spec", "https://example.test/product.md", "--json"]
+    )
 
     assert exit_code == 2
     payload = json.loads(capsys.readouterr().out)
     assert payload["ok"] is False
-    assert payload["error"]["code"] == "write_required"
+    assert payload["error"]["code"] == "unsupported_primary_spec_source"
+    assert payload["error"]["path"] == "$.primary_spec"
     assert not (tmp_path / "docs/campaigns").exists()
+
+
+def test_campaign_init_large_spec_preview_is_bounded(
+    tmp_path: Path,
+    monkeypatch,
+    capsys,
+) -> None:
+    primary_spec = tmp_path / "docs/primary/large.md"
+    primary_spec.parent.mkdir(parents=True, exist_ok=True)
+    primary_spec.write_text(
+        "# Large Spec\n\n"
+        + "\n\n".join(
+            f"## Section {index}\n\nThe implementation must support feature {index}. "
+            f"Verification uses pytest tests/test_feature_{index}.py."
+            for index in range(1, 41)
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.chdir(tmp_path)
+
+    exit_code = main(["campaign", "init", "--primary-spec", "docs/primary/large.md", "--json"])
+
+    assert exit_code == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["section_count"] == 40
+    assert payload["sections_truncated"] is True
+    assert len(payload["sections"]) == 25
+    assert payload["compiler"]["node_count"] == 40
+    assert payload["compiler"]["nodes_truncated"] is True
+    assert len(payload["compiler"]["nodes"]) == 25
+    assert payload["artifacts"]["goal_count"] == 40
+    assert payload["artifacts"]["evidence_plan_count"] == 40
+    assert not Path(payload["artifacts"]["campaign"]).exists()
 
 
 def test_campaign_init_rejects_missing_primary_spec(capsys) -> None:

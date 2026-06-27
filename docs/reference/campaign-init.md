@@ -3,12 +3,17 @@
 `dp campaign init` creates a deterministic draft campaign scaffold from a local primary spec.
 
 ```bash
+dp campaign init --primary-spec docs/primary/example.md --json
 dp campaign init --primary-spec docs/primary/example.md --write --json
 ```
 
+Without `--write`, the command is a dry-run preview: it plans artifact paths, lints the generated
+drafts in an isolated temporary workspace, and writes nothing to the repository. With `--write`, it
+creates the same lintable draft artifacts.
+
 This is a draft compiler, not autonomous semantic planning. It hashes the primary spec, extracts
-Markdown sections, records deterministic semantic signals, writes lintable draft artifacts, and
-records `needs_refinement` markers for later authoring work.
+Markdown sections, records deterministic semantic signals, and records `needs_refinement` markers
+for later authoring work.
 
 The JSON output includes a `compiler` object:
 
@@ -35,12 +40,20 @@ deterministic child spec/ADR stubs and GoalContract/EvidencePlan refinement meta
 campaign cues. Use `dp campaign ready <campaign.json> --write --json` only after refinement
 markers, validator gaps, decision coverage, Beads links, and dependency hints have been resolved.
 
+The JSON output includes `write`, `written`, and `preview` booleans plus `next_commands` for the
+normal write/refine/ready sequence. Large primary specs are summarized with `section_count`,
+`sections_truncated`, `compiler.node_count`, and `compiler.nodes_truncated` so preview output stays
+bounded.
+
+Remote URL intake is deliberately explicit. Until a source adapter exists, URL input fails with
+`unsupported_primary_spec_source` and writes nothing.
+
 Exit codes:
 
-1. `0`: scaffold was written or already exists identically, and deterministic lints passed.
-2. `1`: generated artifacts were written, but deterministic lint found invalid output.
-3. `2`: missing file, unsupported input, unsafe path, missing `--write`, or an existing artifact
-   would be overwritten.
+1. `0`: scaffold preview or write succeeded, and deterministic lints passed.
+2. `1`: generated drafts were valid command input, but deterministic lint found invalid output.
+3. `2`: missing file, unsupported input, unsafe path, unsupported source adapter, or an existing
+   artifact would be overwritten in write mode.
 
 Safety rules:
 
@@ -48,9 +61,10 @@ Safety rules:
 2. The command never executes evidence checks.
 3. The command never creates Beads issues.
 4. Existing non-identical artifacts are not overwritten.
-5. Generated campaign state is `draft`, even when all lint gates pass.
-6. Dependency cues are not converted into LoopLedger `depends_on` edges.
-7. `needs_refinement` is expected; it records missing semantic decomposition, validator gaps, and
+5. Dry-run mode writes no repository files.
+6. Generated campaign state is `draft`, even when all lint gates pass.
+7. Dependency cues are not converted into LoopLedger `depends_on` edges.
+8. `needs_refinement` is expected; it records missing semantic decomposition, validator gaps, and
    decision markers.
-8. Generated scaffolds are expected to fail `dp campaign ready` until reviewed authoring artifacts
+9. Generated scaffolds are expected to fail `dp campaign ready` until reviewed authoring artifacts
    replace placeholders with executable graph contracts.

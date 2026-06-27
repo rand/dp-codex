@@ -22,7 +22,7 @@ GoalContract through dp without relying on chat memory.
    next-goal packaging.
 12. `dp campaign lint/status/recover`: deterministic CampaignManifest validation and recovery from
    repo artifacts plus append-only goal and campaign events.
-13. `dp campaign init --primary-spec <path> --write`: conservative draft scaffold generation plus
+13. `dp campaign init --primary-spec <path> [--write]`: conservative draft scaffold preview or write plus
    deterministic semantic-signal extraction from a local primary spec.
 14. `dp campaign refine <campaign.json> --write`: deterministic authoring refinement into child
     spec/ADR stubs, GoalContract/EvidencePlan refinement metadata, and optional Beads
@@ -238,6 +238,7 @@ This is reconciliation, not proof. `verified` still comes only from dp evidence 
 For a local primary spec, create a draft campaign shell:
 
 ```bash
+dp campaign init --primary-spec docs/primary/example.md --json
 dp campaign init --primary-spec docs/primary/example.md --write --json
 ```
 

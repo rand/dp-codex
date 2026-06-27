@@ -19,18 +19,26 @@
           },
           "type": "array"
         },
+        "goal_count": {
+          "type": "integer"
+        },
         "loop": {
           "type": "string"
         },
         "needs_refinement": {
           "type": "string"
+        },
+        "evidence_plan_count": {
+          "type": "integer"
         }
       },
       "required": [
         "campaign",
         "loop",
         "goals",
+        "goal_count",
         "evidence_plans",
+        "evidence_plan_count",
         "needs_refinement"
       ],
       "type": "object"
@@ -50,6 +58,12 @@
           },
           "type": "array"
         },
+        "node_count": {
+          "type": "integer"
+        },
+        "nodes_truncated": {
+          "type": "boolean"
+        },
         "ready_for_implementation": {
           "const": false
         },
@@ -66,7 +80,9 @@
         "semantic_planning",
         "ready_for_implementation",
         "summary",
-        "nodes"
+        "nodes",
+        "node_count",
+        "nodes_truncated"
       ],
       "type": "object"
     },
@@ -236,6 +252,9 @@
     "primary_spec": {
       "additionalProperties": false,
       "properties": {
+        "kind": {
+          "const": "local_path"
+        },
         "path": {
           "type": "string"
         },
@@ -245,6 +264,7 @@
         }
       },
       "required": [
+        "kind",
         "path",
         "sha256"
       ],
@@ -303,6 +323,9 @@
         "message": {
           "type": "string"
         },
+        "preview": {
+          "type": "boolean"
+        },
         "needs_refinement": {
           "const": true
         },
@@ -318,11 +341,23 @@
           },
           "type": "array"
         },
+        "section_count": {
+          "type": "integer"
+        },
         "sections": {
           "items": {
             "$ref": "#/$defs/section"
           },
           "type": "array"
+        },
+        "sections_truncated": {
+          "type": "boolean"
+        },
+        "write": {
+          "type": "boolean"
+        },
+        "written": {
+          "type": "boolean"
         }
       },
       "required": [
@@ -330,8 +365,13 @@
         "command",
         "campaign_id",
         "loop_id",
+        "write",
+        "written",
+        "preview",
         "needs_refinement",
         "primary_spec",
+        "section_count",
+        "sections_truncated",
         "sections",
         "compiler",
         "refinement_markers",

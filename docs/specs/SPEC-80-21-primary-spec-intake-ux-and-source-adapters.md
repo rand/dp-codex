@@ -1,6 +1,6 @@
 # SPEC-80.21 Primary Spec Intake UX and Source Adapters
 
-Status: active
+Status: accepted
 Issue: dpcx-pb5.18
 Parent: SPEC-80
 

@@ -4,6 +4,8 @@ Status: accepted
 Parent: [SPEC-80](SPEC-80-agent-campaign-control-plane-for-dp-codex.md)
 Issue: dpcx-pb5.15
 
+[SPEC-80.18]
+
 ## Problem
 
 SPEC-80 makes dp the campaign control plane, but Beads must remain the issue and dependency

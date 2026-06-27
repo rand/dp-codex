@@ -887,7 +887,7 @@ def _run_loop_next(args: argparse.Namespace) -> int:
 
 def _run_campaign_init(args: argparse.Namespace) -> int:
     return _emit_campaign_command_result(
-        init_campaign_from_primary_spec(Path(args.primary_spec), write=args.write),
+        init_campaign_from_primary_spec(args.primary_spec, write=args.write),
         args.json,
     )
 

@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import re
+import tempfile
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any
@@ -61,6 +63,7 @@ EVIDENCE_SIGNAL_TERMS = (
     "verify",
 )
 MAX_SIGNAL_CUES = 8
+MAX_PUBLIC_ITEMS = 25
 
 
 @dataclass(frozen=True)
@@ -97,47 +100,43 @@ class ArtifactDraft:
 
 
 def init_campaign_from_primary_spec(
-    primary_spec: Path,
+    primary_spec: str | Path,
     *,
     write: bool,
 ) -> CampaignInitResult:
-    if not write:
+    source_input = str(primary_spec)
+    if _looks_like_url(source_input):
         return _usage_error(
-            "write_required",
-            "$.write",
-            "Campaign init currently requires --write so generated artifacts are lintable.",
+            "unsupported_primary_spec_source",
+            "$.primary_spec",
+            "Campaign init supports local primary spec paths only; URL adapters are not enabled.",
         )
 
-    path_text = primary_spec.as_posix()
+    primary_spec_path = Path(source_input)
+    path_text = primary_spec_path.as_posix()
     if not _is_sane_relative_path(path_text):
         return _usage_error(
             "invalid_primary_spec_path",
             "$.primary_spec",
             "Primary spec path must be a sane relative path.",
         )
-    if path_text.startswith(("http://", "https://")):
-        return _usage_error(
-            "unsupported_primary_spec",
-            "$.primary_spec",
-            "Campaign init supports local primary spec paths only.",
-        )
-    if not primary_spec.exists():
+    if not primary_spec_path.exists():
         return _usage_error(
             "missing_primary_spec",
             "$.primary_spec",
             f"Primary spec does not exist: {path_text}.",
         )
-    if not primary_spec.is_file():
+    if not primary_spec_path.is_file():
         return _usage_error(
             "invalid_primary_spec",
             "$.primary_spec",
             f"Primary spec must be a file: {path_text}.",
         )
 
-    source_text = primary_spec.read_text(encoding="utf-8")
+    source_text = primary_spec_path.read_text(encoding="utf-8")
     source_hash = _sha256_text(source_text)
-    slug = _slugify(primary_spec.stem)
-    title = _title_from_source(source_text, fallback=primary_spec.stem)
+    slug = _slugify(primary_spec_path.stem)
+    title = _title_from_source(source_text, fallback=primary_spec_path.stem)
     extracted_sections = _extract_sections(source_text)
     goal_sections = extracted_sections or (
         PrimarySection(
@@ -154,25 +153,13 @@ def init_campaign_from_primary_spec(
     drafts = _build_artifacts(
         slug=slug,
         title=title,
-        primary_spec=primary_spec,
+        primary_spec=primary_spec_path,
         source_hash=source_hash,
         sections=goal_sections,
         extracted_sections=extracted_sections,
         markers=markers,
         compiler=compiler,
     )
-    collision = _first_collision(drafts)
-    if collision is not None:
-        return _usage_error(
-            "artifact_exists",
-            collision.as_posix(),
-            f"Refusing to overwrite existing non-identical artifact: {collision.as_posix()}.",
-        )
-
-    for draft in drafts:
-        draft.path.parent.mkdir(parents=True, exist_ok=True)
-        if not draft.path.exists() or draft.path.read_text(encoding="utf-8") != draft.text:
-            draft.path.write_text(draft.text, encoding="utf-8")
 
     campaign_path = Path(f"docs/campaigns/CAMPAIGN-{slug}.json")
     loop_path = Path(f"docs/loops/LOOP-{slug}.json")
@@ -184,33 +171,77 @@ def init_campaign_from_primary_spec(
         Path(f"docs/evidence/EVIDENCE-{slug}-{index:03d}.json")
         for index in range(1, len(goal_sections) + 1)
     ]
-    lint = _lint_generated(campaign_path, loop_path, goal_paths, evidence_paths)
+    collisions = _collisions(drafts)
+    if write and collisions:
+        collision = collisions[0]
+        return _usage_error(
+            "artifact_exists",
+            collision.as_posix(),
+            f"Refusing to overwrite existing non-identical artifact: {collision.as_posix()}.",
+        )
+
+    if write:
+        _write_drafts(drafts)
+        lint = _lint_generated(campaign_path, loop_path, goal_paths, evidence_paths)
+    else:
+        lint = _lint_drafts(
+            drafts,
+            primary_spec=primary_spec_path,
+            source_text=source_text,
+            campaign_path=campaign_path,
+            loop_path=loop_path,
+            goal_paths=goal_paths,
+            evidence_paths=evidence_paths,
+        )
     valid = _lint_valid(lint)
+    sections_public, sections_truncated = _bounded_items(
+        [section.to_dict() for section in extracted_sections]
+    )
+    compiler_public = _public_compiler(compiler)
 
     payload = {
         "ok": valid,
         "command": "campaign.init",
         "campaign_id": f"CAMPAIGN-{slug}",
         "loop_id": f"LOOP-{slug}",
+        "write": write,
+        "written": write,
+        "preview": not write,
         "needs_refinement": True,
         "primary_spec": {
-            "path": primary_spec.as_posix(),
+            "kind": "local_path",
+            "path": primary_spec_path.as_posix(),
             "sha256": source_hash,
         },
-        "sections": [section.to_dict() for section in extracted_sections],
-        "compiler": compiler,
+        "section_count": len(extracted_sections),
+        "sections_truncated": sections_truncated,
+        "sections": sections_public,
+        "compiler": compiler_public,
         "refinement_markers": markers,
         "artifacts": {
             "campaign": campaign_path.as_posix(),
             "loop": loop_path.as_posix(),
             "goals": [path.as_posix() for path in goal_paths],
+            "goal_count": len(goal_paths),
             "evidence_plans": [path.as_posix() for path in evidence_paths],
+            "evidence_plan_count": len(evidence_paths),
             "needs_refinement": f"docs/campaigns/CAMPAIGN-{slug}.needs_refinement.json",
         },
+        "collisions": [path.as_posix() for path in collisions],
         "lint": lint,
+        "next_commands": {
+            "write": (
+                f"dp campaign init --primary-spec {primary_spec_path.as_posix()} --write --json"
+            ),
+            "refine": f"dp campaign refine {campaign_path.as_posix()} --write --json",
+            "ready": f"dp campaign ready {campaign_path.as_posix()} --write --json",
+        },
         "message": (
-            "Draft campaign scaffold written. Refine semantic decomposition before treating it "
-            "as implementation-ready."
+            "Draft campaign scaffold planned. Use --write to create artifacts, then refine "
+            "semantic decomposition before treating it as implementation-ready."
+            if not write
+            else "Draft campaign scaffold written. Refine semantic decomposition before treating "
+            "it as implementation-ready."
         ),
     }
     return CampaignInitResult(payload=payload, exit_code=0 if valid else 1)
@@ -807,6 +838,34 @@ def _lint_generated(
     }
 
 
+def _lint_drafts(
+    drafts: tuple[ArtifactDraft, ...],
+    *,
+    primary_spec: Path,
+    source_text: str,
+    campaign_path: Path,
+    loop_path: Path,
+    goal_paths: list[Path],
+    evidence_paths: list[Path],
+) -> dict[str, Any]:
+    with tempfile.TemporaryDirectory(prefix="dp-campaign-init-") as temp_dir:
+        temp_root = Path(temp_dir)
+        primary_target = temp_root / primary_spec
+        primary_target.parent.mkdir(parents=True, exist_ok=True)
+        primary_target.write_text(source_text, encoding="utf-8")
+        for draft in drafts:
+            target = temp_root / draft.path
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text(draft.text, encoding="utf-8")
+
+        previous_cwd = Path.cwd()
+        try:
+            os.chdir(temp_root)
+            return _lint_generated(campaign_path, loop_path, goal_paths, evidence_paths)
+        finally:
+            os.chdir(previous_cwd)
+
+
 def _lint_valid(lint: dict[str, Any]) -> bool:
     campaign = lint["campaign"]
     loop = lint["loop"]
@@ -822,11 +881,37 @@ def _lint_valid(lint: dict[str, Any]) -> bool:
     )
 
 
-def _first_collision(drafts: tuple[ArtifactDraft, ...]) -> Path | None:
+def _collisions(drafts: tuple[ArtifactDraft, ...]) -> list[Path]:
+    collisions: list[Path] = []
     for draft in drafts:
         if draft.path.exists() and draft.path.read_text(encoding="utf-8") != draft.text:
-            return draft.path
-    return None
+            collisions.append(draft.path)
+    return collisions
+
+
+def _write_drafts(drafts: tuple[ArtifactDraft, ...]) -> None:
+    for draft in drafts:
+        draft.path.parent.mkdir(parents=True, exist_ok=True)
+        if not draft.path.exists() or draft.path.read_text(encoding="utf-8") != draft.text:
+            draft.path.write_text(draft.text, encoding="utf-8")
+
+
+def _bounded_items(items: list[dict[str, Any]]) -> tuple[list[dict[str, Any]], bool]:
+    return items[:MAX_PUBLIC_ITEMS], len(items) > MAX_PUBLIC_ITEMS
+
+
+def _public_compiler(compiler: dict[str, Any]) -> dict[str, Any]:
+    nodes = compiler.get("nodes", [])
+    public = dict(compiler)
+    if isinstance(nodes, list):
+        public["node_count"] = len(nodes)
+        public["nodes_truncated"] = len(nodes) > MAX_PUBLIC_ITEMS
+        public["nodes"] = nodes[:MAX_PUBLIC_ITEMS]
+    else:
+        public["node_count"] = 0
+        public["nodes_truncated"] = False
+        public["nodes"] = []
+    return public
 
 
 def _title_from_source(source_text: str, *, fallback: str) -> str:
@@ -866,6 +951,10 @@ def _is_sane_relative_path(value: str) -> bool:
     if any(part in {"", ".", ".."} for part in path.parts):
         return False
     return True
+
+
+def _looks_like_url(value: str) -> bool:
+    return value.startswith(("http://", "https://"))
 
 
 def _usage_error(code: str, path: str, message: str) -> CampaignInitResult:

@@ -47,6 +47,8 @@ def test_run_enforcement_pre_commit_passes_when_checks_pass(
             "dp/**/*.py",
             "--trace-glob",
             "scripts/**/*.py",
+            "--trace-glob",
+            "tests/**/*.py",
         ): _build_result(0),
         (
             "uv",
@@ -61,6 +63,8 @@ def test_run_enforcement_pre_commit_passes_when_checks_pass(
             "dp/**/*.py",
             "--trace-glob",
             "scripts/**/*.py",
+            "--trace-glob",
+            "tests/**/*.py",
         ): _build_result(
             0,
             stdout=json.dumps(
@@ -134,6 +138,8 @@ def test_run_enforcement_pre_commit_blocks_when_trace_coverage_has_gaps(
             "dp/**/*.py",
             "--trace-glob",
             "scripts/**/*.py",
+            "--trace-glob",
+            "tests/**/*.py",
         ): _build_result(0),
         (
             "uv",
@@ -148,6 +154,8 @@ def test_run_enforcement_pre_commit_blocks_when_trace_coverage_has_gaps(
             "dp/**/*.py",
             "--trace-glob",
             "scripts/**/*.py",
+            "--trace-glob",
+            "tests/**/*.py",
         ): _build_result(
             0,
             stdout=json.dumps(

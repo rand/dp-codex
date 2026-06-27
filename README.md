@@ -62,6 +62,7 @@ dp goal emit docs/goals/GOAL-my-feature.json --format codex --json
 When a campaign has a loop ledger, ask dp for the next ready goal:
 
 ```bash
+dp campaign init --primary-spec docs/primary/my-project.md --json
 dp campaign init --primary-spec docs/primary/my-project.md --write --json
 dp campaign refine docs/campaigns/CAMPAIGN-my-project.json --write --create-beads --json
 dp campaign ready docs/campaigns/CAMPAIGN-my-project.json --json
@@ -76,6 +77,9 @@ dp campaign run docs/campaigns/CAMPAIGN-my-project.json --driver codex --supervi
 dp agent launch --goal docs/goals/GOAL-my-feature.json --driver codex --supervised --json
 dp campaign sync-beads docs/campaigns/CAMPAIGN-my-project.json --write --json
 ```
+
+The first `campaign init` command is a dry-run preview: it plans and lints draft campaign artifacts
+without writing them. `--write` creates the same draft artifacts once the preview looks right.
 
 `dp campaign recover` includes a deterministic `resume` object that tells a future agent whether to
 resume an active claim, verify pending evidence, resolve a blocker, claim the next goal, or stop.

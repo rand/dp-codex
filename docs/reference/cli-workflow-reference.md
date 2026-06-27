@@ -55,7 +55,7 @@ Quick command reference by workflow.
 
 ## Campaign Manifests
 
-1. `dp campaign init --primary-spec <path> --write [--json]`
+1. `dp campaign init --primary-spec <path> [--write] [--json]`
 2. `dp campaign refine <campaign.json> [--write] [--create-beads] [--llm] [--llm-response <path>] [--json]`
 3. `dp campaign ready <campaign.json> [--write] [--json]`
 4. `dp campaign lint <campaign.json> [--json]`
