@@ -22,6 +22,7 @@ If you are operating an agent goal contract:
 1. Read `/docs/runbooks/goal-workflow.md`
 2. Keep `/docs/reference/goal-contract-schema.md` and `/docs/reference/goal-state-machine.md` nearby
 3. Keep `/docs/reference/evidence-plan-schema.md` nearby when the goal cites an evidence plan
+4. Keep `/docs/reference/loop-ledger-schema.md` nearby when choosing work from a campaign graph
 
 If you are maintaining policy, quality gates, or release readiness:
 
@@ -40,7 +41,7 @@ If you want system design and implementation internals:
 | Task lifecycle | `/docs/guides/quickstart-first-feature.md` | `/docs/runbooks/task-normalization.md` |
 | Traceability | `/docs/concepts/traceability-chain.md` | `/docs/runbooks/decompose-workflow.md` |
 | ADR and decisioning | `/docs/guides/feature-driver-playbook.md` | `/docs/runbooks/adr-workflow.md` |
-| Agent goals and evidence plans | `/docs/runbooks/goal-workflow.md` | `/docs/reference/goal-contract-schema.md`, `/docs/reference/goal-state-machine.md`, `/docs/reference/goal-emission.md`, `/docs/reference/evidence-plan-schema.md` |
+| Agent goals, evidence plans, and loop ledgers | `/docs/runbooks/goal-workflow.md` | `/docs/reference/goal-contract-schema.md`, `/docs/reference/goal-state-machine.md`, `/docs/reference/goal-emission.md`, `/docs/reference/evidence-plan-schema.md`, `/docs/reference/loop-ledger-schema.md` |
 | Review and verify | `/docs/guides/feature-driver-playbook.md` | `/docs/runbooks/review-workflow.md`, `/docs/runbooks/verify-workflow.md` |
 | Enforcement and policy | `/docs/concepts/governance-and-risk.md` | `/docs/runbooks/enforcement-workflow.md`, `/docs/runbooks/policy-workflow.md` |
 | Migration and operations | `/docs/guides/maintainer-automation-playbook.md` | `/docs/runbooks/migration-guide.md`, `/docs/runbooks/troubleshooting.md` |

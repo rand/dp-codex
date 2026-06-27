@@ -21,6 +21,7 @@ from dp.core.goal_state import (
     release_goal,
     start_goal,
 )
+from dp.core.loop_ledger import lint_loop_file, loop_next, loop_status
 from dp.core.policy import load_policy_config
 from dp.core.progress import (
     ProgressReport,
@@ -375,6 +376,40 @@ def _build_parser() -> argparse.ArgumentParser:
     evidence_lint_parser.add_argument("--json", action="store_true")
     evidence_lint_parser.set_defaults(handler=_run_evidence_lint)
 
+    loop_parser = subparsers.add_parser("loop")
+    loop_subparsers = loop_parser.add_subparsers(
+        dest="loop_command",
+        required=True,
+    )
+
+    loop_lint_parser = loop_subparsers.add_parser(
+        "lint",
+        help="Validate a LoopLedger without model calls or side effects.",
+    )
+    loop_lint_parser.add_argument("loop")
+    loop_lint_parser.add_argument("--json", action="store_true")
+    loop_lint_parser.set_defaults(handler=_run_loop_lint)
+
+    loop_status_parser = loop_subparsers.add_parser(
+        "status",
+        help="Reconstruct loop node state from GoalContracts and goal events.",
+    )
+    loop_status_parser.add_argument("loop")
+    loop_status_parser.add_argument("--json", action="store_true")
+    loop_status_parser.set_defaults(handler=_run_loop_status)
+
+    loop_next_parser = loop_subparsers.add_parser(
+        "next",
+        help="Return the next ready unclaimed loop goal.",
+    )
+    loop_next_parser.add_argument("loop")
+    loop_next_parser.add_argument("--claim", action="store_true")
+    loop_next_parser.add_argument("--agent", default="codex")
+    loop_next_parser.add_argument("--lease", default="2h")
+    loop_next_parser.add_argument("--emit", choices=["codex"])
+    loop_next_parser.add_argument("--json", action="store_true")
+    loop_next_parser.set_defaults(handler=_run_loop_next)
+
     return parser
 
 
@@ -638,6 +673,68 @@ def _run_evidence_lint(args: argparse.Namespace) -> int:
     for warning in result.report.warnings:
         print(f"- [warning:{warning.code}] {warning.path}: {warning.message}")
     return result.exit_code
+
+
+def _run_loop_lint(args: argparse.Namespace) -> int:
+    result = lint_loop_file(Path(args.loop))
+
+    if args.json:
+        print(json.dumps(result.report.to_dict(), sort_keys=True))
+        return result.exit_code
+
+    if result.report.valid:
+        print(f"Loop ledger valid: {result.report.loop_id}")
+        return 0
+
+    print(f"Loop ledger invalid: {result.report.loop_id or '<unknown>'}")
+    for error in result.report.errors:
+        print(f"- [{error.code}] {error.path}: {error.message}")
+    for warning in result.report.warnings:
+        print(f"- [warning:{warning.code}] {warning.path}: {warning.message}")
+    return result.exit_code
+
+
+def _run_loop_status(args: argparse.Namespace) -> int:
+    return _emit_loop_command_result(loop_status(Path(args.loop)), args.json)
+
+
+def _run_loop_next(args: argparse.Namespace) -> int:
+    return _emit_loop_command_result(
+        loop_next(
+            Path(args.loop),
+            claim=args.claim,
+            emit_format=args.emit,
+            agent=args.agent,
+            lease=args.lease,
+        ),
+        args.json,
+    )
+
+
+def _emit_loop_command_result(result: Any, json_output: bool) -> int:
+    if json_output:
+        print(json.dumps(result.payload, sort_keys=True))
+        return int(result.exit_code)
+
+    if result.payload.get("ok") is True:
+        command = result.payload.get("command")
+        loop_id = result.payload.get("loop_id")
+        if command == "loop.next":
+            print(f"Next goal: {result.payload.get('goal_id')} from {loop_id}")
+        else:
+            print(f"Loop ok: {loop_id}")
+        return int(result.exit_code)
+
+    print(f"Loop command failed: {result.payload.get('command', '<unknown>')}")
+    error = result.payload.get("error")
+    if isinstance(error, dict):
+        print(f"- [{error.get('code')}] {error.get('message')}")
+    lint = result.payload.get("lint")
+    if isinstance(lint, dict):
+        for item in lint.get("errors", []):
+            if isinstance(item, dict):
+                print(f"- [{item.get('code')}] {item.get('path')}: {item.get('message')}")
+    return int(result.exit_code)
 
 
 def _emit_goal_command_result(result: Any, json_output: bool) -> int:

@@ -426,6 +426,10 @@ def reconstruct_goal_state(
         elif event_type == "evidence_pending":
             state = "evidence_pending"
             blocked = None
+        elif event_type == "verified":
+            state = "verified"
+            lease = None
+            blocked = None
 
     return GoalState(
         goal_id=goal_id,

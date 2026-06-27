@@ -41,6 +41,20 @@ This document describes how commands are dispatched and how outcomes are encoded
 Evidence linting rejects raw shell strings and only accepts registered command checks. Execution is
 reserved for a future controlled evidence runner.
 
+## Loop Runtime
+
+`dp loop` commands operate over explicit LoopLedger files and append-only goal events:
+
+1. `dp loop lint` returns `0` for valid ledgers, `1` for invalid loaded ledgers, and `2` for
+   malformed or unsupported input.
+2. `dp loop status` validates the ledger and reconstructs each node state from referenced
+   GoalContracts and `.dp/goals/events.jsonl`.
+3. `dp loop next` returns the first ready unclaimed node in ledger order.
+4. `dp loop next --claim` writes through the existing `dp goal claim` event path.
+5. `dp loop next --emit codex` packages the selected GoalContract as a Codex-operable handoff.
+
+Loop commands do not compile primary specs, execute evidence, call an LLM, or run agents.
+
 ## Provider Boundary
 
 `/dp/providers/beads.py` wraps `bd` execution and normalizes failure classes:

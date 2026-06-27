@@ -1,0 +1,23 @@
+{
+  "schema_version": "0.1",
+  "id": "LOOP-CYCLE",
+  "title": "Invalid cycle",
+  "nodes": [
+    {
+      "id": "a",
+      "goal_id": "GOAL-SPEC-70.01",
+      "goal_path": "tests/fixtures/goals/valid_spec_70_01.json",
+      "depends_on": [
+        "b"
+      ]
+    },
+    {
+      "id": "b",
+      "goal_id": "GOAL-SPEC-80.01-LINT",
+      "goal_path": "tests/fixtures/goals/valid_campaign_node.json",
+      "depends_on": [
+        "a"
+      ]
+    }
+  ]
+}

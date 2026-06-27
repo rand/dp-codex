@@ -9,6 +9,7 @@ Reference docs are lookup-oriented and terse by design.
 3. `/docs/reference/goal-state-machine.md`
 4. `/docs/reference/goal-emission.md`
 5. `/docs/reference/evidence-plan-schema.md`
+6. `/docs/reference/loop-ledger-schema.md`
 
 ## JSON Contract Reference
 
@@ -17,5 +18,6 @@ Reference docs are lookup-oriented and terse by design.
 3. `/docs/schemas/verify-output.schema.json`
 4. `/docs/schemas/goal-lint-output.schema.json`
 5. `/docs/schemas/evidence-lint-output.schema.json`
+6. `/docs/schemas/loop-lint-output.schema.json`
 
 When you need a concept, use `/docs/concepts/`. When you need a sequence, use `/docs/guides/` or `/docs/runbooks/`.

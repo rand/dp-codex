@@ -28,6 +28,8 @@ Implemented event states:
 4. `blocked`: structured blocker recorded.
 5. `released`: claim released, or a claim lease is stale.
 6. `evidence_pending`: evidence path recorded, but behavioral verification is not implemented.
+7. `verified`: recognized from append-only events for loop dependency unlocks; no current `dp goal`
+   command writes this state.
 
 Rules:
 
@@ -37,3 +39,4 @@ Rules:
 4. Heartbeat requires an active non-stale claim.
 5. Block reasons are limited to known route types.
 6. `complete` records evidence pending; it does not mark verified success.
+7. Loop dependencies unlock on verified state, not agent narration or evidence-pending state.

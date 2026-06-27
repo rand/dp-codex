@@ -26,6 +26,7 @@ It provides:
 6. Decomposition and progress snapshots for fast context recovery
 7. Goal contracts, append-only goal state, and Codex-operable goal prompts
 8. Evidence-plan linting for registered, deterministic checks
+9. Loop ledgers that select the next ready goal from repo artifacts and goal events
 
 ## Quick Start
 
@@ -45,6 +46,12 @@ before relying on it:
 dp goal lint docs/goals/GOAL-my-feature.json --json
 dp evidence lint docs/evidence/EVIDENCE-my-feature.json --json
 dp goal emit docs/goals/GOAL-my-feature.json --format codex --json
+```
+
+When a campaign has a loop ledger, ask dp for the next ready goal:
+
+```bash
+dp loop next docs/loops/LOOP-my-campaign.json --claim --emit codex --json
 ```
 
 Run an empirical end-to-end pilot in an isolated temporary repository:
@@ -102,6 +109,7 @@ Reference and contributor standards:
 - `docs/reference/goal-state-machine.md`
 - `docs/reference/goal-emission.md`
 - `docs/reference/evidence-plan-schema.md`
+- `docs/reference/loop-ledger-schema.md`
 - `docs/developer/contributor-handbook.md`
 - `docs/developer/documentation-style.md`
 
@@ -111,9 +119,10 @@ M0-M6 milestone scope has been implemented and empirically validated; v1 readine
 `docs/release/v1-readiness.md`.
 
 SPEC-80 campaign-control work has started. The implemented foundation is GoalContract linting,
-append-only goal lifecycle state, Codex prompt emission, and deterministic EvidencePlan linting.
-Loop ledgers, evidence execution, campaign manifests, primary-spec compilation, LLM-assisted
-refinement, and supervised campaign running remain tracked follow-up work, not current features.
+append-only goal lifecycle state, Codex prompt emission, deterministic EvidencePlan linting, and
+LoopLedger next-goal scheduling. Evidence execution, campaign manifests, primary-spec compilation,
+LLM-assisted refinement, and supervised campaign running remain tracked follow-up work, not current
+features.
 
 ## Developer Commands
 
@@ -133,4 +142,5 @@ dp-codex contributors can smoke-test the checked-in goal and evidence fixtures:
 dp goal lint tests/fixtures/goals/valid_spec_70_01.json --json
 dp goal emit tests/fixtures/goals/valid_spec_70_01.json --format codex --json
 dp evidence lint tests/fixtures/evidence/valid_spec_80_05.json --json
+dp loop next tests/fixtures/loops/valid_spec_80_04.json --emit codex --json
 ```

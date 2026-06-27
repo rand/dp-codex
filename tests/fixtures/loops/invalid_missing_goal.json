@@ -1,0 +1,13 @@
+{
+  "schema_version": "0.1",
+  "id": "LOOP-MISSING-GOAL",
+  "title": "Invalid missing goal",
+  "nodes": [
+    {
+      "id": "missing-goal",
+      "goal_id": "GOAL-MISSING",
+      "goal_path": "tests/fixtures/goals/missing.json",
+      "depends_on": []
+    }
+  ]
+}

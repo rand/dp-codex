@@ -1,0 +1,19 @@
+{
+  "schema_version": "0.1",
+  "id": "LOOP-DUPLICATE",
+  "title": "Invalid duplicate node",
+  "nodes": [
+    {
+      "id": "same",
+      "goal_id": "GOAL-SPEC-70.01",
+      "goal_path": "tests/fixtures/goals/valid_spec_70_01.json",
+      "depends_on": []
+    },
+    {
+      "id": "same",
+      "goal_id": "GOAL-SPEC-80.01-LINT",
+      "goal_path": "tests/fixtures/goals/valid_campaign_node.json",
+      "depends_on": []
+    }
+  ]
+}

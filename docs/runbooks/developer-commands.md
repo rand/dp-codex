@@ -63,6 +63,13 @@ dp goal claim docs/goals/GOAL-example.json --agent codex --lease 2h --json
 dp goal start docs/goals/GOAL-example.json --agent codex --json
 ```
 
+When a campaign has a LoopLedger, choose the next goal through dp:
+
+```bash
+dp loop lint docs/loops/LOOP-example.json --json
+dp loop next docs/loops/LOOP-example.json --claim --emit codex --json
+```
+
 Before push:
 
 ```bash

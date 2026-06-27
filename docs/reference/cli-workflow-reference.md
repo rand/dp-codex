@@ -44,6 +44,12 @@ Quick command reference by workflow.
 
 1. `dp evidence lint <evidence.json> [--json]`
 
+## Loop Ledgers
+
+1. `dp loop lint <loop.json> [--json]`
+2. `dp loop status <loop.json> [--json]`
+3. `dp loop next <loop.json> [--claim] [--agent codex] [--lease 2h] [--emit codex] [--json]`
+
 ## Review And Verification
 
 1. `dp review [--json]`

@@ -1,0 +1,41 @@
+{
+  "schema_version": "0.1",
+  "id": "LOOP-SPEC-80.04",
+  "title": "SPEC-80 loop ledger fixture",
+  "source": {
+    "kind": "spec",
+    "id": "SPEC-80.04",
+    "path": "docs/specs/SPEC-80-04-loop-ledgers.md",
+    "input_hash": "sha256:0123456789abcdef"
+  },
+  "scheduler": "goal_events",
+  "context_policy": "fresh_context_per_goal",
+  "nodes": [
+    {
+      "id": "beads-doctor",
+      "kind": "goal",
+      "goal_id": "GOAL-SPEC-70.01",
+      "goal_path": "tests/fixtures/goals/valid_spec_70_01.json",
+      "beads_issue_id": "dpcx-66l",
+      "depends_on": [],
+      "evidence_plan": "docs/evidence/EVIDENCE-SPEC-70.01.json"
+    },
+    {
+      "id": "goal-lint",
+      "kind": "goal",
+      "goal_id": "GOAL-SPEC-80.01-LINT",
+      "goal_path": "tests/fixtures/goals/valid_campaign_node.json",
+      "beads_issue_id": "dpcx-pb5.1",
+      "depends_on": [
+        "beads-doctor"
+      ],
+      "evidence_plan": "docs/evidence/EVIDENCE-SPEC-80.01.json"
+    }
+  ],
+  "stop_rules": [
+    "stop on missing required decision",
+    "stop on missing evidence surface",
+    "stop on unsafe scope expansion",
+    "stop when budget is exhausted without evidence"
+  ]
+}

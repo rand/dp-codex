@@ -11,14 +11,15 @@ GoalContract through dp without relying on chat memory.
 4. `dp goal complete`: records an evidence path as `evidence_pending`; it does not verify success.
 5. `dp goal emit` and `dp agent prompt`: Codex-operable prompt emission from a valid contract.
 6. `dp evidence lint`: deterministic EvidencePlan validation without command execution.
+7. `dp loop lint/status/next`: deterministic LoopLedger validation, state reconstruction, and
+   next-goal packaging.
 
 ## What Does Not Exist Yet
 
-1. `dp loop next`.
-2. `dp evidence run`.
-3. `dp campaign init/status/recover`.
-4. LLM-assisted campaign refinement.
-5. A supervised campaign runner.
+1. `dp evidence run`.
+2. `dp campaign init/status/recover`.
+3. LLM-assisted campaign refinement.
+4. A supervised campaign runner.
 
 Those are tracked as SPEC-80 follow-up issues.
 
@@ -89,6 +90,19 @@ dp agent prompt --goal docs/goals/GOAL-example.json --format codex --json
 The emitted prompt includes the objective, evidence cues, boundaries, iteration policy, blocked
 condition, and lifecycle commands. Emission does not call an LLM and does not execute evidence.
 
+## Choose The Next Loop Goal
+
+When a campaign has a LoopLedger, validate it and ask dp for the next ready goal:
+
+```bash
+dp loop lint docs/loops/LOOP-example.json --json
+dp loop status docs/loops/LOOP-example.json --json
+dp loop next docs/loops/LOOP-example.json --claim --emit codex --json
+```
+
+`next` skips blocked nodes and active claims. Dependencies unlock only when dependency goal state is
+verified; `evidence_pending` remains evidence recorded, not proof of completion.
+
 ## Safe Local Smoke Test
 
 Use the checked-in fixture when you want to verify the command surface without writing events:
@@ -96,4 +110,5 @@ Use the checked-in fixture when you want to verify the command surface without w
 ```bash
 dp goal lint tests/fixtures/goals/valid_spec_70_01.json --json
 dp goal emit tests/fixtures/goals/valid_spec_70_01.json --format codex --json
+dp loop next tests/fixtures/loops/valid_spec_80_04.json --emit codex --json
 ```

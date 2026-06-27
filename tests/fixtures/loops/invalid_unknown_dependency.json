@@ -1,0 +1,15 @@
+{
+  "schema_version": "0.1",
+  "id": "LOOP-UNKNOWN-DEPENDENCY",
+  "title": "Invalid unknown dependency",
+  "nodes": [
+    {
+      "id": "goal-lint",
+      "goal_id": "GOAL-SPEC-80.01-LINT",
+      "goal_path": "tests/fixtures/goals/valid_campaign_node.json",
+      "depends_on": [
+        "not-here"
+      ]
+    }
+  ]
+}
