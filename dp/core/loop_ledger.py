@@ -651,6 +651,7 @@ def _goal_commands(goal_path: Path) -> dict[str, str]:
         "start": f"dp goal start {path} --agent codex --json",
         "heartbeat": f"dp goal heartbeat {path} --json",
         "complete": f"dp goal complete {path} --evidence <run.json> --json",
+        "verify": f"dp goal verify {path} --evidence <run.json> --json",
         "block": f"dp goal block {path} --reason <reason> --json",
         "release": f"dp goal release {path} --reason <reason> --json",
     }

@@ -27,6 +27,7 @@ from dp.core.goal_state import (
     heartbeat_goal,
     release_goal,
     start_goal,
+    verify_goal,
 )
 from dp.core.loop_ledger import lint_loop_file, loop_next, loop_status
 from dp.core.policy import load_policy_config
@@ -221,6 +222,15 @@ def _build_parser() -> argparse.ArgumentParser:
     goal_complete_parser.add_argument("--evidence", required=True)
     goal_complete_parser.add_argument("--json", action="store_true")
     goal_complete_parser.set_defaults(handler=_run_goal_complete)
+
+    goal_verify_parser = goal_subparsers.add_parser(
+        "verify",
+        help="Verify a goal from a matching successful dp evidence run artifact.",
+    )
+    goal_verify_parser.add_argument("goal")
+    goal_verify_parser.add_argument("--evidence", required=True)
+    goal_verify_parser.add_argument("--json", action="store_true")
+    goal_verify_parser.set_defaults(handler=_run_goal_verify)
 
     goal_emit_parser = goal_subparsers.add_parser(
         "emit",
@@ -694,6 +704,13 @@ def _run_goal_release(args: argparse.Namespace) -> int:
 def _run_goal_complete(args: argparse.Namespace) -> int:
     return _emit_goal_command_result(
         complete_goal(Path(args.goal), evidence_path=Path(args.evidence)),
+        args.json,
+    )
+
+
+def _run_goal_verify(args: argparse.Namespace) -> int:
+    return _emit_goal_command_result(
+        verify_goal(Path(args.goal), evidence_path=Path(args.evidence)),
         args.json,
     )
 

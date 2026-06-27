@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from hashlib import sha256
 from pathlib import Path
 from typing import Any
 
 from dp.core.events import append_jsonl_event, read_jsonl_events
+from dp.core.evidence_lint import lint_evidence_file
 from dp.core.goal_lint import GoalLintReport, lint_goal_file
 
 # @trace SPEC-80.02
@@ -368,8 +371,95 @@ def complete_goal(
             "event_log": append_result.path,
             "evidence_status": "pending_verification",
             "message": (
-                "Evidence recorded; behavioral evidence verification is not implemented yet."
+                "Evidence recorded; run dp goal verify with a matching evidence run to verify."
             ),
+            **state.to_dict(),
+        },
+        exit_code=0,
+    )
+
+
+# @trace SPEC-80.10
+def verify_goal(
+    goal_path: Path,
+    *,
+    evidence_path: Path,
+    event_log: Path = DEFAULT_GOAL_EVENT_LOG,
+) -> GoalCommandResult:
+    lint_result = lint_goal_file(goal_path)
+    if lint_result.exit_code != 0:
+        return _lint_failure_payload("goal.verify", lint_result.report, lint_result.exit_code)
+    if not _is_sane_relative_path(evidence_path.as_posix()):
+        return _usage_error(
+            "goal.verify",
+            "invalid_evidence_path",
+            "$.evidence",
+            "Evidence path must be a sane relative path.",
+        )
+    if not evidence_path.exists():
+        return _usage_error(
+            "goal.verify",
+            "missing_evidence_path",
+            "$.evidence",
+            f"Evidence path does not exist: {evidence_path.as_posix()}",
+        )
+
+    goal_id = _require_goal_id(lint_result.report)
+    contract = _read_json_object(goal_path)
+    evidence_run = _load_evidence_run(evidence_path)
+    if isinstance(evidence_run, GoalCommandResult):
+        return evidence_run
+
+    goal_evidence_plan = _goal_evidence_plan_path(contract)
+    if goal_evidence_plan is None:
+        return _verification_failure(
+            "missing_goal_evidence_plan",
+            "$.evidence.evidence_plan",
+            "GoalContract must reference an evidence_plan before evidence can verify it.",
+            goal_id=goal_id,
+            exit_code=1,
+        )
+
+    evidence_plan_path = Path(goal_evidence_plan)
+    evidence_plan_payload = _validate_evidence_run_against_goal(
+        evidence_run,
+        goal_id=goal_id,
+        goal_evidence_plan=goal_evidence_plan,
+        evidence_plan_path=evidence_plan_path,
+    )
+    if isinstance(evidence_plan_payload, GoalCommandResult):
+        return evidence_plan_payload
+
+    now = _utc_now()
+    event = _base_event(
+        "verified",
+        goal_id=goal_id,
+        goal_path=goal_path,
+        timestamp=now,
+        evidence=evidence_path.as_posix(),
+        evidence_sha256=_file_sha256(evidence_path),
+        evidence_id=str(evidence_run["evidence_id"]),
+        evidence_plan=goal_evidence_plan,
+        evidence_plan_sha256=_file_sha256(evidence_plan_path),
+    )
+    append_result = append_jsonl_event(event_log, event)
+    state = reconstruct_goal_state(
+        goal_id=goal_id,
+        goal_path=goal_path,
+        event_log=event_log,
+        now=now,
+    )
+    return GoalCommandResult(
+        payload={
+            "ok": True,
+            "command": "goal.verify",
+            "event_log": append_result.path,
+            "evidence_status": "verified",
+            "evidence": evidence_path.as_posix(),
+            "evidence_id": evidence_run["evidence_id"],
+            "evidence_plan": goal_evidence_plan,
+            "evidence_plan_sha256": _file_sha256(evidence_plan_path),
+            "message": "Evidence run verified; goal state advanced to verified.",
             **state.to_dict(),
         },
         exit_code=0,
@@ -493,6 +583,28 @@ def _usage_error(command: str, code: str, path: str, message: str) -> GoalComman
     )
 
 
+def _verification_failure(
+    code: str,
+    path: str,
+    message: str,
+    *,
+    goal_id: str | None = None,
+    exit_code: int = 1,
+) -> GoalCommandResult:
+    payload: dict[str, Any] = {
+        "ok": False,
+        "command": "goal.verify",
+        "error": {
+            "code": code,
+            "path": path,
+            "message": message,
+        },
+    }
+    if goal_id is not None:
+        payload["goal_id"] = goal_id
+    return GoalCommandResult(payload=payload, exit_code=exit_code)
+
+
 def _require_goal_id(report: GoalLintReport) -> str:
     if report.goal_id is None:
         raise ValueError("Valid goal lint report unexpectedly lacks goal_id.")
@@ -524,6 +636,220 @@ def _base_event(
     }
 
 
+def _load_evidence_run(path: Path) -> dict[str, Any] | GoalCommandResult:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        return _verification_failure(
+            "malformed_evidence_run",
+            "$",
+            f"Evidence run is not valid JSON: line {exc.lineno} column {exc.colno}.",
+            exit_code=2,
+        )
+    if not isinstance(payload, dict):
+        return _verification_failure(
+            "invalid_evidence_run",
+            "$",
+            "Evidence run must be a JSON object emitted by dp evidence run.",
+            exit_code=2,
+        )
+    if payload.get("command") != "evidence.run":
+        return _verification_failure(
+            "invalid_evidence_run",
+            "$.command",
+            "Evidence must be a dp evidence run output, not an agent self-report.",
+            exit_code=2,
+        )
+    return payload
+
+
+def _read_json_object(path: Path) -> dict[str, Any]:
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise ValueError("Valid GoalContract unexpectedly loaded as non-object.")
+    return payload
+
+
+def _goal_evidence_plan_path(contract: dict[str, Any]) -> str | None:
+    evidence = contract.get("evidence")
+    if not isinstance(evidence, dict):
+        return None
+    path = evidence.get("evidence_plan")
+    if not isinstance(path, str) or not path.strip():
+        return None
+    return path.strip()
+
+
+def _validate_evidence_run_against_goal(
+    evidence_run: dict[str, Any],
+    *,
+    goal_id: str,
+    goal_evidence_plan: str,
+    evidence_plan_path: Path,
+) -> dict[str, Any] | GoalCommandResult:
+    evidence_plan_source = evidence_run.get("evidence_plan")
+    if not isinstance(evidence_plan_source, dict):
+        return _verification_failure(
+            "invalid_evidence_run",
+            "$.evidence_plan",
+            "Evidence run must record evidence_plan path and sha256.",
+            goal_id=goal_id,
+            exit_code=2,
+        )
+
+    run_plan_path = _non_empty_string(evidence_plan_source.get("path"))
+    run_plan_sha = _non_empty_string(evidence_plan_source.get("sha256"))
+    if run_plan_path is None or not _is_sane_relative_path(run_plan_path):
+        return _verification_failure(
+            "invalid_evidence_run",
+            "$.evidence_plan.path",
+            "Evidence run evidence_plan.path must be a sane relative path.",
+            goal_id=goal_id,
+            exit_code=2,
+        )
+    if run_plan_sha is None or not _is_sha256_digest(run_plan_sha):
+        return _verification_failure(
+            "invalid_evidence_run",
+            "$.evidence_plan.sha256",
+            "Evidence run evidence_plan.sha256 must be a sha256 digest.",
+            goal_id=goal_id,
+            exit_code=2,
+        )
+
+    if evidence_run.get("goal_id") != goal_id:
+        return _verification_failure(
+            "goal_id_mismatch",
+            "$.goal_id",
+            "Evidence run goal_id must match the GoalContract id.",
+            goal_id=goal_id,
+        )
+    if run_plan_path != goal_evidence_plan:
+        return _verification_failure(
+            "evidence_plan_mismatch",
+            "$.evidence_plan.path",
+            "Evidence run must come from the GoalContract evidence_plan.",
+            goal_id=goal_id,
+        )
+    if not evidence_plan_path.exists():
+        return _verification_failure(
+            "missing_evidence_plan",
+            "$.evidence_plan.path",
+            f"EvidencePlan does not exist: {goal_evidence_plan}",
+            goal_id=goal_id,
+        )
+
+    lint_result = lint_evidence_file(evidence_plan_path)
+    if lint_result.exit_code != 0:
+        return _verification_failure(
+            "invalid_evidence_plan",
+            "$.evidence_plan.path",
+            "Current EvidencePlan must pass deterministic lint.",
+            goal_id=goal_id,
+        )
+    if lint_result.report.goal_id != goal_id:
+        return _verification_failure(
+            "evidence_plan_goal_mismatch",
+            "$.evidence_plan.goal_id",
+            "Current EvidencePlan goal_id must match the GoalContract id.",
+            goal_id=goal_id,
+        )
+    if _file_sha256(evidence_plan_path) != run_plan_sha:
+        return _verification_failure(
+            "stale_evidence_plan",
+            "$.evidence_plan.sha256",
+            "EvidencePlan has changed since the evidence run was produced.",
+            goal_id=goal_id,
+        )
+
+    plan_payload = _read_json_object(evidence_plan_path)
+    evidence_id = _non_empty_string(plan_payload.get("id"))
+    if evidence_run.get("evidence_id") != evidence_id:
+        return _verification_failure(
+            "evidence_id_mismatch",
+            "$.evidence_id",
+            "Evidence run evidence_id must match the current EvidencePlan id.",
+            goal_id=goal_id,
+        )
+
+    run_lint = evidence_run.get("lint")
+    if not isinstance(run_lint, dict) or run_lint.get("valid") is not True:
+        return _verification_failure(
+            "invalid_evidence_run",
+            "$.lint",
+            "Evidence run must include a valid lint report.",
+            goal_id=goal_id,
+            exit_code=2,
+        )
+    if run_lint.get("goal_id") != goal_id or run_lint.get("evidence_id") != evidence_id:
+        return _verification_failure(
+            "invalid_evidence_run",
+            "$.lint",
+            "Evidence run lint report must match goal_id and evidence_id.",
+            goal_id=goal_id,
+            exit_code=2,
+        )
+
+    run_failure = _validate_successful_run_shape(evidence_run)
+    if run_failure is not None:
+        return _verification_failure(
+            "evidence_run_failed",
+            run_failure,
+            "Evidence run did not pass all checks and typed assertions.",
+            goal_id=goal_id,
+        )
+
+    return plan_payload
+
+
+def _validate_successful_run_shape(evidence_run: dict[str, Any]) -> str | None:
+    if evidence_run.get("ok") is not True or evidence_run.get("error") is not None:
+        return "$.ok"
+    checks = evidence_run.get("checks")
+    if not isinstance(checks, list) or not checks:
+        return "$.checks"
+
+    passed = 0
+    failed = 0
+    timed_out = 0
+    errored = 0
+    for index, check in enumerate(checks):
+        if not isinstance(check, dict):
+            return f"$.checks[{index}]"
+        status = check.get("status")
+        if check.get("ok") is not True or status != "passed":
+            return f"$.checks[{index}]"
+        passed += 1
+        assertions = check.get("assertions")
+        if not isinstance(assertions, list) or not assertions:
+            return f"$.checks[{index}].assertions"
+        for assertion_index, assertion in enumerate(assertions):
+            if not isinstance(assertion, dict) or assertion.get("ok") is not True:
+                return f"$.checks[{index}].assertions[{assertion_index}]"
+
+    summary = evidence_run.get("summary")
+    if not isinstance(summary, dict):
+        return "$.summary"
+    failed = sum(
+        1 for check in checks if isinstance(check, dict) and check.get("status") == "failed"
+    )
+    timed_out = sum(
+        1 for check in checks if isinstance(check, dict) and check.get("status") == "timed_out"
+    )
+    errored = sum(
+        1 for check in checks if isinstance(check, dict) and check.get("status") == "error"
+    )
+    expected_summary = {
+        "total": len(checks),
+        "passed": passed,
+        "failed": failed,
+        "timed_out": timed_out,
+        "errored": errored,
+    }
+    if any(summary.get(key) != value for key, value in expected_summary.items()):
+        return "$.summary"
+    return None
+
+
 def _utc_now() -> datetime:
     return datetime.now(UTC)
 
@@ -538,3 +864,25 @@ def _parse_event_time(value: str) -> datetime:
 
 def _is_sane_relative_path(value: str) -> bool:
     return bool(value) and not value.startswith(("/", "~", "-")) and ".." not in Path(value).parts
+
+
+def _non_empty_string(value: Any) -> str | None:
+    if not isinstance(value, str):
+        return None
+    stripped = value.strip()
+    return stripped or None
+
+
+def _file_sha256(path: Path) -> str:
+    digest = sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return f"sha256:{digest.hexdigest()}"
+
+
+def _is_sha256_digest(value: str) -> bool:
+    prefix = "sha256:"
+    if not value.startswith(prefix) or len(value) != len(prefix) + 64:
+        return False
+    return all(character in "0123456789abcdef" for character in value[len(prefix) :])

@@ -32,6 +32,9 @@ Execution command:
 dp evidence run <evidence.json> --json
 ```
 
+`dp evidence run` emits the run report to stdout. Persist that JSON as a repo artifact when it will
+be used by `dp goal complete` or `dp goal verify`.
+
 Lint exit codes:
 
 1. `0`: valid.
@@ -85,6 +88,10 @@ Run JSON output:
   "command": "evidence.run",
   "evidence_id": "EVIDENCE-SPEC-80.08-RUN",
   "goal_id": "GOAL-SPEC-80.08",
+  "evidence_plan": {
+    "path": "tests/fixtures/evidence/valid_run_goal_lint.json",
+    "sha256": "sha256:..."
+  },
   "lint": {
     "valid": true,
     "evidence_id": "EVIDENCE-SPEC-80.08-RUN",

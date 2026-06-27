@@ -37,8 +37,9 @@ Quick command reference by workflow.
 6. `dp goal block <goal.json> --reason <known-reason> [--json]`
 7. `dp goal release <goal.json> --reason "..." [--json]`
 8. `dp goal complete <goal.json> --evidence <run.json> [--json]`
-9. `dp goal emit <goal.json> --format codex [--json]`
-10. `dp agent prompt --goal <goal.json> --format codex [--json]`
+9. `dp goal verify <goal.json> --evidence <run.json> [--json]`
+10. `dp goal emit <goal.json> --format codex [--json]`
+11. `dp agent prompt --goal <goal.json> --format codex [--json]`
 
 ## Evidence Plans
 

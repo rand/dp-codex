@@ -119,6 +119,25 @@
       ],
       "type": "object"
     },
+    "evidence_plan_source": {
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "sha256": {
+          "type": [
+            "string",
+            "null"
+          ]
+        }
+      },
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "type": "object"
+    },
     "finding": {
       "additionalProperties": false,
       "properties": {
@@ -235,6 +254,9 @@
         "null"
       ]
     },
+    "evidence_plan": {
+      "$ref": "#/$defs/evidence_plan_source"
+    },
     "goal_id": {
       "type": [
         "string",
@@ -255,6 +277,7 @@
     "ok",
     "command",
     "evidence_id",
+    "evidence_plan",
     "goal_id",
     "lint",
     "checks",

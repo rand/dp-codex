@@ -24,6 +24,10 @@ def test_goal_emit_codex_returns_operable_prompt(capsys) -> None:
     )
     assert "Never claim completion from narration" in payload["codex_goal"]
     assert payload["commands"]["complete"].endswith("--evidence <run.json> --json")
+    assert payload["commands"]["verify"].endswith("--evidence <run.json> --json")
+    assert "dp goal verify tests/fixtures/goals/valid_spec_70_01.json --evidence <run.json>" in (
+        payload["codex_goal"]
+    )
 
 
 def test_agent_prompt_delegates_to_goal_emit(capsys) -> None:

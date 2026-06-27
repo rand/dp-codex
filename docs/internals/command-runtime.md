@@ -29,6 +29,9 @@ This document describes how commands are dispatched and how outcomes are encoded
 2. Mutating goal lifecycle commands validate the GoalContract before appending events.
 3. Goal lifecycle state is reconstructed from `.dp/goals/events.jsonl`.
 4. `dp goal complete` records `evidence_pending`; it does not declare behavioral verification.
+5. `dp goal verify` consumes a `dp evidence run` artifact and appends `verified` only when the
+   run passed, goal id matches, the EvidencePlan path matches the GoalContract, and the current
+   EvidencePlan hash matches the run.
 
 ## Evidence Runtime
 
@@ -48,6 +51,8 @@ and typed assertions:
 3. `2`: missing file, malformed JSON, non-object JSON, unsupported schema, or incomplete input.
 
 Evidence runtime does not call an LLM, execute raw shell strings, or mark goals verified.
+Run output records the source EvidencePlan path and sha256 so goal verification can reject stale or
+mismatched evidence.
 
 ## Loop Runtime
 

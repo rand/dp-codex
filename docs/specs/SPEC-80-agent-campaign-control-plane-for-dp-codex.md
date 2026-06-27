@@ -6,10 +6,10 @@ Scope: principled upgrade to dp-codex so a comprehensive primary spec can be com
 
 Implementation note, 2026-06-27: the foundation is implemented for GoalContract linting,
 append-only goal lifecycle state, Codex prompt emission, deterministic EvidencePlan linting, and
-controlled EvidencePlan execution. LoopLedger lint/status/next-goal scheduling, CampaignManifest
-lint/status/recover, and conservative primary-spec campaign scaffolding are also implemented.
-Semantic primary-spec campaign compilation, LLM-assisted refinement, verified evidence-to-goal
-completion, and supervised running remain planned follow-up work.
+controlled EvidencePlan execution. Evidence-run verification can now advance matching goals to
+`verified`. LoopLedger lint/status/next-goal scheduling, CampaignManifest lint/status/recover, and
+conservative primary-spec campaign scaffolding are also implemented. Semantic primary-spec campaign
+compilation, LLM-assisted refinement, and supervised running remain planned follow-up work.
 
 ## 1. Thesis
 
@@ -75,6 +75,7 @@ After working:
 
 ```bash
 dp goal complete GOAL-012 --evidence docs/evidence-runs/RUN-012.json --json
+dp goal verify GOAL-012 --evidence docs/evidence-runs/RUN-012.json --json
 dp loop next CAMPAIGN-waveguide --claim --emit codex --json
 ```
 
@@ -294,6 +295,7 @@ dp goal start <goal.json> --agent codex --json
 dp goal heartbeat <goal.json> --json
 dp goal report <goal.json> --status pursuing --note "..." --json
 dp goal complete <goal.json> --evidence <path> --json
+dp goal verify <goal.json> --evidence <path> --json
 dp goal block <goal.json> --reason needs_decision --write-artifact --json
 dp goal release <goal.json> --reason "context reset" --json
 ```
@@ -650,6 +652,7 @@ Example output:
     "start": "dp goal start docs/goals/GOAL-012.json --agent codex --json",
     "heartbeat": "dp goal heartbeat docs/goals/GOAL-012.json --json",
     "complete": "dp goal complete docs/goals/GOAL-012.json --evidence <run.json> --json",
+    "verify": "dp goal verify docs/goals/GOAL-012.json --evidence <run.json> --json",
     "block": "dp goal block docs/goals/GOAL-012.json --reason <reason> --write-artifact --json",
     "release": "dp goal release docs/goals/GOAL-012.json --reason <reason> --json"
   }
@@ -669,6 +672,7 @@ dp goal start <goal.json> --agent codex --json
 dp goal heartbeat <goal.json> --json
 dp goal report <goal.json> --status pursuing --note "..." --json
 dp goal complete <goal.json> --evidence <path> --json
+dp goal verify <goal.json> --evidence <path> --json
 dp goal block <goal.json> --reason needs_decision --write-artifact --json
 dp goal release <goal.json> --reason "context reset" --json
 ```
@@ -710,7 +714,7 @@ The emitted goal should also instruct Codex to use dp’s state commands.
 Example:
 
 ```text
-/goal Make SPEC-70.01 true: dp-codex must tolerate current Beads CLI behavior by providing a read-only `dp doctor --json` health path, distinguishing missing `bd`, missing `.beads`, and unusable initialized databases, avoiding removed `bd sync` assumptions, and ensuring pre-push safeguards check provider health without mutation. Verify with the linked evidence plan, targeted doctor/provider tests, `dp doctor --json`, trace validation for SPEC-70.01, and `make check`, while preserving deterministic exit semantics and current Beads-compatible command guidance. Prefer changes under `dp/providers`, `dp/cli`, `dp/enforcement`, `tests`, and relevant docs. Start by running `dp goal start ...`. Between iterations, run the smallest relevant failing check first and repair before broadening scope. If Beads command behavior, fixture setup, or provider semantics are ambiguous, run `dp goal block ... --reason needs_decision --write-artifact` instead of guessing. Mark complete only with `dp goal complete ... --evidence <run.json>` after evidence passes.
+/goal Make SPEC-70.01 true: dp-codex must tolerate current Beads CLI behavior by providing a read-only `dp doctor --json` health path, distinguishing missing `bd`, missing `.beads`, and unusable initialized databases, avoiding removed `bd sync` assumptions, and ensuring pre-push safeguards check provider health without mutation. Verify with the linked evidence plan, targeted doctor/provider tests, `dp doctor --json`, trace validation for SPEC-70.01, and `make check`, while preserving deterministic exit semantics and current Beads-compatible command guidance. Prefer changes under `dp/providers`, `dp/cli`, `dp/enforcement`, `tests`, and relevant docs. Start by running `dp goal start ...`. Between iterations, run the smallest relevant failing check first and repair before broadening scope. If Beads command behavior, fixture setup, or provider semantics are ambiguous, run `dp goal block ... --reason needs_decision --write-artifact` instead of guessing. Record evidence with `dp goal complete ... --evidence <run.json>` and advance only with `dp goal verify ... --evidence <run.json>` after evidence passes.
 ```
 
 ## 11. LLM policy
@@ -928,6 +932,7 @@ dp goal claim <goal.json> --agent codex --lease 2h --json
 dp goal start <goal.json> --agent codex --json
 dp goal heartbeat <goal.json> --json
 dp goal complete <goal.json> --evidence <path> --json
+dp goal verify <goal.json> --evidence <path> --json
 dp goal block <goal.json> --reason needs_decision --json
 dp goal release <goal.json> --reason <reason> --json
 ```
@@ -1072,22 +1077,21 @@ This is security-sensitive. Treat it as a real executor.
 
 ### M9: Goal verification integration
 
-Implement:
+Implemented in SPEC-80.10 for manual evidence-run verification:
 
 ```bash
-dp verify --goal <goal.json> --json
+dp goal verify <goal.json> --evidence <run.json> --json
 ```
 
-Only after evidence execution exists.
-
-It should orchestrate:
+The command checks:
 
 ```text
 goal lint
-evidence lint
-evidence run
-trace validation
-coverage/link rollup
+evidence run output shape
+goal id match
+evidence plan path match
+current evidence plan lint
+current evidence plan sha256 match
 ```
 
 Do not use hand-authored truth booleans as behavioral proof of goal completion.
@@ -1177,6 +1181,7 @@ dp campaign status docs/campaigns/<campaign>.json --json
 dp loop next docs/loops/<loop>.json --claim --emit codex --json
 dp goal start docs/goals/<goal>.json --agent codex --json
 dp goal complete docs/goals/<goal>.json --evidence <run.json> --json
+dp goal verify docs/goals/<goal>.json --evidence <run.json> --json
 ```
 
 and a new Codex session can recover campaign state from repo artifacts without chat memory.

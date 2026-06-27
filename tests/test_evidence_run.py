@@ -22,6 +22,8 @@ def test_evidence_run_executes_valid_registered_fixture(capsys) -> None:
     assert payload["command"] == "evidence.run"
     assert payload["evidence_id"] == "EVIDENCE-SPEC-80.08-RUN"
     assert payload["goal_id"] == "GOAL-SPEC-80.08"
+    assert payload["evidence_plan"]["path"] == "tests/fixtures/evidence/valid_run_goal_lint.json"
+    assert payload["evidence_plan"]["sha256"].startswith("sha256:")
     assert payload["summary"] == {
         "total": 1,
         "passed": 1,

@@ -4,6 +4,7 @@ import json
 import os
 import subprocess
 from dataclasses import dataclass
+from hashlib import sha256
 from pathlib import Path
 from typing import Any, cast
 
@@ -44,6 +45,7 @@ def run_evidence_file(path: Path) -> EvidenceRunResult:
         return EvidenceRunResult(
             payload=_base_payload(
                 lint_result.report,
+                evidence_plan_path=path,
                 checks=[],
                 error=_error(
                     "invalid_evidence_plan",
@@ -63,6 +65,7 @@ def run_evidence_file(path: Path) -> EvidenceRunResult:
                 "command": "evidence.run",
                 "evidence_id": lint_payload["evidence_id"],
                 "goal_id": lint_payload["goal_id"],
+                "evidence_plan": _evidence_plan_source(path),
                 "lint": lint_payload,
                 "checks": [],
                 "summary": _summary([]),
@@ -80,6 +83,7 @@ def run_evidence_file(path: Path) -> EvidenceRunResult:
     return EvidenceRunResult(
         payload=_base_payload(
             lint_result.report,
+            evidence_plan_path=path,
             checks=check_results,
             error=None
             if ok
@@ -327,6 +331,7 @@ def _controlled_env() -> dict[str, str]:
 def _base_payload(
     lint: EvidenceLintReport,
     *,
+    evidence_plan_path: Path,
     checks: list[dict[str, Any]],
     error: dict[str, str] | None,
 ) -> dict[str, Any]:
@@ -335,11 +340,27 @@ def _base_payload(
         "command": "evidence.run",
         "evidence_id": lint.evidence_id,
         "goal_id": lint.goal_id,
+        "evidence_plan": _evidence_plan_source(evidence_plan_path),
         "lint": lint.to_dict(),
         "checks": checks,
         "summary": _summary(checks),
         "error": error,
     }
+
+
+def _evidence_plan_source(path: Path) -> dict[str, str | None]:
+    return {
+        "path": path.as_posix(),
+        "sha256": _file_sha256(path) if path.exists() else None,
+    }
+
+
+def _file_sha256(path: Path) -> str:
+    digest = sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return f"sha256:{digest.hexdigest()}"
 
 
 def _summary(checks: list[dict[str, Any]]) -> dict[str, int]:

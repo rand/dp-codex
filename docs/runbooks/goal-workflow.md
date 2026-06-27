@@ -9,22 +9,22 @@ GoalContract through dp without relying on chat memory.
 2. `dp goal status`: state reconstruction from `.dp/goals/events.jsonl`.
 3. `dp goal claim/start/heartbeat/block/release`: append-only lifecycle events.
 4. `dp goal complete`: records an evidence path as `evidence_pending`; it does not verify success.
-5. `dp goal emit` and `dp agent prompt`: Codex-operable prompt emission from a valid contract.
-6. `dp evidence lint`: deterministic EvidencePlan validation without command execution.
-7. `dp evidence run`: controlled execution of linted registered checks with typed assertions.
-8. `dp loop lint/status/next`: deterministic LoopLedger validation, state reconstruction, and
+5. `dp goal verify`: verifies a matching successful evidence run and records `verified`.
+6. `dp goal emit` and `dp agent prompt`: Codex-operable prompt emission from a valid contract.
+7. `dp evidence lint`: deterministic EvidencePlan validation without command execution.
+8. `dp evidence run`: controlled execution of linted registered checks with typed assertions.
+9. `dp loop lint/status/next`: deterministic LoopLedger validation, state reconstruction, and
    next-goal packaging.
-9. `dp campaign lint/status/recover`: deterministic CampaignManifest validation and recovery from
+10. `dp campaign lint/status/recover`: deterministic CampaignManifest validation and recovery from
    repo artifacts plus append-only goal events.
-10. `dp campaign init --primary-spec <path> --write`: conservative draft scaffold generation from a
+11. `dp campaign init --primary-spec <path> --write`: conservative draft scaffold generation from a
    local primary spec.
 
 ## What Does Not Exist Yet
 
 1. Semantic primary-spec campaign compilation.
 2. LLM-assisted campaign refinement.
-3. Verified evidence-to-goal completion.
-4. A supervised campaign runner.
+3. A supervised campaign runner.
 
 Those are tracked as SPEC-80 follow-up issues.
 
@@ -76,15 +76,18 @@ When an evidence plan exists, lint it before recording or relying on evidence:
 
 ```bash
 dp evidence lint docs/evidence/EVIDENCE-example.json --json
-dp evidence run docs/evidence/EVIDENCE-example.json --json
+mkdir -p docs/evidence-runs
+dp evidence run docs/evidence/EVIDENCE-example.json --json > docs/evidence-runs/RUN-example.json
 ```
 
 ```bash
 dp goal complete docs/goals/GOAL-example.json --evidence docs/evidence-runs/RUN-example.json --json
+dp goal verify docs/goals/GOAL-example.json --evidence docs/evidence-runs/RUN-example.json --json
 ```
 
-This records `evidence_pending`. It intentionally does not mark the goal verified because the
-goal-verification integration is future work.
+`complete` records `evidence_pending`. `verify` records `verified` only when the run output was
+emitted by `dp evidence run`, the run passed, the goal id matches, the evidence plan path matches
+the GoalContract, and the current EvidencePlan hash matches the run.
 
 ## Emit A Codex Prompt
 

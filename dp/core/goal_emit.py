@@ -52,6 +52,7 @@ def emit_goal_prompt(goal_path: Path, *, output_format: str) -> GoalEmitResult:
         "start": f"dp goal start {goal_path.as_posix()} --agent codex --json",
         "heartbeat": f"dp goal heartbeat {goal_path.as_posix()} --json",
         "complete": f"dp goal complete {goal_path.as_posix()} --evidence <run.json> --json",
+        "verify": f"dp goal verify {goal_path.as_posix()} --evidence <run.json> --json",
         "block": f"dp goal block {goal_path.as_posix()} --reason <reason> --json",
         "release": f"dp goal release {goal_path.as_posix()} --reason <reason> --json",
     }
@@ -113,7 +114,8 @@ def _render_codex_goal(
         f"If blocked, budget-exhausted, or no safe path remains, use `{commands['block']}`; "
         f"blocked means: {blocked}. Release with `{commands['release']}` on context reset. "
         "Never claim completion from narration; record evidence with "
-        f"`{commands['complete']}` only after evidence exists."
+        f"`{commands['complete']}` after evidence exists, then verify it with "
+        f"`{commands['verify']}`."
     )
 
 
