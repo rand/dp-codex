@@ -22,6 +22,9 @@ supported GoalContract blockers into deterministic spec, ADR, or EvidencePlan ar
 artifact/Beads metadata in the append-only blocked event. `dp campaign status/recover` now emit a
 deterministic resume handoff, and `dp campaign run --supervised` records new claimed handoffs in
 `.dp/campaigns/events.jsonl` while resuming active claims instead of claiming over them.
+`dp campaign sync-beads` now explicitly reconciles current LoopLedger dependency edges and
+append-only goal lifecycle events back to Beads with dry-run and `--write` modes, without treating
+Beads status as verification proof.
 
 ## 1. Thesis
 
@@ -623,6 +626,8 @@ dp campaign refine <campaign.json> --llm-response <response.json> --write --json
 dp campaign lint <campaign.json> --json
 dp campaign status <campaign.json> --json
 dp campaign recover <campaign.json> --json
+dp campaign sync-beads <campaign.json> --json
+dp campaign sync-beads <campaign.json> --write --json
 ```
 
 ### 9.2 Loop commands
@@ -1059,6 +1064,7 @@ Implement:
 dp campaign lint <campaign.json> --json
 dp campaign status <campaign.json> --json
 dp campaign recover <campaign.json> --json
+dp campaign sync-beads <campaign.json> --json
 ```
 
 This makes campaign state visible and recoverable before primary-spec generation exists.

@@ -32,6 +32,8 @@ GoalContract through dp without relying on chat memory.
     import of model-authored draft refinement metadata.
 16. `dp campaign run <campaign.json> --driver codex --supervised`: one-step supervised handoff
     that validates campaign state, claims one ready goal, emits the Codex package, and stops.
+17. `dp campaign sync-beads <campaign.json> --write`: explicit reconciliation from LoopLedger and
+    goal events back to Beads dependency/status surfaces.
 
 ## What Does Not Exist Yet
 
@@ -183,6 +185,30 @@ Codex, run evidence, verify the goal, or continue to another node. Use the emitt
 commands to operate the claimed goal, then call `dp campaign run` again when the campaign is ready
 for another handoff.
 
+## Synchronize Beads
+
+Inspect how campaign state would update Beads:
+
+```bash
+dp campaign sync-beads docs/campaigns/CAMPAIGN-example.json --json
+```
+
+Apply the sync explicitly:
+
+```bash
+dp campaign sync-beads docs/campaigns/CAMPAIGN-example.json --write --json
+```
+
+The command adds missing Beads dependency edges from LoopLedger `depends_on` relationships, skips
+edges that already exist, and maps goal events to Beads issue state:
+
+1. active goal states become `in_progress`;
+2. blocked goals become `blocked` with a deterministic note;
+3. released goals become open work again;
+4. verified goals close with an evidence-backed reason.
+
+This is reconciliation, not proof. `verified` still comes only from dp evidence verification.
+
 ## Scaffold From A Primary Spec
 
 For a local primary spec, create a draft campaign shell:
@@ -244,4 +270,5 @@ dp goal emit tests/fixtures/goals/valid_spec_70_01.json --format codex --json
 dp evidence run tests/fixtures/evidence/valid_run_goal_lint.json --json
 dp loop next tests/fixtures/loops/valid_spec_80_04.json --emit codex --json
 dp campaign recover tests/fixtures/campaigns/valid_spec_80_06.json --json
+dp campaign sync-beads tests/fixtures/campaigns/valid_spec_80_06.json --json
 ```

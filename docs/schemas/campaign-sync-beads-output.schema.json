@@ -1,0 +1,196 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "error": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "path",
+        "message"
+      ],
+      "type": "object"
+    },
+    "operation_error": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ],
+      "type": "object"
+    },
+    "operation": {
+      "additionalProperties": true,
+      "properties": {
+        "action": {
+          "type": "string"
+        },
+        "command": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "depends_on_id": {
+          "type": "string"
+        },
+        "error": {
+          "$ref": "#/$defs/operation_error"
+        },
+        "goal_id": {
+          "type": "string"
+        },
+        "issue_id": {
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "dependency",
+            "lifecycle"
+          ],
+          "type": "string"
+        },
+        "node_id": {
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "planned",
+            "applied",
+            "skipped",
+            "failed"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "action",
+        "issue_id",
+        "status",
+        "command"
+      ],
+      "type": "object"
+    },
+    "summary": {
+      "additionalProperties": false,
+      "properties": {
+        "applied": {
+          "type": "integer"
+        },
+        "failed": {
+          "type": "integer"
+        },
+        "planned": {
+          "type": "integer"
+        },
+        "skipped": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "planned",
+        "applied",
+        "skipped",
+        "failed"
+      ],
+      "type": "object"
+    }
+  },
+  "oneOf": [
+    {
+      "additionalProperties": true,
+      "properties": {
+        "campaign_id": {
+          "type": "string"
+        },
+        "command": {
+          "const": "campaign.sync-beads"
+        },
+        "loop_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "ok": {
+          "type": "boolean"
+        },
+        "operations": {
+          "items": {
+            "$ref": "#/$defs/operation"
+          },
+          "type": "array"
+        },
+        "summary": {
+          "$ref": "#/$defs/summary"
+        },
+        "write": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "ok",
+        "command",
+        "campaign_id",
+        "loop_id",
+        "write",
+        "operations",
+        "summary"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": true,
+      "properties": {
+        "campaign_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "command": {
+          "const": "campaign.sync-beads"
+        },
+        "error": {
+          "$ref": "#/$defs/error"
+        },
+        "lint": {
+          "type": "object"
+        },
+        "ok": {
+          "const": false
+        },
+        "write": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "ok",
+        "command",
+        "campaign_id",
+        "write"
+      ],
+      "type": "object"
+    }
+  ],
+  "title": "Campaign Beads sync output"
+}

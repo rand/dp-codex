@@ -13,6 +13,7 @@ JSON output contracts for automation are versioned as JSON Schema files:
 9. `docs/schemas/campaign-refine-output.schema.json`
 10. `docs/schemas/campaign-refine-llm-response.schema.json`
 11. `docs/schemas/campaign-run-output.schema.json`
+12. `docs/schemas/campaign-sync-beads-output.schema.json`
 
 Validation is enforced by unit tests that execute real JSON-producing flows and validate payloads
 against these schemas where a stable schema exists. Other JSON command families are covered by

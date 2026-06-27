@@ -60,6 +60,7 @@ Quick command reference by workflow.
 4. `dp campaign status <campaign.json> [--json]`
 5. `dp campaign recover <campaign.json> [--json]`
 6. `dp campaign run <campaign.json> --driver codex --supervised [--agent codex] [--lease 2h] [--json]`
+7. `dp campaign sync-beads <campaign.json> [--write] [--json]`
 
 ## Review And Verification
 

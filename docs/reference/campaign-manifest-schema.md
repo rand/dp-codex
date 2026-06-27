@@ -76,6 +76,18 @@ without a new claim. Otherwise it claims one ready goal through the LoopLedger p
 campaign `handoff_claimed` event under `.dp/campaigns/events.jsonl`, emits a Codex handoff package,
 and stops. It does not launch an agent, execute evidence, or mark a campaign or goal verified.
 
+Beads synchronization command:
+
+```bash
+dp campaign sync-beads <campaign.json> --json
+dp campaign sync-beads <campaign.json> --write --json
+```
+
+`sync-beads` reconciles the current LoopLedger and append-only goal events with Beads. Dry-run mode
+plans missing dependency edges and lifecycle updates without mutation. `--write` applies missing
+`bd dep add`, `bd update`, and `bd close` operations explicitly. Beads status is not proof of
+completion; verified state still comes from dp evidence-backed goal events.
+
 Scaffold command:
 
 ```bash
@@ -111,3 +123,4 @@ Safety rules:
 8. Refinement authoring preserves `draft` status until deterministic readiness gates exist.
 9. Beads epics/issues are materialized only through explicit write flags.
 10. Campaign events are progress records, not proof of behavioral completion.
+11. Beads lifecycle synchronization is explicit reconciliation, not hidden goal-command mutation.

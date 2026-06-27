@@ -85,6 +85,12 @@ the same ready-node path as `dp loop next --claim --emit codex`, returns one Cod
 and exits. It records only the underlying claim event. It does not launch Codex, execute evidence,
 append verified events, or continue to additional goals.
 
+`dp campaign sync-beads <campaign.json> --json` is explicit reconciliation between dp campaign
+state and Beads issue/dependency state. Dry-run mode validates the campaign, resolves the current
+LoopLedger, reads existing Beads dependencies, and emits a planned operation list. `--write` applies
+the plan with current Beads commands. It does not execute evidence, infer verification from Beads
+status, or hide Beads mutations inside ordinary goal commands.
+
 ## Loop Runtime
 
 `dp loop` commands operate over explicit LoopLedger files and append-only goal events:

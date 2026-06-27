@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any, Callable, Sequence, TextIO, cast
 
 from dp.core.adr import create_adr, list_adrs, show_adr, update_adr_status
+from dp.core.campaign_beads_sync import sync_campaign_beads
 from dp.core.campaign_init import init_campaign_from_primary_spec
 from dp.core.campaign_manifest import (
     campaign_recover,
@@ -508,6 +509,15 @@ def _build_parser() -> argparse.ArgumentParser:
     campaign_run_parser.add_argument("--json", action="store_true")
     campaign_run_parser.set_defaults(handler=_run_campaign_run)
 
+    campaign_sync_beads_parser = campaign_subparsers.add_parser(
+        "sync-beads",
+        help="Synchronize campaign loop and goal lifecycle state to Beads explicitly.",
+    )
+    campaign_sync_beads_parser.add_argument("campaign")
+    campaign_sync_beads_parser.add_argument("--write", action="store_true")
+    campaign_sync_beads_parser.add_argument("--json", action="store_true")
+    campaign_sync_beads_parser.set_defaults(handler=_run_campaign_sync_beads)
+
     return parser
 
 
@@ -892,6 +902,16 @@ def _run_campaign_run(args: argparse.Namespace) -> int:
             supervised=args.supervised,
             agent=args.agent,
             lease=args.lease,
+        ),
+        args.json,
+    )
+
+
+def _run_campaign_sync_beads(args: argparse.Namespace) -> int:
+    return _emit_campaign_command_result(
+        sync_campaign_beads(
+            Path(args.campaign),
+            write=args.write,
         ),
         args.json,
     )

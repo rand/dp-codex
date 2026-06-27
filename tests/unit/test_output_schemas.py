@@ -285,6 +285,48 @@ def test_campaign_run_json_output_matches_schema(
     validate(instance=payload, schema=schema)
 
 
+def test_campaign_sync_beads_json_output_matches_schema(
+    tmp_path: Path,
+    capsys,
+    monkeypatch,
+) -> None:
+    schema = json.loads(
+        Path("docs/schemas/campaign-sync-beads-output.schema.json").read_text(
+            encoding="utf-8"
+        )
+    )
+    primary_spec = tmp_path / "docs/primary/product.md"
+    primary_spec.parent.mkdir(parents=True)
+    primary_spec.write_text(
+        "# Product\n\n## Requirements\n\nThe runner must prepare one handoff.\n\n"
+        "## Evidence\n\nRun campaign run schema tests.\n",
+        encoding="utf-8",
+    )
+    monkeypatch.chdir(tmp_path)
+    assert (
+        cli_main.main(
+            [
+                "campaign",
+                "init",
+                "--primary-spec",
+                "docs/primary/product.md",
+                "--write",
+                "--json",
+            ]
+        )
+        == 0
+    )
+    init_payload = json.loads(capsys.readouterr().out)
+
+    exit_code = cli_main.main(
+        ["campaign", "sync-beads", init_payload["artifacts"]["campaign"], "--json"]
+    )
+
+    assert exit_code == 0
+    payload = json.loads(capsys.readouterr().out)
+    validate(instance=payload, schema=schema)
+
+
 def test_campaign_refine_llm_request_and_response_match_schemas(
     tmp_path: Path,
     capsys,

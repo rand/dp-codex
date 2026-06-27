@@ -31,6 +31,7 @@ It provides:
 11. Conservative campaign scaffolding from local primary specs
 12. Campaign resume handoffs and event logs for future agent sessions
 13. A supervised campaign run step that claims one next goal and emits a Codex-operable handoff
+14. Explicit Beads lifecycle synchronization for campaign dependencies and goal state
 
 ## Quick Start
 
@@ -66,10 +67,13 @@ dp campaign status docs/campaigns/CAMPAIGN-my-project.json --json
 dp campaign recover docs/campaigns/CAMPAIGN-my-project.json --json
 dp loop next docs/loops/LOOP-my-campaign.json --claim --emit codex --json
 dp campaign run docs/campaigns/CAMPAIGN-my-project.json --driver codex --supervised --json
+dp campaign sync-beads docs/campaigns/CAMPAIGN-my-project.json --write --json
 ```
 
 `dp campaign recover` includes a deterministic `resume` object that tells a future agent whether to
 resume an active claim, verify pending evidence, resolve a blocker, claim the next goal, or stop.
+`dp campaign sync-beads` is the explicit reconciliation step that keeps Beads dependency and issue
+state aligned with the current LoopLedger and dp goal events.
 
 If a claimed goal blocks, route the blocker into the next disciplined artifact instead of leaving it
 as chat state:
@@ -169,6 +173,9 @@ or marking work verified. If a current-loop goal already has an active non-stale
 run` returns a resume package instead of claiming over it. `dp goal block --write-artifact` now
 resolves GoalContract `blocked_routes` into spec, ADR, or EvidencePlan stubs and optional Beads
 follow-ups, with routing metadata recorded in the append-only goal event.
+`dp campaign sync-beads <campaign.json> --write --json` now reconciles current loop dependencies
+and goal lifecycle state back to Beads through explicit `bd dep add`, `bd update`, and `bd close`
+operations while leaving dp evidence verification as the source of completion truth.
 
 ## Developer Commands
 
@@ -191,6 +198,7 @@ dp evidence lint tests/fixtures/evidence/valid_spec_80_05.json --json
 dp evidence run tests/fixtures/evidence/valid_run_goal_lint.json --json
 dp loop next tests/fixtures/loops/valid_spec_80_04.json --emit codex --json
 dp campaign recover tests/fixtures/campaigns/valid_spec_80_06.json --json
+dp campaign sync-beads tests/fixtures/campaigns/valid_spec_80_06.json --json
 tmpdir="$(mktemp -d)"
 cp tests/fixtures/primary_specs/scaffold_full.md "$tmpdir/primary.md"
 (cd "$tmpdir" && dp campaign init --primary-spec primary.md --write --json)
