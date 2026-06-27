@@ -48,6 +48,20 @@ bd import .beads/issues.jsonl
 dp doctor --json
 ```
 
+## `dp doctor --json` reports `sync_command_available: false`
+
+Cause: on current Beads 1.0+ versions, `bd sync` is not part of the command surface. This is
+expected and is not a health failure.
+
+Fix: none required. Use explicit current Beads surfaces for persistence and recovery:
+
+```bash
+bd export -o .beads/issues.jsonl
+bd backup sync
+bd vc status
+bd bootstrap --dry-run
+```
+
 ## `dp enforce ...` fails with `bd command not found`
 
 Cause: `task_health` is enabled by policy but Beads CLI is unavailable.

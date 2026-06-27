@@ -26,6 +26,9 @@ starts.
 6. Pre-push task safeguards MUST check task provider health, not perform
    implicit sync or mutation.
 
+Refinement: `[SPEC-70.07]` defines version-aware capability handling. For parsed Beads 1.0+
+versions, absence of `bd sync` is expected and SHOULD NOT be emitted as a health warning.
+
 ## Exit Semantics
 
 1. `dp doctor --json` exits `0` when required health checks pass.

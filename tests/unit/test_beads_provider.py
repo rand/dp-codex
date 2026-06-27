@@ -67,13 +67,6 @@ def test_check_beads_health_reports_missing_beads(
     def fake_run(command: list[str], **_: Any) -> subprocess.CompletedProcess[str]:
         if command == ["bd", "version"]:
             return subprocess.CompletedProcess(command, 0, stdout="bd version 1.0.4\n", stderr="")
-        if command == ["bd", "sync", "--help"]:
-            return subprocess.CompletedProcess(
-                command,
-                1,
-                stdout="",
-                stderr='Error: unknown command "sync" for "bd"',
-            )
         raise AssertionError(f"Unexpected command: {command}")
 
     monkeypatch.setattr("dp.providers.beads.subprocess.run", fake_run)
@@ -84,6 +77,7 @@ def test_check_beads_health_reports_missing_beads(
     assert health.bd_available is True
     assert health.initialized is False
     assert health.sync_command_available is False
+    assert health.warnings == ()
     assert "No .beads directory found" in health.errors[0]
     assert health.recovery_hint is not None
     assert "bd bootstrap --dry-run" in health.recovery_hint
@@ -105,14 +99,7 @@ def test_check_beads_health_reports_missing_issue_prefix(
         assert cwd in (None, repo_root)
         if command == ["bd", "version"]:
             return subprocess.CompletedProcess(command, 0, stdout="bd version 1.0.4\n", stderr="")
-        if command == ["bd", "sync", "--help"]:
-            return subprocess.CompletedProcess(
-                command,
-                1,
-                stdout="",
-                stderr='Error: unknown command "sync" for "bd"',
-            )
-        if command == ["bd", "--readonly", "context", "--json"]:
+        if command == ["bd", "--readonly", "--sandbox", "context", "--json"]:
             return subprocess.CompletedProcess(
                 command,
                 0,
@@ -125,14 +112,14 @@ def test_check_beads_health_reports_missing_issue_prefix(
                 ),
                 stderr="",
             )
-        if command == ["bd", "--readonly", "config", "get", "issue_prefix", "--json"]:
+        if command == ["bd", "--readonly", "--sandbox", "config", "get", "issue_prefix", "--json"]:
             return subprocess.CompletedProcess(
                 command,
                 1,
                 stdout="",
                 stderr="issue_prefix config is missing",
             )
-        if command == ["bd", "--readonly", "status", "--json"]:
+        if command == ["bd", "--readonly", "--sandbox", "status", "--json"]:
             return subprocess.CompletedProcess(
                 command,
                 0,
@@ -148,6 +135,8 @@ def test_check_beads_health_reports_missing_issue_prefix(
     assert health.ok is False
     assert health.initialized is False
     assert health.issue_prefix is None
+    assert health.sync_command_available is False
+    assert not any("bd sync is not available" in warning for warning in health.warnings)
     assert any("issue_prefix" in error for error in health.errors)
     assert health.recovery_hint is not None
     assert "bd init --reinit-local" in health.recovery_hint
@@ -171,6 +160,132 @@ def test_check_beads_health_happy_path_uses_readonly_probes(
         calls.append(command)
         if command == ["bd", "version"]:
             return subprocess.CompletedProcess(command, 0, stdout="bd version 1.0.4\n", stderr="")
+        if command == ["bd", "--readonly", "--sandbox", "context", "--json"]:
+            return subprocess.CompletedProcess(
+                command,
+                0,
+                stdout=(
+                    '{"repo_root":"'
+                    + repo_root.as_posix()
+                    + '","beads_dir":"'
+                    + (repo_root / ".beads").as_posix()
+                    + '"}'
+                ),
+                stderr="",
+            )
+        if command == ["bd", "--readonly", "--sandbox", "config", "get", "issue_prefix", "--json"]:
+            return subprocess.CompletedProcess(
+                command,
+                0,
+                stdout='{"key":"issue_prefix","value":"dpcx"}',
+                stderr="",
+            )
+        if command == ["bd", "--readonly", "--sandbox", "status", "--json"]:
+            return subprocess.CompletedProcess(
+                command,
+                0,
+                stdout='{"summary":{"total_issues":47,"ready_issues":3}}',
+                stderr="",
+            )
+        raise AssertionError(f"Unexpected command: {command}")
+
+    monkeypatch.setattr("dp.providers.beads.subprocess.run", fake_run)
+
+    health = check_beads_health()
+
+    assert health.ok is True
+    assert health.initialized is True
+    assert health.issue_prefix == "dpcx"
+    assert health.issue_count == 47
+    assert health.ready_count == 3
+    assert health.sync_command_available is False
+    assert health.warnings == ()
+    assert calls == [
+        ["bd", "version"],
+        ["bd", "--readonly", "--sandbox", "context", "--json"],
+        ["bd", "--readonly", "--sandbox", "config", "get", "issue_prefix", "--json"],
+        ["bd", "--readonly", "--sandbox", "status", "--json"],
+    ]
+
+
+def test_check_beads_health_legacy_version_can_probe_sync(
+    tmp_path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo_root = tmp_path / "repo"
+    (repo_root / ".beads").mkdir(parents=True)
+    monkeypatch.chdir(repo_root)
+    calls: list[list[str]] = []
+
+    def fake_run(
+        command: list[str],
+        *,
+        cwd: Path | None = None,
+        **_: Any,
+    ) -> subprocess.CompletedProcess[str]:
+        assert cwd in (None, repo_root)
+        calls.append(command)
+        if command == ["bd", "version"]:
+            return subprocess.CompletedProcess(command, 0, stdout="bd version 0.9.2\n", stderr="")
+        if command == ["bd", "sync", "--help"]:
+            return subprocess.CompletedProcess(command, 0, stdout="sync help\n", stderr="")
+        if command == ["bd", "--readonly", "context", "--json"]:
+            return subprocess.CompletedProcess(
+                command,
+                0,
+                stdout=(
+                    '{"repo_root":"'
+                    + repo_root.as_posix()
+                    + '","beads_dir":"'
+                    + (repo_root / ".beads").as_posix()
+                    + '"}'
+                ),
+                stderr="",
+            )
+        if command == ["bd", "--readonly", "config", "get", "issue_prefix", "--json"]:
+            return subprocess.CompletedProcess(
+                command,
+                0,
+                stdout='{"key":"issue_prefix","value":"dpcx"}',
+                stderr="",
+            )
+        if command == ["bd", "--readonly", "status", "--json"]:
+            return subprocess.CompletedProcess(
+                command,
+                0,
+                stdout='{"summary":{"total_issues":47,"ready_issues":3}}',
+                stderr="",
+            )
+        raise AssertionError(f"Unexpected command: {command}")
+
+    monkeypatch.setattr("dp.providers.beads.subprocess.run", fake_run)
+
+    health = check_beads_health()
+
+    assert health.ok is True
+    assert health.sync_command_available is True
+    assert ["bd", "sync", "--help"] in calls
+
+
+def test_check_beads_health_unparseable_version_warns_when_sync_probe_fails(
+    tmp_path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo_root = tmp_path / "repo"
+    (repo_root / ".beads").mkdir(parents=True)
+    monkeypatch.chdir(repo_root)
+    calls: list[list[str]] = []
+
+    def fake_run(
+        command: list[str],
+        *,
+        cwd: Path | None = None,
+        **_: Any,
+    ) -> subprocess.CompletedProcess[str]:
+        assert cwd in (None, repo_root)
+        calls.append(command)
+        if command == ["bd", "version"]:
+            return subprocess.CompletedProcess(command, 0, stdout="bd dev build\n", stderr="")
         if command == ["bd", "sync", "--help"]:
             return subprocess.CompletedProcess(
                 command,
@@ -212,15 +327,6 @@ def test_check_beads_health_happy_path_uses_readonly_probes(
     health = check_beads_health()
 
     assert health.ok is True
-    assert health.initialized is True
-    assert health.issue_prefix == "dpcx"
-    assert health.issue_count == 47
-    assert health.ready_count == 3
     assert health.sync_command_available is False
-    assert calls == [
-        ["bd", "version"],
-        ["bd", "sync", "--help"],
-        ["bd", "--readonly", "context", "--json"],
-        ["bd", "--readonly", "config", "get", "issue_prefix", "--json"],
-        ["bd", "--readonly", "status", "--json"],
-    ]
+    assert ["bd", "sync", "--help"] in calls
+    assert any("bd sync is not available" in warning for warning in health.warnings)

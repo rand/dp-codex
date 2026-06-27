@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
@@ -74,6 +75,7 @@ def run_bd(args: Sequence[str]) -> CommandResult:
 
 
 # @trace SPEC-70.01
+# @trace SPEC-70.07
 def check_beads_health() -> BeadsHealth:
     errors: list[str] = []
     warnings: list[str] = []
@@ -106,8 +108,11 @@ def check_beads_health() -> BeadsHealth:
     if version_result.returncode != 0:
         errors.append(_command_error("bd version", version_result))
 
-    sync_command_available = _bd_sync_command_available(repo_root)
-    if not sync_command_available:
+    sync_command_available, sync_absence_expected = _detect_bd_sync_command(
+        repo_root=repo_root,
+        bd_version=bd_version,
+    )
+    if not sync_command_available and not sync_absence_expected:
         warnings.append(
             "bd sync is not available in this Beads CLI. Use current Beads "
             "surfaces such as `bd status`, `bd export`, `bd backup`, `bd vc`, "
@@ -139,10 +144,11 @@ def check_beads_health() -> BeadsHealth:
         )
 
     assert beads_dir is not None
+    readonly_prefix = _readonly_probe_prefix(bd_version)
     context_payload = _run_json_probe(
-        ["--readonly", "context", "--json"],
+        [*readonly_prefix, "context", "--json"],
         repo_root,
-        "bd --readonly context --json",
+        _display_command([*readonly_prefix, "context", "--json"]),
         errors,
         warnings,
     )
@@ -161,11 +167,11 @@ def check_beads_health() -> BeadsHealth:
         repo_root_text = repo_root.as_posix()
         beads_dir_text = beads_dir.as_posix()
 
-    issue_prefix = _read_issue_prefix(repo_root, errors, warnings)
+    issue_prefix = _read_issue_prefix(repo_root, readonly_prefix, errors, warnings)
     status_payload = _run_json_probe(
-        ["--readonly", "status", "--json"],
+        [*readonly_prefix, "status", "--json"],
         repo_root,
-        "bd --readonly status --json",
+        _display_command([*readonly_prefix, "status", "--json"]),
         errors,
         warnings,
     )
@@ -232,12 +238,39 @@ def _run_bd_raw(
     )
 
 
-def _bd_sync_command_available(repo_root: Path | None) -> bool:
+def _detect_bd_sync_command(
+    *,
+    repo_root: Path | None,
+    bd_version: str | None,
+) -> tuple[bool, bool]:
+    parsed_version = _parse_bd_version(bd_version)
+    if parsed_version is not None and parsed_version >= (1, 0, 0):
+        return False, True
+
     try:
         result = _run_bd_raw(["sync", "--help"], cwd=repo_root)
     except FileNotFoundError:
-        return False
-    return result.returncode == 0
+        return False, False
+    return result.returncode == 0, False
+
+
+def _parse_bd_version(value: str | None) -> tuple[int, int, int] | None:
+    if value is None:
+        return None
+    match = re.search(r"(\d+)\.(\d+)(?:\.(\d+))?", value)
+    if match is None:
+        return None
+    major = int(match.group(1))
+    minor = int(match.group(2))
+    patch = int(match.group(3) or "0")
+    return major, minor, patch
+
+
+def _readonly_probe_prefix(bd_version: str | None) -> list[str]:
+    parsed_version = _parse_bd_version(bd_version)
+    if parsed_version is not None and parsed_version >= (1, 0, 0):
+        return ["--readonly", "--sandbox"]
+    return ["--readonly"]
 
 
 def _run_json_probe(
@@ -267,13 +300,14 @@ def _run_json_probe(
 
 def _read_issue_prefix(
     repo_root: Path,
+    readonly_prefix: Sequence[str],
     errors: list[str],
     warnings: list[str],
 ) -> str | None:
     payload = _run_json_probe(
-        ["--readonly", "config", "get", "issue_prefix", "--json"],
+        [*readonly_prefix, "config", "get", "issue_prefix", "--json"],
         repo_root,
-        "bd --readonly config get issue_prefix --json",
+        _display_command([*readonly_prefix, "config", "get", "issue_prefix", "--json"]),
         errors,
         warnings,
     )
@@ -312,6 +346,10 @@ def _stderr_lines(raw: str) -> list[str]:
 def _command_error(command: str, result: subprocess.CompletedProcess[str]) -> str:
     detail = result.stderr.strip() or result.stdout.strip() or "command failed"
     return f"{command} failed with exit code {result.returncode}: {detail}"
+
+
+def _display_command(args: Sequence[str]) -> str:
+    return "bd " + " ".join(args)
 
 
 def _health(

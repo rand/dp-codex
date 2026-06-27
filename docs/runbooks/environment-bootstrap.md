@@ -77,6 +77,11 @@ bd bootstrap --dry-run
 dp doctor --json
 ```
 
+Current Beads 1.0+ installations do not provide `bd sync`. `dp doctor --json` reports
+`sync_command_available: false` for those versions without treating it as a warning or failure.
+Use explicit `bd export`, `bd backup`, `bd vc`, and `bd bootstrap` commands when persistence or
+recovery is needed.
+
 If `dp doctor` reports missing `issue_prefix` on an empty embedded database,
 recover from the tracked issue snapshot:
 

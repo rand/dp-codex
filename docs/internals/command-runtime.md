@@ -63,6 +63,10 @@ Loop commands do not compile primary specs, execute evidence, call an LLM, or ru
 2. `BeadsNotInitializedError`
 
 The CLI layer translates those into consistent exit codes and user-facing messages.
+`dp doctor` parses `bd version` before modeling optional sync capability. Beads 1.0+ is treated as
+having no `bd sync` command by design, so the absence is reported as
+`sync_command_available=false` without a warning. Current Beads probes use read-only sandbox mode
+where supported.
 
 ## Enforcement Runtime
 
