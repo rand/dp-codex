@@ -4,11 +4,16 @@ Disciplined delivery system for Codex: `dp` CLI, policy-driven enforcement, and 
 
 ## What It Is
 
-`dp-codex` provides:
+`dp-codex` provides a local control plane for any repository that opts into disciplined,
+artifact-driven delivery. It is developed in this repository, but its workflow is meant to operate
+on the adopting project's own specs, ADRs, Beads tasks, goal contracts, evidence plans, and policy
+files.
+
+It provides:
 
 1. A `dp` command surface for traceability, task workflow, ADRs, review, verify, decompose, progress, policy, enforcement, and agent-operable goals.
 2. Governance controls that run consistently in local hooks and CI.
-3. An operating model that supports real delivery loops, not merely command demos.
+3. Typed goal and evidence-plan contracts that keep Codex work bounded, resumable, and inspectable.
 4. End-to-end documentation for users from first-time adopters to maintainers.
 
 ## Core Workflows
@@ -20,6 +25,7 @@ Disciplined delivery system for Codex: `dp` CLI, policy-driven enforcement, and 
 5. Policy-driven pre-commit and pre-push enforcement
 6. Decomposition and progress snapshots for fast context recovery
 7. Goal contracts, append-only goal state, and Codex-operable goal prompts
+8. Evidence-plan linting for registered, deterministic checks
 
 ## Quick Start
 
@@ -32,10 +38,12 @@ make check
 ```
 
 In an adopting repository, a goal contract is a project artifact. Validate it and emit a Codex
-handoff from that repo's own goal file:
+handoff from that repo's own goal file. If the goal has a linked evidence plan, lint that plan
+before relying on it:
 
 ```bash
 dp goal lint docs/goals/GOAL-my-feature.json --json
+dp evidence lint docs/evidence/EVIDENCE-my-feature.json --json
 dp goal emit docs/goals/GOAL-my-feature.json --format codex --json
 ```
 
@@ -93,14 +101,19 @@ Reference and contributor standards:
 - `docs/reference/goal-contract-schema.md`
 - `docs/reference/goal-state-machine.md`
 - `docs/reference/goal-emission.md`
+- `docs/reference/evidence-plan-schema.md`
 - `docs/developer/contributor-handbook.md`
 - `docs/developer/documentation-style.md`
 
 ## Status
 
-M0-M6 milestone scope has been implemented and empirically validated; v1 readiness is tracked in `docs/release/v1-readiness.md`.
+M0-M6 milestone scope has been implemented and empirically validated; v1 readiness is tracked in
+`docs/release/v1-readiness.md`.
 
-SPEC-80 campaign-control work has started. The implemented foundation is GoalContract linting, append-only goal lifecycle state, and Codex prompt emission. Loop ledgers, evidence lint/execution, campaign manifests, primary-spec compilation, LLM-assisted refinement, and supervised campaign running remain tracked follow-up work, not current features.
+SPEC-80 campaign-control work has started. The implemented foundation is GoalContract linting,
+append-only goal lifecycle state, Codex prompt emission, and deterministic EvidencePlan linting.
+Loop ledgers, evidence execution, campaign manifests, primary-spec compilation, LLM-assisted
+refinement, and supervised campaign running remain tracked follow-up work, not current features.
 
 ## Developer Commands
 
@@ -114,9 +127,10 @@ make format
 make check
 ```
 
-dp-codex contributors can smoke-test the checked-in GoalContract fixture:
+dp-codex contributors can smoke-test the checked-in goal and evidence fixtures:
 
 ```bash
 dp goal lint tests/fixtures/goals/valid_spec_70_01.json --json
 dp goal emit tests/fixtures/goals/valid_spec_70_01.json --format codex --json
+dp evidence lint tests/fixtures/evidence/valid_spec_80_05.json --json
 ```

@@ -10,11 +10,12 @@ GoalContract through dp without relying on chat memory.
 3. `dp goal claim/start/heartbeat/block/release`: append-only lifecycle events.
 4. `dp goal complete`: records an evidence path as `evidence_pending`; it does not verify success.
 5. `dp goal emit` and `dp agent prompt`: Codex-operable prompt emission from a valid contract.
+6. `dp evidence lint`: deterministic EvidencePlan validation without command execution.
 
 ## What Does Not Exist Yet
 
 1. `dp loop next`.
-2. `dp evidence lint` or `dp evidence run`.
+2. `dp evidence run`.
 3. `dp campaign init/status/recover`.
 4. LLM-assisted campaign refinement.
 5. A supervised campaign runner.
@@ -64,6 +65,12 @@ dp goal release docs/goals/GOAL-example.json --reason "context reset" --json
 ```
 
 ## Record Evidence
+
+When an evidence plan exists, lint it before recording or relying on evidence:
+
+```bash
+dp evidence lint docs/evidence/EVIDENCE-example.json --json
+```
 
 ```bash
 dp goal complete docs/goals/GOAL-example.json --evidence docs/evidence-runs/RUN-example.json --json

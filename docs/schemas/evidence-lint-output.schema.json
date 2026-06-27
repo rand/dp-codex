@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "finding": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "path",
+        "message"
+      ],
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "errors": {
+      "items": {
+        "$ref": "#/$defs/finding"
+      },
+      "type": "array"
+    },
+    "evidence_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "goal_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "valid": {
+      "type": "boolean"
+    },
+    "warnings": {
+      "items": {
+        "$ref": "#/$defs/finding"
+      },
+      "type": "array"
+    }
+  },
+  "required": [
+    "valid",
+    "evidence_id",
+    "goal_id",
+    "errors",
+    "warnings"
+  ],
+  "title": "Evidence lint output",
+  "type": "object"
+}

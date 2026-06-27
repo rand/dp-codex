@@ -40,6 +40,10 @@ Quick command reference by workflow.
 9. `dp goal emit <goal.json> --format codex [--json]`
 10. `dp agent prompt --goal <goal.json> --format codex [--json]`
 
+## Evidence Plans
+
+1. `dp evidence lint <evidence.json> [--json]`
+
 ## Review And Verification
 
 1. `dp review [--json]`

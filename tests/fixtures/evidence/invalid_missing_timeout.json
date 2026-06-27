@@ -1,0 +1,25 @@
+{
+  "schema_version": "0.1",
+  "id": "EVIDENCE-MISSING-TIMEOUT",
+  "goal_id": "GOAL-SPEC-80.05",
+  "checks": [
+    {
+      "id": "missing-timeout",
+      "kind": "registered_command",
+      "argv": [
+        "dp",
+        "doctor",
+        "--json"
+      ],
+      "success_exit_codes": [
+        0
+      ],
+      "assertions": [
+        {
+          "type": "stdout_json"
+        }
+      ],
+      "mutation_policy": "read_only"
+    }
+  ]
+}

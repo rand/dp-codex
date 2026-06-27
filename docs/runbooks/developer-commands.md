@@ -58,6 +58,7 @@ When a task is represented by a GoalContract, validate and operate it through dp
 
 ```bash
 dp goal lint docs/goals/GOAL-example.json --json
+dp evidence lint docs/evidence/EVIDENCE-example.json --json
 dp goal claim docs/goals/GOAL-example.json --agent codex --lease 2h --json
 dp goal start docs/goals/GOAL-example.json --agent codex --json
 ```

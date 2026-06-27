@@ -5,9 +5,9 @@ Audience: local Codex, future dp maintainers
 Scope: principled upgrade to dp-codex so a comprehensive primary spec can be compiled into a disciplined, agent-operable campaign of specs, ADRs, validators, tests, Beads work, goals, evidence, and loops.
 
 Implementation note, 2026-06-27: the foundation is implemented for GoalContract linting,
-append-only goal lifecycle state, and Codex prompt emission. Loop ledgers, evidence lint/execution,
-campaign manifests, primary-spec campaign scaffolding, LLM-assisted refinement, and supervised
-running remain planned follow-up work.
+append-only goal lifecycle state, Codex prompt emission, and deterministic EvidencePlan linting.
+Loop ledgers, evidence execution, campaign manifests, primary-spec campaign scaffolding,
+LLM-assisted refinement, and supervised running remain planned follow-up work.
 
 ## 1. Thesis
 

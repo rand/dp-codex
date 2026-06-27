@@ -1,0 +1,21 @@
+{
+  "schema_version": "0.1",
+  "id": "EVIDENCE-MISSING-ASSERTIONS",
+  "goal_id": "GOAL-SPEC-80.05",
+  "checks": [
+    {
+      "id": "missing-assertions",
+      "kind": "registered_command",
+      "argv": [
+        "dp",
+        "doctor",
+        "--json"
+      ],
+      "timeout_seconds": 30,
+      "success_exit_codes": [
+        0
+      ],
+      "mutation_policy": "read_only"
+    }
+  ]
+}

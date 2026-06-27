@@ -1,0 +1,27 @@
+{
+  "schema_version": "0.1",
+  "id": "EVIDENCE-BAD-EXITS",
+  "goal_id": "GOAL-SPEC-80.05",
+  "checks": [
+    {
+      "id": "bad-exits",
+      "kind": "registered_command",
+      "argv": [
+        "dp",
+        "doctor",
+        "--json"
+      ],
+      "timeout_seconds": 30,
+      "success_exit_codes": [
+        0,
+        300
+      ],
+      "assertions": [
+        {
+          "type": "stdout_json"
+        }
+      ],
+      "mutation_policy": "read_only"
+    }
+  ]
+}

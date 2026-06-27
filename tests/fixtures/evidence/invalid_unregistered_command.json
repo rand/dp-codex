@@ -1,0 +1,28 @@
+{
+  "schema_version": "0.1",
+  "id": "EVIDENCE-UNREGISTERED",
+  "goal_id": "GOAL-SPEC-80.05",
+  "checks": [
+    {
+      "id": "unregistered",
+      "kind": "registered_command",
+      "argv": [
+        "curl",
+        "https://example.invalid"
+      ],
+      "timeout_seconds": 30,
+      "success_exit_codes": [
+        0
+      ],
+      "assertions": [
+        {
+          "type": "exit_code_in",
+          "values": [
+            0
+          ]
+        }
+      ],
+      "mutation_policy": "read_only"
+    }
+  ]
+}

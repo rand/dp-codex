@@ -30,6 +30,17 @@ This document describes how commands are dispatched and how outcomes are encoded
 3. Goal lifecycle state is reconstructed from `.dp/goals/events.jsonl`.
 4. `dp goal complete` records `evidence_pending`; it does not declare behavioral verification.
 
+## Evidence Runtime
+
+`dp evidence lint` validates EvidencePlan files without executing checks:
+
+1. `0`: valid evidence plan.
+2. `1`: loaded JSON, but invalid plan.
+3. `2`: missing file, malformed JSON, non-object JSON, unsupported schema, or incomplete input.
+
+Evidence linting rejects raw shell strings and only accepts registered command checks. Execution is
+reserved for a future controlled evidence runner.
+
 ## Provider Boundary
 
 `/dp/providers/beads.py` wraps `bd` execution and normalizes failure classes:

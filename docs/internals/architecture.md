@@ -4,7 +4,7 @@ DP-Codex intentionally separates process logic from integration surfaces.
 
 ## Layering
 
-1. Core engine (`/dp/core/`): parsing, validation, review, verify, decomposition, progress, goal lint, goal state, and goal emission.
+1. Core engine (`/dp/core/`): parsing, validation, review, verify, decomposition, progress, goal lint, goal state, goal emission, and evidence lint.
 2. CLI layer (`/dp/cli/main.py`): command parsing, orchestration, output formatting, exit codes.
 3. Provider layer (`/dp/providers/`): external systems (currently Beads via `bd`).
 4. Enforcement layer (`/dp/enforcement/`): policy-driven checks for hooks and CI.
@@ -30,8 +30,9 @@ user/CI command
 7. `/dp/core/goal_lint.py`: deterministic GoalContract validation.
 8. `/dp/core/goal_state.py`: append-only goal event replay and lifecycle commands.
 9. `/dp/core/goal_emit.py`: Codex prompt emission from valid GoalContracts.
-10. `/dp/core/events.py`: JSONL event helpers.
-11. `/dp/enforcement/engine.py`: executes policy-selected checks and bypass audit logging.
+10. `/dp/core/evidence_lint.py`: deterministic EvidencePlan validation for registered checks.
+11. `/dp/core/events.py`: JSONL event helpers.
+12. `/dp/enforcement/engine.py`: executes policy-selected checks and bypass audit logging.
 
 ## Design Constraints
 

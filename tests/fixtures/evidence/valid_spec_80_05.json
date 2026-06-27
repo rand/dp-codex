@@ -1,0 +1,75 @@
+{
+  "schema_version": "0.1",
+  "id": "EVIDENCE-SPEC-80.05",
+  "goal_id": "GOAL-SPEC-80.05",
+  "checks": [
+    {
+      "id": "goal-lint-fixture",
+      "kind": "registered_command",
+      "argv": [
+        "dp",
+        "goal",
+        "lint",
+        "tests/fixtures/goals/valid_spec_70_01.json",
+        "--json"
+      ],
+      "timeout_seconds": 30,
+      "success_exit_codes": [
+        0
+      ],
+      "assertions": [
+        {
+          "type": "stdout_json"
+        },
+        {
+          "type": "json_path_equals",
+          "path": "$.valid",
+          "value": true
+        }
+      ],
+      "mutation_policy": "read_only"
+    },
+    {
+      "id": "targeted-tests",
+      "kind": "registered_command",
+      "argv": [
+        "pytest",
+        "tests/test_evidence_lint.py"
+      ],
+      "timeout_seconds": 120,
+      "success_exit_codes": [
+        0
+      ],
+      "assertions": [
+        {
+          "type": "exit_code_in",
+          "values": [
+            0
+          ]
+        }
+      ],
+      "mutation_policy": "read_only"
+    },
+    {
+      "id": "repo-check",
+      "kind": "registered_command",
+      "argv": [
+        "make",
+        "check"
+      ],
+      "timeout_seconds": 300,
+      "success_exit_codes": [
+        0
+      ],
+      "assertions": [
+        {
+          "type": "exit_code_in",
+          "values": [
+            0
+          ]
+        }
+      ],
+      "mutation_policy": "read_only"
+    }
+  ]
+}

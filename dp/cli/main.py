@@ -9,6 +9,7 @@ from typing import Any, Callable, Sequence, TextIO, cast
 from dp.core.adr import create_adr, list_adrs, show_adr, update_adr_status
 from dp.core.coverage import compute_trace_coverage
 from dp.core.decompose import decompose_items, resolve_context_window
+from dp.core.evidence_lint import lint_evidence_file
 from dp.core.goal_emit import emit_goal_prompt
 from dp.core.goal_lint import lint_goal_file
 from dp.core.goal_state import (
@@ -360,6 +361,20 @@ def _build_parser() -> argparse.ArgumentParser:
     agent_prompt_parser.add_argument("--json", action="store_true")
     agent_prompt_parser.set_defaults(handler=_run_agent_prompt)
 
+    evidence_parser = subparsers.add_parser("evidence")
+    evidence_subparsers = evidence_parser.add_subparsers(
+        dest="evidence_command",
+        required=True,
+    )
+
+    evidence_lint_parser = evidence_subparsers.add_parser(
+        "lint",
+        help="Validate an EvidencePlan without executing checks.",
+    )
+    evidence_lint_parser.add_argument("evidence")
+    evidence_lint_parser.add_argument("--json", action="store_true")
+    evidence_lint_parser.set_defaults(handler=_run_evidence_lint)
+
     return parser
 
 
@@ -604,6 +619,25 @@ def _run_agent_prompt(args: argparse.Namespace) -> int:
     if result.payload.get("ok") is True:
         result.payload["command"] = "agent.prompt"
     return _emit_goal_command_result(result, args.json)
+
+
+def _run_evidence_lint(args: argparse.Namespace) -> int:
+    result = lint_evidence_file(Path(args.evidence))
+
+    if args.json:
+        print(json.dumps(result.report.to_dict(), sort_keys=True))
+        return result.exit_code
+
+    if result.report.valid:
+        print(f"Evidence plan valid: {result.report.evidence_id}")
+        return 0
+
+    print(f"Evidence plan invalid: {result.report.evidence_id or '<unknown>'}")
+    for error in result.report.errors:
+        print(f"- [{error.code}] {error.path}: {error.message}")
+    for warning in result.report.warnings:
+        print(f"- [warning:{warning.code}] {warning.path}: {warning.message}")
+    return result.exit_code
 
 
 def _emit_goal_command_result(result: Any, json_output: bool) -> int:

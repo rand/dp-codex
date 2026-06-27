@@ -1,0 +1,30 @@
+{
+  "schema_version": "0.1",
+  "id": "EVIDENCE-MUTATING-POLICY",
+  "goal_id": "GOAL-SPEC-80.05",
+  "checks": [
+    {
+      "id": "goal-start",
+      "kind": "registered_command",
+      "argv": [
+        "dp",
+        "goal",
+        "start",
+        "docs/goals/GOAL-example.json",
+        "--agent",
+        "codex",
+        "--json"
+      ],
+      "timeout_seconds": 30,
+      "success_exit_codes": [
+        0
+      ],
+      "assertions": [
+        {
+          "type": "stdout_json"
+        }
+      ],
+      "mutation_policy": "read_only"
+    }
+  ]
+}
