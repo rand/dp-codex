@@ -9,19 +9,22 @@ GoalContract through dp without relying on chat memory.
 2. `dp goal status`: state reconstruction from `.dp/goals/events.jsonl`.
 3. `dp goal claim/start/heartbeat/block/release`: append-only lifecycle events.
 4. `dp goal complete`: records an evidence path as `evidence_pending`; it does not verify success.
-5. `dp goal verify`: verifies a matching successful evidence run and records `verified`.
+5. `dp goal verify`: primitive verifier for a matching successful evidence run artifact.
 6. `dp goal block --write-artifact`: resolves GoalContract blocker routes into spec, ADR, or
    EvidencePlan stubs and optional Beads follow-ups.
 7. `dp goal emit` and `dp agent prompt`: Codex-operable prompt emission from a valid contract.
 8. `dp evidence lint`: deterministic EvidencePlan validation without command execution.
-9. `dp evidence run`: controlled execution of linted registered checks with typed assertions.
-10. `dp loop lint/status/next`: deterministic LoopLedger validation, state reconstruction, and
+9. `dp evidence run`: controlled execution of linted registered checks with typed assertions and
+   optional `--output` artifact writing.
+10. `dp verify --goal`: orchestrates goal lint, evidence lint/run or supplied evidence, trace
+    provenance summary, and the same deterministic goal verification transition.
+11. `dp loop lint/status/next`: deterministic LoopLedger validation, state reconstruction, and
    next-goal packaging.
-11. `dp campaign lint/status/recover`: deterministic CampaignManifest validation and recovery from
+12. `dp campaign lint/status/recover`: deterministic CampaignManifest validation and recovery from
    repo artifacts plus append-only goal and campaign events.
-12. `dp campaign init --primary-spec <path> --write`: conservative draft scaffold generation plus
+13. `dp campaign init --primary-spec <path> --write`: conservative draft scaffold generation plus
    deterministic semantic-signal extraction from a local primary spec.
-13. `dp campaign refine <campaign.json> --write`: deterministic authoring refinement into child
+14. `dp campaign refine <campaign.json> --write`: deterministic authoring refinement into child
     spec/ADR stubs, GoalContract/EvidencePlan refinement metadata, and optional Beads
     epics/issues.
 14. `dp campaign refine <campaign.json> --llm`: agent-mediated LLM refinement request emission.
@@ -97,18 +100,21 @@ When an evidence plan exists, lint it before recording or relying on evidence:
 
 ```bash
 dp evidence lint docs/evidence/EVIDENCE-example.json --json
-mkdir -p docs/evidence-runs
-dp evidence run docs/evidence/EVIDENCE-example.json --json > docs/evidence-runs/RUN-example.json
+dp evidence run docs/evidence/EVIDENCE-example.json \
+  --output docs/evidence-runs/RUN-GOAL-example.json --json
 ```
 
 ```bash
-dp goal complete docs/goals/GOAL-example.json --evidence docs/evidence-runs/RUN-example.json --json
-dp goal verify docs/goals/GOAL-example.json --evidence docs/evidence-runs/RUN-example.json --json
+dp goal complete docs/goals/GOAL-example.json --evidence docs/evidence-runs/RUN-GOAL-example.json --json
+dp verify --goal docs/goals/GOAL-example.json \
+  --evidence docs/evidence-runs/RUN-GOAL-example.json --json
 ```
 
-`complete` records `evidence_pending`. `verify` records `verified` only when the run output was
-emitted by `dp evidence run`, the run passed, the goal id matches, the evidence plan path matches
-the GoalContract, and the current EvidencePlan hash matches the run.
+`complete` records `evidence_pending`. `dp verify --goal` can either validate an existing evidence
+artifact with `--evidence` or run the linked EvidencePlan itself with `--evidence-output`. It records
+`verified` only when the run output was emitted by `dp evidence run`, the run passed, the goal id
+matches, the evidence plan path matches the GoalContract, and the current EvidencePlan hash matches
+the run.
 
 ## Emit A Codex Prompt
 

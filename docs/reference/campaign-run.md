@@ -17,7 +17,8 @@ The command:
 6. returns an existing active claim as a resume package instead of claiming over it;
 7. claims at most one ready goal when no active claim must be resumed;
 8. appends a `.dp/campaigns/events.jsonl` `handoff_claimed` event for a new claim;
-9. emits the Codex handoff package and lifecycle commands;
+9. emits the Codex handoff package and lifecycle commands, including `evidence_run`, `complete`,
+   `verify`, and `verify_fresh` with concrete evidence artifact paths when available;
 10. stops.
 
 It does not launch Codex, run evidence, verify a goal, infer completion, or loop in the
@@ -26,8 +27,8 @@ background.
 Successful output has command `campaign.run`, mode `supervised_once`, `autonomous: false`, and
 `launched: false`. When a new goal is claimed, the `next` object is the `loop.next` package
 containing the goal id, read-first paths, evidence plan, allowed paths, lease, Codex `/goal` text,
-and `dp goal ...` lifecycle commands. When a current-loop goal already has an active non-stale
-claim, the `next` object is a `campaign.resume` package with action `resume_claimed_goal`.
+and lifecycle/evidence commands. When a current-loop goal already has an active non-stale claim,
+the `next` object is a `campaign.resume` package with action `resume_claimed_goal`.
 
 New-claim runs also include:
 

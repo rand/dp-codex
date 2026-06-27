@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any
 
+from dp.core.evidence_artifacts import evidence_artifact_commands
 from dp.core.goal_emit import emit_goal_prompt
 from dp.core.goal_lint import lint_goal_file
 from dp.core.goal_state import (
@@ -642,17 +643,30 @@ def _goal_package(
         "read_first": read_first,
         "evidence_plan": evidence_plan,
         "allowed_paths": allowed_paths,
-        "commands": _goal_commands(node.goal_path),
+        "commands": _goal_commands(
+            node.goal_path,
+            goal_id=node.goal_id,
+            evidence_plan=evidence_plan,
+        ),
     }
 
 
-def _goal_commands(goal_path: Path) -> dict[str, str]:
+def _goal_commands(
+    goal_path: Path,
+    *,
+    goal_id: str | None,
+    evidence_plan: str | None,
+) -> dict[str, str]:
     path = goal_path.as_posix()
+    evidence_commands = evidence_artifact_commands(
+        goal_path=goal_path,
+        goal_id=goal_id,
+        evidence_plan=evidence_plan,
+    )
     return {
         "start": f"dp goal start {path} --agent codex --json",
         "heartbeat": f"dp goal heartbeat {path} --json",
-        "complete": f"dp goal complete {path} --evidence <run.json> --json",
-        "verify": f"dp goal verify {path} --evidence <run.json> --json",
+        **evidence_commands,
         "block": f"dp goal block {path} --reason <reason> --write-artifact --json",
         "release": f"dp goal release {path} --reason <reason> --json",
     }

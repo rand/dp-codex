@@ -25,6 +25,22 @@
       ],
       "type": "object"
     },
+    "artifact": {
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "type": "string"
+        },
+        "written": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "path",
+        "written"
+      ],
+      "type": "object"
+    },
     "check_result": {
       "additionalProperties": false,
       "properties": {
@@ -235,6 +251,16 @@
       },
       "type": "array"
     },
+    "artifact": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/artifact"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
     "command": {
       "const": "evidence.run"
     },
@@ -282,7 +308,8 @@
     "lint",
     "checks",
     "summary",
-    "error"
+    "error",
+    "artifact"
   ],
   "title": "Evidence run output",
   "type": "object"

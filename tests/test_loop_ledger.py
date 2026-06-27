@@ -88,7 +88,13 @@ def test_loop_next_claims_first_ready_node_and_emits_codex_package(
     ]
     assert payload["evidence_plan"] == "docs/evidence/EVIDENCE-SPEC-70.01.json"
     assert payload["commands"]["start"] == "dp goal start goals/one.json --agent codex --json"
-    assert payload["commands"]["complete"].endswith("--evidence <run.json> --json")
+    assert payload["commands"]["evidence_run"] == (
+        "dp evidence run docs/evidence/EVIDENCE-SPEC-70.01.json "
+        "--output docs/evidence-runs/RUN-GOAL-SPEC-70.01.json --force --json"
+    )
+    assert payload["commands"]["complete"].endswith(
+        "--evidence docs/evidence-runs/RUN-GOAL-SPEC-70.01.json --json"
+    )
     assert (tmp_path / ".dp/goals/events.jsonl").exists()
 
 

@@ -24,9 +24,14 @@ def test_goal_emit_codex_returns_operable_prompt(capsys) -> None:
         "--write-artifact --json"
     ) in payload["codex_goal"]
     assert "Never claim completion from narration" in payload["codex_goal"]
-    assert payload["commands"]["complete"].endswith("--evidence <run.json> --json")
-    assert payload["commands"]["verify"].endswith("--evidence <run.json> --json")
-    assert "dp goal verify tests/fixtures/goals/valid_spec_70_01.json --evidence <run.json>" in (
+    run_path = "docs/evidence-runs/RUN-GOAL-SPEC-70.01.json"
+    assert payload["commands"]["evidence_run"].endswith(f"--output {run_path} --force --json")
+    assert payload["commands"]["complete"].endswith(f"--evidence {run_path} --json")
+    assert payload["commands"]["verify"].endswith(f"--evidence {run_path} --json")
+    assert payload["commands"]["verify_fresh"].endswith(
+        f"--evidence-output {run_path} --force --json"
+    )
+    assert f"dp verify --goal tests/fixtures/goals/valid_spec_70_01.json --evidence {run_path}" in (
         payload["codex_goal"]
     )
 

@@ -49,9 +49,10 @@ before relying on it:
 ```bash
 dp goal lint docs/goals/GOAL-my-feature.json --json
 dp evidence lint docs/evidence/EVIDENCE-my-feature.json --json
-mkdir -p docs/evidence-runs
-dp evidence run docs/evidence/EVIDENCE-my-feature.json --json > docs/evidence-runs/RUN-my-feature.json
-dp goal verify docs/goals/GOAL-my-feature.json --evidence docs/evidence-runs/RUN-my-feature.json --json
+dp evidence run docs/evidence/EVIDENCE-my-feature.json \
+  --output docs/evidence-runs/RUN-GOAL-my-feature.json --json
+dp verify --goal docs/goals/GOAL-my-feature.json \
+  --evidence docs/evidence-runs/RUN-GOAL-my-feature.json --json
 dp goal emit docs/goals/GOAL-my-feature.json --format codex --json
 ```
 

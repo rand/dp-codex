@@ -30,10 +30,19 @@ Execution command:
 
 ```bash
 dp evidence run <evidence.json> --json
+dp evidence run <evidence.json> --output docs/evidence-runs/RUN-<goal-id>.json --json
+dp evidence run <evidence.json> --output docs/evidence-runs/RUN-<goal-id>.json --force --json
 ```
 
-`dp evidence run` emits the run report to stdout. Persist that JSON as a repo artifact when it will
-be used by `dp goal complete` or `dp goal verify`.
+`dp evidence run` emits the run report to stdout. With `--output`, dp writes the same run report as
+a repo artifact before returning. Output paths must be sane relative `.json` paths, and existing
+artifacts require explicit `--force`.
+
+The default path convention used by goal handoffs is:
+
+```text
+docs/evidence-runs/RUN-<goal-id>.json
+```
 
 Lint exit codes:
 
@@ -128,6 +137,10 @@ Run JSON output:
     "timed_out": 0,
     "errored": 0
   },
-  "error": null
+  "error": null,
+  "artifact": {
+    "path": "docs/evidence-runs/RUN-GOAL-SPEC-80.08.json",
+    "written": true
+  }
 }
 ```

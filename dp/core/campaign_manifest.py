@@ -7,6 +7,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 
 from dp.core.campaign_events import DEFAULT_CAMPAIGN_EVENT_LOG, campaign_event_summary
+from dp.core.evidence_artifacts import default_evidence_run_path, evidence_artifact_commands
 from dp.core.evidence_lint import lint_evidence_file
 from dp.core.goal_emit import emit_goal_prompt
 from dp.core.goal_lint import lint_goal_file
@@ -765,13 +766,22 @@ def _node_resume(
     include_codex_goal: bool = False,
 ) -> dict[str, Any]:
     goal_path = _node_text(node, "goal_path") or "<goal.json>"
-    verify_evidence = evidence or "<run.json>"
+    goal_id = _node_text(node, "goal_id")
+    evidence_plan = _node_text(node, "evidence_plan")
+    verify_evidence = evidence or default_evidence_run_path(goal_id).as_posix()
+    evidence_commands = evidence_artifact_commands(
+        goal_path=Path(goal_path),
+        goal_id=goal_id,
+        evidence_plan=evidence_plan,
+    )
+    if evidence is not None:
+        evidence_commands["complete"] = f"dp goal complete {goal_path} --evidence {evidence} --json"
+        evidence_commands["verify"] = f"dp verify --goal {goal_path} --evidence {evidence} --json"
     commands = {
         "status": f"dp goal status {goal_path} --json",
         "start": f"dp goal start {goal_path} --agent codex --json",
         "heartbeat": f"dp goal heartbeat {goal_path} --json",
-        "complete": f"dp goal complete {goal_path} --evidence <run.json> --json",
-        "verify": f"dp goal verify {goal_path} --evidence {verify_evidence} --json",
+        **evidence_commands,
         "block": f"dp goal block {goal_path} --reason <reason> --write-artifact --json",
         "release": f"dp goal release {goal_path} --reason <reason> --json",
         "campaign_run": (
@@ -785,13 +795,13 @@ def _node_resume(
         "campaign_id": campaign_id,
         "loop_id": loop_id,
         "node_id": _node_text(node, "node_id"),
-        "goal_id": _node_text(node, "goal_id"),
+        "goal_id": goal_id,
         "goal_path": goal_path,
         "beads_issue_id": _node_text(node, "beads_issue_id"),
         "lease": node.get("lease") if isinstance(node.get("lease"), dict) else None,
         "blocked": node.get("blocked") if isinstance(node.get("blocked"), dict) else None,
-        "evidence": evidence,
-        "evidence_plan": _node_text(node, "evidence_plan"),
+        "evidence": verify_evidence,
+        "evidence_plan": evidence_plan,
         "stale_claims": stale_claims,
         "commands": commands,
     }

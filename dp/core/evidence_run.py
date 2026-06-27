@@ -8,6 +8,7 @@ from hashlib import sha256
 from pathlib import Path
 from typing import Any, cast
 
+from dp.core.evidence_artifacts import artifact_ref, validate_evidence_output_path
 from dp.core.evidence_lint import EvidenceLintReport, lint_evidence_file
 
 # @trace SPEC-80.08
@@ -38,9 +39,26 @@ class _ProcessOutput:
     stderr: str
 
 
-def run_evidence_file(path: Path) -> EvidenceRunResult:
+def run_evidence_file(
+    path: Path,
+    *,
+    output_path: Path | None = None,
+    force: bool = False,
+) -> EvidenceRunResult:
     lint_result = lint_evidence_file(path)
     lint_payload = lint_result.report.to_dict()
+    output_error = _validate_output_request(path, output_path, force=force)
+    if output_error is not None:
+        payload = _base_payload(
+            lint_result.report,
+            evidence_plan_path=path,
+            checks=[],
+            error=output_error,
+        )
+        if output_path is not None:
+            payload["artifact"] = artifact_ref(output_path, written=False)
+        return EvidenceRunResult(payload=payload, exit_code=2)
+
     if lint_result.exit_code != 0:
         return EvidenceRunResult(
             payload=_base_payload(
@@ -80,21 +98,24 @@ def run_evidence_file(path: Path) -> EvidenceRunResult:
 
     check_results = [_run_check(check, index) for index, check in enumerate(payload["checks"])]
     ok = all(check["ok"] is True for check in check_results)
-    return EvidenceRunResult(
-        payload=_base_payload(
-            lint_result.report,
-            evidence_plan_path=path,
-            checks=check_results,
-            error=None
-            if ok
-            else _error(
-                "evidence_checks_failed",
-                "$.checks",
-                "One or more evidence checks failed.",
-            ),
+    result_payload = _base_payload(
+        lint_result.report,
+        evidence_plan_path=path,
+        checks=check_results,
+        error=None
+        if ok
+        else _error(
+            "evidence_checks_failed",
+            "$.checks",
+            "One or more evidence checks failed.",
         ),
-        exit_code=0 if ok else 1,
     )
+    exit_code = 0 if ok else 1
+    if output_path is not None:
+        write_result = _write_output_artifact(result_payload, output_path)
+        result_payload = write_result.payload
+        exit_code = write_result.exit_code if write_result.exit_code != 0 else exit_code
+    return EvidenceRunResult(payload=result_payload, exit_code=exit_code)
 
 
 def _run_check(check: dict[str, Any], index: int) -> dict[str, Any]:
@@ -345,7 +366,64 @@ def _base_payload(
         "checks": checks,
         "summary": _summary(checks),
         "error": error,
+        "artifact": None,
     }
+
+
+def _validate_output_request(
+    evidence_plan_path: Path,
+    output_path: Path | None,
+    *,
+    force: bool,
+) -> dict[str, str] | None:
+    if output_path is None:
+        return None
+    path_error = validate_evidence_output_path(output_path)
+    if path_error is not None:
+        return path_error
+    if output_path == evidence_plan_path:
+        return _error(
+            "invalid_output_path",
+            "$.output",
+            "Evidence run output path must not overwrite the EvidencePlan.",
+        )
+    if output_path.exists() and not force:
+        return _error(
+            "output_exists",
+            "$.output",
+            f"Output path already exists: {output_path.as_posix()}. Use --force to overwrite.",
+        )
+    if output_path.parent.exists() and not output_path.parent.is_dir():
+        return _error(
+            "invalid_output_path",
+            "$.output",
+            f"Output parent is not a directory: {output_path.parent.as_posix()}",
+        )
+    return None
+
+
+@dataclass(frozen=True)
+class _ArtifactWriteResult:
+    payload: dict[str, Any]
+    exit_code: int
+
+
+def _write_output_artifact(payload: dict[str, Any], output_path: Path) -> _ArtifactWriteResult:
+    payload = dict(payload)
+    payload["artifact"] = artifact_ref(output_path, written=True)
+    try:
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(json.dumps(payload, sort_keys=True) + "\n", encoding="utf-8")
+    except OSError as exc:
+        payload["ok"] = False
+        payload["artifact"] = artifact_ref(output_path, written=False)
+        payload["error"] = _error(
+            "output_write_failed",
+            "$.output",
+            f"Evidence run output could not be written: {exc}",
+        )
+        return _ArtifactWriteResult(payload=payload, exit_code=2)
+    return _ArtifactWriteResult(payload=payload, exit_code=0)
 
 
 def _evidence_plan_source(path: Path) -> dict[str, str | None]:

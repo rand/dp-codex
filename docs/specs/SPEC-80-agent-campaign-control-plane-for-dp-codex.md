@@ -86,8 +86,8 @@ Codex receives a bounded `/goal` plus exact dp commands for start, progress, com
 After working:
 
 ```bash
-dp goal complete GOAL-012 --evidence docs/evidence-runs/RUN-012.json --json
-dp goal verify GOAL-012 --evidence docs/evidence-runs/RUN-012.json --json
+dp evidence run docs/evidence/EVIDENCE-012.json --output docs/evidence-runs/RUN-GOAL-012.json --json
+dp verify --goal docs/goals/GOAL-012.json --evidence docs/evidence-runs/RUN-GOAL-012.json --json
 dp loop next CAMPAIGN-waveguide --claim --emit codex --json
 ```
 
@@ -664,8 +664,10 @@ Example output:
   "commands": {
     "start": "dp goal start docs/goals/GOAL-012.json --agent codex --json",
     "heartbeat": "dp goal heartbeat docs/goals/GOAL-012.json --json",
-    "complete": "dp goal complete docs/goals/GOAL-012.json --evidence <run.json> --json",
-    "verify": "dp goal verify docs/goals/GOAL-012.json --evidence <run.json> --json",
+    "evidence_run": "dp evidence run docs/evidence/EVIDENCE-012.json --output docs/evidence-runs/RUN-GOAL-012.json --force --json",
+    "complete": "dp goal complete docs/goals/GOAL-012.json --evidence docs/evidence-runs/RUN-GOAL-012.json --json",
+    "verify": "dp verify --goal docs/goals/GOAL-012.json --evidence docs/evidence-runs/RUN-GOAL-012.json --json",
+    "verify_fresh": "dp verify --goal docs/goals/GOAL-012.json --evidence-output docs/evidence-runs/RUN-GOAL-012.json --force --json",
     "block": "dp goal block docs/goals/GOAL-012.json --reason <reason> --write-artifact --json",
     "release": "dp goal release docs/goals/GOAL-012.json --reason <reason> --json"
   }
@@ -729,7 +731,7 @@ The emitted goal should also instruct Codex to use dp’s state commands.
 Example:
 
 ```text
-/goal Make SPEC-70.01 true: dp-codex must tolerate current Beads CLI behavior by providing a read-only `dp doctor --json` health path, distinguishing missing `bd`, missing `.beads`, and unusable initialized databases, avoiding removed `bd sync` assumptions, and ensuring pre-push safeguards check provider health without mutation. Verify with the linked evidence plan, targeted doctor/provider tests, `dp doctor --json`, trace validation for SPEC-70.01, and `make check`, while preserving deterministic exit semantics and current Beads-compatible command guidance. Prefer changes under `dp/providers`, `dp/cli`, `dp/enforcement`, `tests`, and relevant docs. Start by running `dp goal start ...`. Between iterations, run the smallest relevant failing check first and repair before broadening scope. If Beads command behavior, fixture setup, or provider semantics are ambiguous, run `dp goal block ... --reason needs_decision --write-artifact` instead of guessing. Record evidence with `dp goal complete ... --evidence <run.json>` and advance only with `dp goal verify ... --evidence <run.json>` after evidence passes.
+/goal Make SPEC-70.01 true: dp-codex must tolerate current Beads CLI behavior by providing a read-only `dp doctor --json` health path, distinguishing missing `bd`, missing `.beads`, and unusable initialized databases, avoiding removed `bd sync` assumptions, and ensuring pre-push safeguards check provider health without mutation. Verify with the linked evidence plan, targeted doctor/provider tests, `dp doctor --json`, trace validation for SPEC-70.01, and `make check`, while preserving deterministic exit semantics and current Beads-compatible command guidance. Prefer changes under `dp/providers`, `dp/cli`, `dp/enforcement`, `tests`, and relevant docs. Start by running `dp goal start ...`. Between iterations, run the smallest relevant failing check first and repair before broadening scope. If Beads command behavior, fixture setup, or provider semantics are ambiguous, run `dp goal block ... --reason needs_decision --write-artifact` instead of guessing. Produce evidence with `dp evidence run ... --output docs/evidence-runs/RUN-<goal-id>.json --json` or `dp verify --goal ... --evidence-output docs/evidence-runs/RUN-<goal-id>.json --json`; advance only through deterministic goal verification.
 ```
 
 ## 11. LLM policy
@@ -1232,8 +1234,8 @@ dp campaign init --primary-spec <PRIMARY_SPEC_PATH> --write --json
 dp campaign status docs/campaigns/<campaign>.json --json
 dp loop next docs/loops/<loop>.json --claim --emit codex --json
 dp goal start docs/goals/<goal>.json --agent codex --json
-dp goal complete docs/goals/<goal>.json --evidence <run.json> --json
-dp goal verify docs/goals/<goal>.json --evidence <run.json> --json
+dp evidence run docs/evidence/<evidence>.json --output docs/evidence-runs/RUN-<goal-id>.json --json
+dp verify --goal docs/goals/<goal>.json --evidence docs/evidence-runs/RUN-<goal-id>.json --json
 ```
 
 and a new Codex session can recover campaign state from repo artifacts without chat memory.

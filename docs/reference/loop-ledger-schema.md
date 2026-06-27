@@ -35,6 +35,11 @@ dp loop status <loop.json> --json
 dp loop next <loop.json> --claim --emit codex --json
 ```
 
+When `--emit codex` is used, the next-goal package includes lifecycle commands plus
+`evidence_run`, `complete`, `verify`, and `verify_fresh` commands. If the node or GoalContract
+declares an EvidencePlan, those commands use `docs/evidence-runs/RUN-<goal-id>.json` as the concrete
+run artifact path.
+
 Exit codes:
 
 1. `0`: valid lint, successful status, or next-goal package.

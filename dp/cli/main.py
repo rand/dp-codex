@@ -31,6 +31,7 @@ from dp.core.goal_state import (
     start_goal,
     verify_goal,
 )
+from dp.core.goal_verification import verify_goal_orchestrated
 from dp.core.loop_ledger import lint_loop_file, loop_next, loop_status
 from dp.core.policy import load_policy_config
 from dp.core.progress import (
@@ -281,6 +282,10 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Run goal-backward verification across truths, artifacts, and links.",
     )
     verify_parser.add_argument("--manifest", default=DEFAULT_VERIFY_MANIFEST.as_posix())
+    verify_parser.add_argument("--goal")
+    verify_parser.add_argument("--evidence")
+    verify_parser.add_argument("--evidence-output")
+    verify_parser.add_argument("--force", action="store_true")
     verify_parser.add_argument("--json", action="store_true")
     verify_parser.set_defaults(handler=_run_verify)
 
@@ -401,6 +406,8 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Run a linted EvidencePlan with registered argv checks and typed assertions.",
     )
     evidence_run_parser.add_argument("evidence")
+    evidence_run_parser.add_argument("--output")
+    evidence_run_parser.add_argument("--force", action="store_true")
     evidence_run_parser.add_argument("--json", action="store_true")
     evidence_run_parser.set_defaults(handler=_run_evidence_run)
 
@@ -774,7 +781,11 @@ def _run_evidence_lint(args: argparse.Namespace) -> int:
 
 
 def _run_evidence_run(args: argparse.Namespace) -> int:
-    result = run_evidence_file(Path(args.evidence))
+    result = run_evidence_file(
+        Path(args.evidence),
+        output_path=Path(args.output) if args.output else None,
+        force=args.force,
+    )
 
     if args.json:
         print(json.dumps(result.payload, sort_keys=True))
@@ -1076,6 +1087,25 @@ def _run_review(args: argparse.Namespace) -> int:
 
 
 def _run_verify(args: argparse.Namespace) -> int:
+    if args.goal:
+        result = verify_goal_orchestrated(
+            Path(args.goal),
+            evidence_path=Path(args.evidence) if args.evidence else None,
+            evidence_output=Path(args.evidence_output) if args.evidence_output else None,
+            force=args.force,
+        )
+        if args.json:
+            print(json.dumps(result.payload, sort_keys=True))
+            return result.exit_code
+        if result.payload["ok"] is True:
+            print(f"Goal verified: {result.payload['goal_id']}")
+            return 0
+        error = result.payload.get("error") or {}
+        print(f"Goal verification failed: {result.payload.get('goal_id') or '<unknown>'}")
+        if error:
+            print(f"- [{error['code']}] {error['path']}: {error['message']}")
+        return result.exit_code
+
     manifest_path = Path(args.manifest)
 
     try:

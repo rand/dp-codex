@@ -17,6 +17,8 @@ dp goal block <goal.json> --reason needs_decision --write-artifact --json
 dp goal release <goal.json> --reason "context reset" --json
 dp goal complete <goal.json> --evidence <run.json> --json
 dp goal verify <goal.json> --evidence <run.json> --json
+dp verify --goal <goal.json> --evidence <run.json> --json
+dp verify --goal <goal.json> --evidence-output docs/evidence-runs/RUN-<goal-id>.json --json
 ```
 
 Initial state is `ready` when `dp goal lint` passes and no events exist.
@@ -44,10 +46,12 @@ Rules:
 7. A routed blocker can return non-zero when artifact or Beads routing fails, but the blocked event
    remains recorded for recovery.
 8. `complete` records evidence pending; it does not mark verified success.
-9. `verify` appends a `verified` event only when the run output is from `dp evidence run`, the
-   run passed, the goal id matches, the evidence plan path matches the GoalContract, and the current
-   EvidencePlan sha256 matches the run.
-10. Loop dependencies unlock on verified state, not agent narration or evidence-pending state.
+9. `goal verify` appends a `verified` event only when the run output is from `dp evidence run`,
+   the run passed, the goal id matches, the evidence plan path matches the GoalContract, and the
+   current EvidencePlan sha256 matches the run.
+10. `dp verify --goal` orchestrates goal lint, evidence lint, optional evidence execution to a
+   concrete artifact path, and the same `goal verify` transition.
+11. Loop dependencies unlock on verified state, not agent narration or evidence-pending state.
 
 Routed block events include:
 

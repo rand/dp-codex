@@ -1,51 +1,207 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "dp verify output",
-  "type": "object",
-  "required": ["outcome", "levels"],
-  "properties": {
-    "ok": {
-      "type": "boolean"
-    },
+  "$defs": {
     "error": {
-      "type": "string"
-    },
-    "outcome": {
-      "type": "string",
-      "enum": ["verified", "incomplete", "failed"]
-    },
-    "levels": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "required": ["level", "status", "passed", "total", "details"],
-        "properties": {
-          "level": {
-            "type": "string",
-            "enum": ["truths", "artifacts", "links"]
-          },
-          "status": {
-            "type": "string",
-            "enum": ["verified", "incomplete", "failed"]
-          },
-          "passed": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "total": {
-            "type": "integer",
-            "minimum": 0
-          },
-          "details": {
-            "type": "array",
-            "items": {
-              "type": "string"
-            }
-          }
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "type": "string"
         },
-        "additionalProperties": false
-      }
+        "message": {
+          "type": "string"
+        },
+        "path": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "path",
+        "message"
+      ],
+      "type": "object"
+    },
+    "legacy_level": {
+      "additionalProperties": false,
+      "properties": {
+        "details": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "level": {
+          "enum": [
+            "truths",
+            "artifacts",
+            "links"
+          ],
+          "type": "string"
+        },
+        "passed": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "status": {
+          "enum": [
+            "verified",
+            "incomplete",
+            "failed"
+          ],
+          "type": "string"
+        },
+        "total": {
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "level",
+        "status",
+        "passed",
+        "total",
+        "details"
+      ],
+      "type": "object"
     }
   },
-  "additionalProperties": false
+  "oneOf": [
+    {
+      "additionalProperties": false,
+      "properties": {
+        "error": {
+          "type": "string"
+        },
+        "levels": {
+          "items": {
+            "$ref": "#/$defs/legacy_level"
+          },
+          "type": "array"
+        },
+        "ok": {
+          "type": "boolean"
+        },
+        "outcome": {
+          "enum": [
+            "verified",
+            "incomplete",
+            "failed"
+          ],
+          "type": "string"
+        }
+      },
+      "required": [
+        "outcome",
+        "levels"
+      ],
+      "type": "object"
+    },
+    {
+      "additionalProperties": false,
+      "properties": {
+        "command": {
+          "const": "verify.goal"
+        },
+        "error": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/error"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "evidence": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "properties": {
+                "path": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path"
+              ],
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "evidence_plan": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "properties": {
+                "path": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "path"
+              ],
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "goal": {
+          "additionalProperties": true,
+          "properties": {
+            "path": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "path"
+          ],
+          "type": "object"
+        },
+        "goal_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "ok": {
+          "type": "boolean"
+        },
+        "stages": {
+          "additionalProperties": true,
+          "properties": {
+            "evidence_lint": {},
+            "evidence_run": {},
+            "goal_lint": {},
+            "goal_verify": {},
+            "trace": {}
+          },
+          "required": [
+            "goal_lint",
+            "evidence_lint",
+            "evidence_run",
+            "trace",
+            "goal_verify"
+          ],
+          "type": "object"
+        }
+      },
+      "required": [
+        "ok",
+        "command",
+        "goal_id",
+        "goal",
+        "evidence_plan",
+        "evidence",
+        "stages",
+        "error"
+      ],
+      "type": "object"
+    }
+  ],
+  "title": "dp verify output"
 }

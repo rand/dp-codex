@@ -52,6 +52,49 @@ def test_verify_json_output_matches_schema(tmp_path: Path, capsys) -> None:
     validate(instance=payload, schema=schema)
 
 
+def test_verify_goal_json_output_matches_schema(tmp_path: Path, capsys, monkeypatch) -> None:
+    schema = json.loads(Path("docs/schemas/verify-output.schema.json").read_text(encoding="utf-8"))
+    goal_payload = json.loads(
+        Path("tests/fixtures/goals/valid_spec_70_01.json").read_text(encoding="utf-8")
+    )
+    goal_payload["evidence"]["evidence_plan"] = "evidence/plan.json"
+    (tmp_path / "goal.json").write_text(json.dumps(goal_payload), encoding="utf-8")
+    evidence_dir = tmp_path / "evidence"
+    evidence_dir.mkdir()
+    (evidence_dir / "plan.json").write_text(
+        json.dumps(
+            {
+                "schema_version": "0.1",
+                "id": "EVIDENCE-SPEC-70.01",
+                "goal_id": "GOAL-SPEC-70.01",
+                "checks": [
+                    {
+                        "id": "goal-lint-valid",
+                        "kind": "registered_command",
+                        "argv": ["dp", "goal", "lint", "goal.json", "--json"],
+                        "timeout_seconds": 30,
+                        "success_exit_codes": [0],
+                        "assertions": [
+                            {"type": "exit_code_in", "values": [0]},
+                            {"type": "stdout_json"},
+                            {"type": "json_path_equals", "path": "$.valid", "value": True},
+                        ],
+                        "mutation_policy": "read_only",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.chdir(tmp_path)
+
+    exit_code = cli_main.main(["verify", "--goal", "goal.json", "--json"])
+
+    assert exit_code == 0
+    payload = json.loads(capsys.readouterr().out)
+    validate(instance=payload, schema=schema)
+
+
 def test_goal_lint_json_output_matches_schema(capsys) -> None:
     schema = json.loads(
         Path("docs/schemas/goal-lint-output.schema.json").read_text(encoding="utf-8")

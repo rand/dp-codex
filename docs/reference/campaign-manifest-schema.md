@@ -52,6 +52,8 @@ Both commands include:
 
 1. `events`: summary of `.dp/campaigns/events.jsonl` for the campaign.
 2. `resume`: deterministic next-action package derived from the current loop and event logs.
+   Goal-scoped resume packages include concrete evidence artifact commands where the GoalContract
+   or loop node declares an EvidencePlan.
 
 Resume actions:
 

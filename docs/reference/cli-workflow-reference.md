@@ -44,7 +44,7 @@ Quick command reference by workflow.
 ## Evidence Plans
 
 1. `dp evidence lint <evidence.json> [--json]`
-2. `dp evidence run <evidence.json> [--json]`
+2. `dp evidence run <evidence.json> [--output <run.json>] [--force] [--json]`
 
 ## Loop Ledgers
 
@@ -65,6 +65,7 @@ Quick command reference by workflow.
 
 1. `dp review [--json]`
 2. `dp verify [--manifest ...] [--json]`
+3. `dp verify --goal <goal.json> [--evidence <run.json>] [--evidence-output <run.json>] [--force] [--json]`
 
 ## Policy And Enforcement
 

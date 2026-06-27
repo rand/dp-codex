@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from dp.core.evidence_artifacts import evidence_artifact_commands
 from dp.core.goal_lint import lint_goal_file
 
 # @trace SPEC-80.03
@@ -48,11 +49,18 @@ def emit_goal_prompt(goal_path: Path, *, output_format: str) -> GoalEmitResult:
     iteration_policy = contract.get("iteration_policy", {})
     terminal_states = contract.get("terminal_states", {})
 
+    evidence_plan = (
+        str(evidence["evidence_plan"]) if isinstance(evidence.get("evidence_plan"), str) else None
+    )
+    evidence_commands = evidence_artifact_commands(
+        goal_path=goal_path,
+        goal_id=goal_id,
+        evidence_plan=evidence_plan,
+    )
     commands = {
         "start": f"dp goal start {goal_path.as_posix()} --agent codex --json",
         "heartbeat": f"dp goal heartbeat {goal_path.as_posix()} --json",
-        "complete": f"dp goal complete {goal_path.as_posix()} --evidence <run.json> --json",
-        "verify": f"dp goal verify {goal_path.as_posix()} --evidence <run.json> --json",
+        **evidence_commands,
         "block": (
             f"dp goal block {goal_path.as_posix()} --reason <reason> "
             "--write-artifact --json"
@@ -116,7 +124,9 @@ def _render_codex_goal(
         "repair failures before broadening scope, and keep progress in dp. "
         f"If blocked, budget-exhausted, or no safe path remains, use `{commands['block']}`; "
         f"blocked means: {blocked}. Release with `{commands['release']}` on context reset. "
-        "Never claim completion from narration; record evidence with "
+        "Never claim completion from narration; produce an evidence artifact with "
+        f"`{commands['evidence_run']}` or run-and-verify with `{commands['verify_fresh']}`. "
+        "If evidence is produced separately, record it with "
         f"`{commands['complete']}` after evidence exists, then verify it with "
         f"`{commands['verify']}`."
     )

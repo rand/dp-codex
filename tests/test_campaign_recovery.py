@@ -149,7 +149,7 @@ def test_campaign_recover_routes_evidence_pending_to_verify_command(
     assert resume["action"] == "verify_evidence"
     assert resume["evidence"] == "runs/one.json"
     assert resume["commands"]["verify"] == (
-        "dp goal verify goals/one.json --evidence runs/one.json --json"
+        "dp verify --goal goals/one.json --evidence runs/one.json --json"
     )
 
 

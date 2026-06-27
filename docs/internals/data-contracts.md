@@ -17,18 +17,19 @@ DP-Codex treats machine-readable output as a product surface, not a side effect.
 11. `/docs/schemas/campaign-refine-llm-response.schema.json`
 12. `/docs/schemas/campaign-run-output.schema.json`
 13. `/.dp/campaigns/events.jsonl` append-only campaign handoff events.
+14. `/docs/evidence-runs/*.json` `dp evidence run` artifacts.
 
 ## Contracted Command Families
 
 1. `dp review --json`
-2. `dp verify --json`
+2. `dp verify --json` and `dp verify --goal ... --json`
 3. `dp policy validate --json`
 4. `dp task ... --json`
 5. `dp enforce ... --json`
 6. `dp goal lint ... --json`
 7. `dp goal status/claim/start/heartbeat/block/release/complete/verify/emit ... --json`
 8. `dp agent prompt ... --json`
-9. `dp evidence lint/run ... --json`
+9. `dp evidence lint/run ... --json`, including `dp evidence run --output`.
 10. `dp loop lint/status/next ... --json`
 11. `dp campaign init/refine/lint/status/recover/run ... --json`
 12. `.dp/campaigns/events.jsonl` records.
