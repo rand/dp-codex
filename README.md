@@ -40,7 +40,7 @@ It provides:
 ```bash
 uv sync --dev
 dp doctor --json
-bd ready --claim --json
+dp task claim --json
 ./hooks/install.sh
 make check
 ```

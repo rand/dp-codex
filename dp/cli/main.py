@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
 from pathlib import Path
 from typing import Any, Callable, Sequence, TextIO, cast
@@ -334,6 +335,14 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     task_ready_parser.add_argument("--json", action="store_true")
     task_ready_parser.set_defaults(handler=_run_task_ready)
+
+    task_claim_parser = task_subparsers.add_parser(
+        "claim",
+        help="Atomically claim ready or known Beads work and emit scoped intake context.",
+    )
+    task_claim_parser.add_argument("issue_id", nargs="?")
+    task_claim_parser.add_argument("--json", action="store_true")
+    task_claim_parser.set_defaults(handler=_run_task_claim)
 
     task_show_parser = task_subparsers.add_parser(
         "show",
@@ -1290,6 +1299,59 @@ def _run_task_ready(args: argparse.Namespace) -> int:
     return _execute_bd(["ready"], json_output=args.json, command_name="task.ready")
 
 
+# @trace SPEC-70.02
+def _run_task_claim(args: argparse.Namespace) -> int:
+    command = (
+        ["ready", "--claim"]
+        if args.issue_id is None
+        else ["update", args.issue_id, "--claim"]
+    )
+    if not args.json:
+        return _execute_bd(command, json_output=False, command_name="task.claim")
+
+    effective_command = [*command, "--json"]
+    try:
+        result = run_bd(effective_command)
+    except BdUnavailableError as exc:
+        _emit_task_json(
+            "task.claim",
+            exit_code=127,
+            ok=False,
+            error=str(exc),
+            beads_command=effective_command,
+        )
+        return 127
+    except BeadsNotInitializedError as exc:
+        _emit_task_json(
+            "task.claim",
+            exit_code=2,
+            ok=False,
+            error=str(exc),
+            beads_command=effective_command,
+        )
+        return 2
+
+    data: Any = None
+    raw_output = result.stdout.strip()
+    if raw_output:
+        try:
+            data = json.loads(raw_output)
+        except json.JSONDecodeError:
+            data = None
+    context = _task_intake_context(data) if result.returncode == 0 else None
+    _emit_task_json(
+        "task.claim",
+        exit_code=result.returncode,
+        ok=result.returncode == 0,
+        data=data,
+        stderr=result.stderr.strip() or None,
+        raw_output=raw_output if data is None and raw_output else None,
+        context=context,
+        beads_command=effective_command,
+    )
+    return result.returncode
+
+
 def _run_task_show(args: argparse.Namespace) -> int:
     return _execute_bd(
         ["show", args.issue_id],
@@ -1430,6 +1492,8 @@ def _emit_task_json(
     stderr: str | None = None,
     error: str | None = None,
     raw_output: str | None = None,
+    context: dict[str, Any] | None = None,
+    beads_command: list[str] | None = None,
 ) -> None:
     payload: dict[str, Any] = {
         "command": command,
@@ -1441,7 +1505,187 @@ def _emit_task_json(
     }
     if raw_output is not None:
         payload["raw_output"] = raw_output
+    if context is not None:
+        payload["context"] = context
+    if beads_command is not None:
+        payload["beads_command"] = beads_command
     print(json.dumps(payload, sort_keys=True))
+
+
+def _task_intake_context(data: Any) -> dict[str, Any]:
+    issue = _claimed_issue(data)
+    warnings: list[str] = []
+    if issue is None:
+        return {
+            "issue_id": None,
+            "title": None,
+            "spec_id": None,
+            "labels": [],
+            "parent": None,
+            "dependencies": [],
+            "dependents": [],
+            "read_first": [],
+            "mentioned_paths": [],
+            "warnings": ["No claimed issue object found in Beads JSON output."],
+        }
+
+    issue_id = _string_or_none(issue.get("id"))
+    title = _string_or_none(issue.get("title"))
+    spec_id = _string_or_none(issue.get("spec_id"))
+    labels = _string_list(issue.get("labels"))
+    parent = _string_or_none(issue.get("parent"))
+    dependencies = _issue_ids(issue.get("dependencies"))
+    dependents = _issue_ids(issue.get("dependents"))
+    text_fields = [
+        title,
+        spec_id,
+        _string_or_none(issue.get("description")),
+        _string_or_none(issue.get("design")),
+        _string_or_none(issue.get("acceptance_criteria")),
+        _string_or_none(issue.get("notes")),
+    ]
+    mentioned_paths = _mentioned_paths("\n".join(value for value in text_fields if value))
+    read_first = _read_first_paths(spec_id, mentioned_paths)
+    if not mentioned_paths and spec_id is None:
+        warnings.append(
+            "Claimed issue does not mention files or a spec id; inspect the issue before editing."
+        )
+    if not _string_or_none(issue.get("acceptance_criteria")):
+        warnings.append("Claimed issue has no acceptance criteria.")
+
+    return {
+        "issue_id": issue_id,
+        "title": title,
+        "spec_id": spec_id,
+        "labels": labels,
+        "parent": parent,
+        "dependencies": dependencies,
+        "dependents": dependents,
+        "read_first": read_first,
+        "mentioned_paths": mentioned_paths,
+        "warnings": warnings,
+    }
+
+
+def _claimed_issue(data: Any) -> dict[str, Any] | None:
+    if isinstance(data, dict):
+        for key in ("issue", "claimed", "data"):
+            nested = data.get(key)
+            if isinstance(nested, dict):
+                return nested
+        items = data.get("items")
+        if isinstance(items, list):
+            for item in items:
+                if isinstance(item, dict):
+                    return item
+        if isinstance(data.get("id"), str):
+            return data
+    if isinstance(data, list):
+        for item in data:
+            if isinstance(item, dict):
+                return item
+    return None
+
+
+def _string_or_none(value: Any) -> str | None:
+    return value if isinstance(value, str) and value else None
+
+
+def _string_list(value: Any) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [item for item in value if isinstance(item, str) and item]
+
+
+def _issue_ids(value: Any) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    ids: list[str] = []
+    for item in value:
+        if isinstance(item, str) and item:
+            ids.append(item)
+        elif isinstance(item, dict) and isinstance(item.get("id"), str):
+            ids.append(item["id"])
+        elif isinstance(item, dict) and isinstance(item.get("issue_id"), str):
+            ids.append(item["issue_id"])
+    return sorted(set(ids))
+
+
+def _mentioned_paths(text: str) -> list[str]:
+    candidates = set(
+        _strip_path_punctuation(match)
+        for match in re.findall(
+            (
+                r"(?<![\w./-])(?:[A-Za-z0-9_.-]+/)+"
+                r"[A-Za-z0-9_.@+-]+(?:\.[A-Za-z0-9]+)?"
+            ),
+            text,
+        )
+    )
+    root_files = {"AGENTS.md", "README.md", "Makefile", "pyproject.toml", "dp-policy.json"}
+    for file_name in root_files:
+        if file_name in text:
+            candidates.add(file_name)
+    return sorted(
+        path for path in candidates if _is_context_path(path) and _is_likely_repo_path(path)
+    )
+
+
+def _strip_path_punctuation(value: str) -> str:
+    return value.rstrip(".,;:)]}'\"")
+
+
+def _read_first_paths(spec_id: str | None, mentioned_paths: list[str]) -> list[str]:
+    read_first: list[str] = []
+    if spec_id is not None:
+        spec_path = _spec_path_for_id(spec_id)
+        if spec_path is not None:
+            read_first.append(spec_path)
+    for path in mentioned_paths:
+        if _is_read_first_path(path) and path not in read_first:
+            read_first.append(path)
+    return read_first
+
+
+def _spec_path_for_id(spec_id: str) -> str | None:
+    specs_dir = Path("docs/specs")
+    if not specs_dir.exists():
+        return None
+    needle = f"[{spec_id}]"
+    for path in sorted(specs_dir.glob("*.md")):
+        try:
+            if needle in path.read_text(encoding="utf-8"):
+                return path.as_posix()
+        except OSError:
+            continue
+    return None
+
+
+def _is_context_path(value: str) -> bool:
+    if (
+        "\x00" in value
+        or "\\" in value
+        or value.startswith(("http://", "https://", "-", "~"))
+    ):
+        return False
+    path = Path(value)
+    if path.is_absolute():
+        return False
+    return all(part not in {"", ".", ".."} for part in path.parts)
+
+
+def _is_likely_repo_path(value: str) -> bool:
+    path = Path(value)
+    if path.exists():
+        return True
+    return bool(path.suffix)
+
+
+def _is_read_first_path(value: str) -> bool:
+    path = Path(value)
+    if path.is_file():
+        return True
+    return bool(path.suffix)
 
 
 def _expand_globs(patterns: Sequence[str]) -> list[Path]:

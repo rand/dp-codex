@@ -49,7 +49,7 @@ This keeps hook behavior and CI behavior aligned against the same versioned poli
 
 ```bash
 dp doctor --json
-bd ready --claim --json
+dp task claim --json
 make check
 uv run dp enforce pre-commit --policy dp-policy.json --json
 ```

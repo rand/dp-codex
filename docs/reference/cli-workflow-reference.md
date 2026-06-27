@@ -10,10 +10,11 @@ Quick command reference by workflow.
 ## Task Provider (Beads)
 
 1. `dp task ready [--json]`
-2. `dp task show <id> [--json]`
-3. `dp task update <id> [--status ...] [--priority ...] [--owner ...] [--json]`
-4. `dp task discover <source-id> <title> [flags] [--json]`
-5. `dp task close <id> --reason "..." [--json]`
+2. `dp task claim [id] [--json]`
+3. `dp task show <id> [--json]`
+4. `dp task update <id> [--status ...] [--priority ...] [--owner ...] [--json]`
+5. `dp task discover <source-id> <title> [flags] [--json]`
+6. `dp task close <id> --reason "..." [--json]`
 
 ## ADR
 

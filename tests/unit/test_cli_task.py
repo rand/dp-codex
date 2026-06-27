@@ -20,6 +20,8 @@ cli_main = importlib.import_module("dp.cli.main")
     ("argv", "expected_command"),
     [
         (["task", "ready"], ["ready"]),
+        (["task", "claim"], ["ready", "--claim"]),
+        (["task", "claim", "dpcx-egm.1.2"], ["update", "dpcx-egm.1.2", "--claim"]),
         (["task", "show", "dpcx-egm.1.2"], ["show", "dpcx-egm.1.2"]),
         (
             [
@@ -205,6 +207,152 @@ def test_task_command_json_mode_returns_stable_schema(
     assert payload["exit_code"] == 0
     assert payload["data"] == {"items": [{"id": "dpcx-egm.3.3"}]}
     assert calls == [["ready", "--json"]]
+
+
+# @trace SPEC-70.02
+def test_task_claim_json_claims_ready_work_and_extracts_context(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    calls: list[list[str]] = []
+    issue = {
+        "id": "dpcx-ea9.1",
+        "title": "M7.2 Add task claim ergonomics and context extraction",
+        "spec_id": "SPEC-70.02",
+        "description": (
+            "Expected files: dp/cli/main.py, dp/providers/beads.py, "
+            "tests/unit/test_cli_task.py, docs/runbooks/task-json-output.md. "
+            "Do not treat claim/context prose as a repo path."
+        ),
+        "design": "Prefer a thin wrapper over bd ready --claim --json.",
+        "acceptance_criteria": "Tests cover ready-claim and known-id claim.",
+        "labels": ["beads", "codex"],
+        "parent": "dpcx-ea9",
+        "dependencies": [{"id": "dpcx-ea9"}],
+        "dependents": [{"issue_id": "dpcx-pb5.19"}],
+    }
+
+    def fake_run_bd(args: Sequence[str]) -> CommandResult:
+        calls.append(list(args))
+        return CommandResult(returncode=0, stdout=json.dumps([issue]) + "\n", stderr="")
+
+    monkeypatch.setattr(cli_main, "run_bd", fake_run_bd)
+
+    exit_code = cli_main.main(["task", "claim", "--json"])
+
+    assert exit_code == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["command"] == "task.claim"
+    assert payload["ok"] is True
+    assert payload["beads_command"] == ["ready", "--claim", "--json"]
+    assert payload["data"] == [issue]
+    context = payload["context"]
+    assert context["issue_id"] == "dpcx-ea9.1"
+    assert context["title"] == issue["title"]
+    assert context["spec_id"] == "SPEC-70.02"
+    assert context["labels"] == ["beads", "codex"]
+    assert context["dependencies"] == ["dpcx-ea9"]
+    assert context["dependents"] == ["dpcx-pb5.19"]
+    assert context["read_first"][0] == "docs/specs/SPEC-70-02-task-intake.md"
+    assert "dp/cli/main.py" in context["mentioned_paths"]
+    assert "tests/unit/test_cli_task.py" in context["mentioned_paths"]
+    assert "docs/runbooks/task-json-output.md" in context["mentioned_paths"]
+    assert "claim/context" not in context["mentioned_paths"]
+    assert context["warnings"] == []
+    assert calls == [["ready", "--claim", "--json"]]
+
+
+def test_task_claim_json_claims_known_issue(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    calls: list[list[str]] = []
+    issue = {
+        "id": "dpcx-ea9.1",
+        "title": "Known issue claim",
+        "acceptance_criteria": "Claimed issue has acceptance.",
+    }
+
+    def fake_run_bd(args: Sequence[str]) -> CommandResult:
+        calls.append(list(args))
+        return CommandResult(returncode=0, stdout=json.dumps(issue) + "\n", stderr="")
+
+    monkeypatch.setattr(cli_main, "run_bd", fake_run_bd)
+
+    exit_code = cli_main.main(["task", "claim", "dpcx-ea9.1", "--json"])
+
+    assert exit_code == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["beads_command"] == ["update", "dpcx-ea9.1", "--claim", "--json"]
+    assert payload["context"]["issue_id"] == "dpcx-ea9.1"
+    assert calls == [["update", "dpcx-ea9.1", "--claim", "--json"]]
+
+
+def test_task_claim_json_surfaces_missing_context_guidance(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    def fake_run_bd(_: Sequence[str]) -> CommandResult:
+        return CommandResult(
+            returncode=0,
+            stdout=json.dumps({"id": "dpcx-blank", "title": "Ambiguous task"}) + "\n",
+            stderr="",
+        )
+
+    monkeypatch.setattr(cli_main, "run_bd", fake_run_bd)
+
+    exit_code = cli_main.main(["task", "claim", "--json"])
+
+    assert exit_code == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["context"]["read_first"] == []
+    assert payload["context"]["mentioned_paths"] == []
+    assert payload["context"]["warnings"] == [
+        "Claimed issue does not mention files or a spec id; inspect the issue before editing.",
+        "Claimed issue has no acceptance criteria.",
+    ]
+
+
+def test_task_claim_json_handles_missing_bd(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    def fake_run_bd(_: Sequence[str]) -> CommandResult:
+        raise BdUnavailableError("bd command not found")
+
+    monkeypatch.setattr(cli_main, "run_bd", fake_run_bd)
+
+    exit_code = cli_main.main(["task", "claim", "--json"])
+
+    assert exit_code == 127
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["command"] == "task.claim"
+    assert payload["ok"] is False
+    assert payload["exit_code"] == 127
+    assert payload["error"] == "bd command not found"
+    assert payload["beads_command"] == ["ready", "--claim", "--json"]
+    assert "context" not in payload
+
+
+def test_task_claim_json_handles_uninitialized_beads(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    def fake_run_bd(_: Sequence[str]) -> CommandResult:
+        raise BeadsNotInitializedError("No .beads directory found")
+
+    monkeypatch.setattr(cli_main, "run_bd", fake_run_bd)
+
+    exit_code = cli_main.main(["task", "claim", "dpcx-ea9.1", "--json"])
+
+    assert exit_code == 2
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["command"] == "task.claim"
+    assert payload["ok"] is False
+    assert payload["exit_code"] == 2
+    assert payload["error"] == "No .beads directory found"
+    assert payload["beads_command"] == ["update", "dpcx-ea9.1", "--claim", "--json"]
+    assert "context" not in payload
 
 
 def test_task_command_json_mode_handles_missing_bd(
