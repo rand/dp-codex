@@ -28,6 +28,10 @@ Quick command reference by workflow.
 1. `dp decompose --item "..." [--preset codex-small|codex-medium|codex-large] [--json]`
 2. `dp progress [--output-dir ...] [--watch] [--previous ...] [--json]`
 
+## Codex Session Integration
+
+1. `dp codex preflight --event session_start|stop [--strict] [--json]`
+
 ## Agent Goals
 
 1. `dp goal lint <goal.json> [--json]`

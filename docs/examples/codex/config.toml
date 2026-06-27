@@ -1,0 +1,16 @@
+[[hooks.SessionStart]]
+matcher = "startup|resume|compact"
+
+[[hooks.SessionStart.hooks]]
+type = "command"
+command = "dp codex preflight --event session_start --json"
+timeout = 10
+statusMessage = "Checking dp session context"
+
+[[hooks.Stop]]
+
+[[hooks.Stop.hooks]]
+type = "command"
+command = "dp codex preflight --event stop --json"
+timeout = 10
+statusMessage = "Checking dp stop context"

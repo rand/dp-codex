@@ -9,7 +9,7 @@ Goal: go from "what is this" to a completed task with traceability and verificat
 ```bash
 uv sync --dev
 dp doctor --json
-bd ready --json
+dp task ready --json
 ./hooks/install.sh
 make check
 ```
@@ -19,11 +19,11 @@ If this passes, your environment is healthy.
 ## 2. Pick A Task
 
 ```bash
-bd ready --claim --json
-bd show <issue-id>
+dp task claim --json
+dp task show <issue-id> --json
 ```
 
-If you already know the issue ID, claim it with `bd update <issue-id> --claim`.
+If you already know the issue ID, claim it with `dp task claim <issue-id> --json`.
 
 Read acceptance criteria before editing. Future you will appreciate past you.
 
@@ -64,6 +64,7 @@ dp enforce pre-commit --policy dp-policy.json --json
 ```bash
 git add .
 git commit -m "feat: concise summary"
+dp codex preflight --event stop --json
 dp review --json
 dp verify --json
 dp enforce pre-push --policy dp-policy.json --json

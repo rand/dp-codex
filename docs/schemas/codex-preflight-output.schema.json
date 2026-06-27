@@ -1,0 +1,124 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "dp codex preflight output",
+  "type": "object",
+  "required": [
+    "command",
+    "event",
+    "mode",
+    "ok",
+    "exit_code",
+    "blocking_count",
+    "advisory_count",
+    "active_issue",
+    "changed_files",
+    "evidence",
+    "checks",
+    "next_commands"
+  ],
+  "properties": {
+    "command": {
+      "const": "codex.preflight"
+    },
+    "event": {
+      "type": "string"
+    },
+    "mode": {
+      "type": "string",
+      "enum": ["guided", "strict"]
+    },
+    "ok": {
+      "type": "boolean"
+    },
+    "exit_code": {
+      "type": "integer",
+      "enum": [0, 1, 2]
+    },
+    "blocking_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "advisory_count": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "active_issue": {
+      "oneOf": [
+        {"type": "null"},
+        {
+          "type": "object",
+          "required": ["id", "title", "spec_id", "status", "issue_type", "labels"],
+          "properties": {
+            "id": {"type": ["string", "null"]},
+            "title": {"type": ["string", "null"]},
+            "spec_id": {"type": ["string", "null"]},
+            "status": {"type": ["string", "null"]},
+            "issue_type": {"type": ["string", "null"]},
+            "labels": {
+              "type": "array",
+              "items": {"type": "string"}
+            }
+          },
+          "additionalProperties": false
+        }
+      ]
+    },
+    "changed_files": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "evidence": {
+      "type": "object",
+      "required": [
+        "has_code_changes",
+        "has_test_changes",
+        "has_evidence_artifact_changes",
+        "has_docs_changes",
+        "missing_evidence_signal"
+      ],
+      "properties": {
+        "has_code_changes": {"type": "boolean"},
+        "has_test_changes": {"type": "boolean"},
+        "has_evidence_artifact_changes": {"type": "boolean"},
+        "has_docs_changes": {"type": "boolean"},
+        "missing_evidence_signal": {"type": "boolean"}
+      },
+      "additionalProperties": false
+    },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "status", "severity", "message"],
+        "properties": {
+          "id": {"type": "string"},
+          "status": {
+            "type": "string",
+            "enum": ["passed", "warning", "failed"]
+          },
+          "severity": {
+            "type": "string",
+            "enum": ["blocking", "advisory"]
+          },
+          "message": {"type": "string"},
+          "data": {"type": "object"}
+        },
+        "additionalProperties": false
+      }
+    },
+    "next_commands": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "error": {
+      "type": "object",
+      "required": ["code", "message"],
+      "properties": {
+        "code": {"type": "string"},
+        "message": {"type": "string"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

@@ -41,6 +41,7 @@ It provides:
 uv sync --dev
 dp doctor --json
 dp task claim --json
+dp codex preflight --event stop --json
 ./hooks/install.sh
 make check
 ```

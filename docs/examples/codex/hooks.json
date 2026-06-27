@@ -1,0 +1,29 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "startup|resume|compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "dp codex preflight --event session_start --json",
+            "timeout": 10,
+            "statusMessage": "Checking dp session context"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "dp codex preflight --event stop --json",
+            "timeout": 10,
+            "statusMessage": "Checking dp stop context"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -19,6 +19,7 @@ from dp.core.campaign_manifest import (
 from dp.core.campaign_readiness import ready_campaign
 from dp.core.campaign_refine import refine_campaign
 from dp.core.campaign_run import run_campaign_once
+from dp.core.codex_preflight import run_codex_preflight
 from dp.core.coverage import compute_trace_coverage
 from dp.core.decompose import decompose_items, resolve_context_window
 from dp.core.evidence_lint import lint_evidence_file
@@ -156,6 +157,18 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     doctor_parser.add_argument("--json", action="store_true")
     doctor_parser.set_defaults(handler=_run_doctor)
+
+    codex_parser = subparsers.add_parser("codex")
+    codex_subparsers = codex_parser.add_subparsers(dest="codex_command", required=True)
+
+    codex_preflight_parser = codex_subparsers.add_parser(
+        "preflight",
+        help="Run cheap deterministic checks for Codex session hooks.",
+    )
+    codex_preflight_parser.add_argument("--event", required=True)
+    codex_preflight_parser.add_argument("--strict", action="store_true")
+    codex_preflight_parser.add_argument("--json", action="store_true")
+    codex_preflight_parser.set_defaults(handler=_run_codex_preflight)
 
     goal_parser = subparsers.add_parser("goal")
     goal_subparsers = goal_parser.add_subparsers(dest="goal_command", required=True)
@@ -722,6 +735,31 @@ def _run_doctor(args: argparse.Namespace) -> int:
     if health.recovery_hint is not None:
         print(f"recovery: {health.recovery_hint}", file=sys.stderr)
     return 0 if health.ok else 2
+
+
+def _run_codex_preflight(args: argparse.Namespace) -> int:
+    result = run_codex_preflight(event=args.event, strict=args.strict)
+    if args.json:
+        print(json.dumps(result.payload, sort_keys=True))
+        return result.exit_code
+
+    if result.exit_code == 2:
+        error = result.payload.get("error", {})
+        message = error.get("message", "unsupported preflight event")
+        print(f"dp codex preflight error: {message}", file=sys.stderr)
+        return result.exit_code
+
+    print(f"Codex preflight: {'PASS' if result.payload['ok'] else 'BLOCKED'}")
+    print(f"Event: {result.payload['event']}")
+    print(f"Mode: {result.payload['mode']}")
+    print(f"Blocking findings: {result.payload['blocking_count']}")
+    print(f"Advisory findings: {result.payload['advisory_count']}")
+    for check in result.payload["checks"]:
+        print(
+            f"- {check['id']} [{check['severity']}/{check['status']}]: "
+            f"{check['message']}"
+        )
+    return result.exit_code
 
 
 def _run_goal_lint(args: argparse.Namespace) -> int:

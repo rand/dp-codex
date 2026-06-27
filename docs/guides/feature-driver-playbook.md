@@ -7,7 +7,7 @@ Goal: deliver predictable outcomes while coordinating specs, tasks, and verifica
 ## Planning Pattern
 
 1. Check local health: `dp doctor --json`
-2. Claim a bounded task: `bd ready --claim --json` or `bd update <id> --claim`
+2. Claim a bounded task: `dp task claim --json` or `dp task claim <id> --json`
 3. If the task has a GoalContract, validate it with `dp goal lint <goal.json> --json`.
 4. Keep each task one logical outcome.
 5. Discover follow-up work immediately when surfaced.
@@ -25,7 +25,8 @@ Goal: deliver predictable outcomes while coordinating specs, tasks, and verifica
 ## Recommended Loop For Each Task
 
 ```bash
-bd show <id>
+dp task show <id> --json
+dp codex preflight --event stop --json
 dp trace validate --json
 dp trace coverage --json
 dp goal lint <goal.json> --json  # when a GoalContract exists

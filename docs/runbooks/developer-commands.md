@@ -50,6 +50,7 @@ This keeps hook behavior and CI behavior aligned against the same versioned poli
 ```bash
 dp doctor --json
 dp task claim --json
+dp codex preflight --event stop --json
 make check
 uv run dp enforce pre-commit --policy dp-policy.json --json
 ```
@@ -84,4 +85,5 @@ bd --readonly status --json
 1. `/docs/guides/quickstart-first-feature.md`
 2. `/docs/guides/feature-driver-playbook.md`
 3. `/docs/runbooks/goal-workflow.md`
-4. `/docs/reference/cli-workflow-reference.md`
+4. `/docs/runbooks/codex-integration.md`
+5. `/docs/reference/cli-workflow-reference.md`

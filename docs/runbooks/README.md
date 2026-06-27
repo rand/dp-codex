@@ -9,6 +9,7 @@ Runbooks are operational, step-by-step documents for repeatable execution.
 3. `policy-workflow.md`: policy configuration and validation
 4. `enforcement-workflow.md`: hook/CI enforcement and bypass protocol
 5. `troubleshooting.md`: failure diagnosis and recovery
+6. `codex-integration.md`: opt-in Codex guidance, hooks, and cheap preflight checks
 
 ## Workflow-Specific Runbooks
 

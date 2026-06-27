@@ -6,7 +6,9 @@ from pathlib import Path
 
 from jsonschema import validate
 
+import dp.core.codex_preflight as codex_preflight
 from dp.core.review import ReviewReport
+from dp.providers.beads import BeadsHealth, CommandResult
 
 cli_main = importlib.import_module("dp.cli.main")
 
@@ -137,6 +139,44 @@ def test_evidence_run_json_output_matches_schema(capsys) -> None:
     validate(instance=payload, schema=schema)
 
 
+def test_codex_preflight_json_output_matches_schema(capsys, monkeypatch) -> None:
+    schema = json.loads(
+        Path("docs/schemas/codex-preflight-output.schema.json").read_text(encoding="utf-8")
+    )
+    monkeypatch.setattr(codex_preflight, "check_beads_health", _healthy_beads)
+    monkeypatch.setattr(
+        codex_preflight,
+        "run_bd",
+        lambda _: CommandResult(
+            returncode=0,
+            stdout=json.dumps(
+                [
+                    {
+                        "id": "dpcx-ea9.2",
+                        "title": "Add Codex integration",
+                        "spec_id": "SPEC-70.03",
+                        "status": "in_progress",
+                        "issue_type": "task",
+                        "labels": ["codex"],
+                    }
+                ]
+            ),
+            stderr="",
+        ),
+    )
+    monkeypatch.setattr(
+        codex_preflight,
+        "_git_changed_files",
+        lambda: (["dp/cli/main.py", "tests/unit/test_cli_codex.py"], None),
+    )
+
+    exit_code = cli_main.main(["codex", "preflight", "--event", "stop", "--json"])
+
+    assert exit_code == 0
+    payload = json.loads(capsys.readouterr().out)
+    validate(instance=payload, schema=schema)
+
+
 def test_loop_lint_json_output_matches_schema(capsys) -> None:
     schema = json.loads(
         Path("docs/schemas/loop-lint-output.schema.json").read_text(encoding="utf-8")
@@ -149,6 +189,24 @@ def test_loop_lint_json_output_matches_schema(capsys) -> None:
     assert exit_code == 0
     payload = json.loads(capsys.readouterr().out)
     validate(instance=payload, schema=schema)
+
+
+def _healthy_beads() -> BeadsHealth:
+    return BeadsHealth(
+        ok=True,
+        repo_root="/repo",
+        beads_dir="/repo/.beads",
+        bd_available=True,
+        bd_version="bd version 1.0.4",
+        initialized=True,
+        issue_prefix="dpcx",
+        issue_count=10,
+        ready_count=1,
+        sync_command_available=False,
+        warnings=(),
+        errors=(),
+        recovery_hint=None,
+    )
 
 
 def test_campaign_lint_json_output_matches_schema(capsys) -> None:

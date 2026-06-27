@@ -9,8 +9,8 @@ Prefer small, independently verifiable increments over large multi-concern chang
 ## Work Intake
 
 1. Run `dp doctor --json` to confirm Beads and local workflow health.
-2. Pull and claim ready work with `bd ready --claim --json`, or claim a known issue with `bd update <id> --claim`.
-3. Read only the files listed in the issue context before editing.
+2. Pull and claim ready work with `dp task claim --json`, or claim a known issue with `dp task claim <id> --json`.
+3. Read the returned `context.read_first` files before editing.
 
 ## Implementation Rules
 
@@ -39,7 +39,8 @@ If a command does not exist yet, create a follow-up issue and run the closest eq
    `bd close <id> --reason "<what was implemented and verified>"`
 3. Confirm tracker health:
    `dp doctor --json`
-4. Export or back up tracker state only through current Beads commands, such as
+4. Run `dp codex preflight --event stop --json` for a cheap session-status check.
+5. Export or back up tracker state only through current Beads commands, such as
    `bd export`, `bd backup sync`, or `bd vc status`.
 
 ## Session Completion Protocol

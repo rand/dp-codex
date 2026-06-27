@@ -9,10 +9,10 @@
 ## Work Intake And Closure
 
 1. Start from `dp doctor --json`.
-2. Claim ready work with `bd ready --claim --json`, or claim known work with `bd update <id> --claim`.
+2. Claim ready work with `dp task claim --json`, or claim known work with `dp task claim <id> --json`.
 3. Keep task scope tight and verifiable.
 4. Close with explicit rationale and verification evidence.
-5. Run `dp doctor --json` and `bd --readonly status --json` after close.
+5. Run `dp codex preflight --event stop --json`, `dp doctor --json`, and `bd --readonly status --json` after close.
 
 ## Code Change Rules
 

@@ -28,7 +28,7 @@ uv sync --dev
 
 ```bash
 dp doctor --json
-bd ready --json
+dp task ready --json
 ```
 
 4. Run the canonical quality gates:
@@ -51,11 +51,17 @@ At the start of each implementation session:
 
 ```bash
 dp doctor --json
-bd ready --claim --json
+dp task claim --json
 ```
 
-If you already know the issue ID, use `bd update <issue-id> --claim`. Use
-`bd show <issue-id>` to confirm acceptance criteria before editing.
+If you already know the issue ID, use `dp task claim <issue-id> --json`. Use
+`dp task show <issue-id> --json` to confirm acceptance criteria before editing.
+
+For Codex sessions, a cheap stop-time status check is:
+
+```bash
+dp codex preflight --event stop --json
+```
 
 ## Troubleshooting
 
