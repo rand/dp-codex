@@ -68,6 +68,7 @@ Supervised handoff command:
 
 ```bash
 dp campaign run <campaign.json> --driver codex --supervised --json
+dp campaign run <campaign.json> --driver codex --supervised --managed --json
 ```
 
 `run` validates campaign state, resolves `state.current_loop`, and uses the same resume decision as
@@ -75,6 +76,9 @@ dp campaign run <campaign.json> --driver codex --supervised --json
 without a new claim. Otherwise it claims one ready goal through the LoopLedger protocol, appends a
 campaign `handoff_claimed` event under `.dp/campaigns/events.jsonl`, emits a Codex handoff package,
 and stops. It does not launch an agent, execute evidence, or mark a campaign or goal verified.
+`--managed` adds stable `stop_reason` and `iterations` fields so agent callers can distinguish
+handoff, active-claim, stale-lease, evidence-pending, blocker, verified, and no-ready states without
+interpreting the full status payload.
 
 Beads synchronization command:
 
@@ -129,7 +133,8 @@ Safety rules:
 2. `dp campaign refine --llm` is explicit authoring: dp emits a request and imports a response
    artifact; the calling agent performs any model/network call.
 3. Campaign commands never execute evidence checks.
-4. `dp campaign run` claims at most one ready goal and remains a supervised single-step adapter.
+4. `dp campaign run` claims at most one ready goal and remains a supervised single-step adapter,
+   including managed mode.
 5. Campaign status is derived from linted artifacts and append-only goal events.
 6. Recovery does not consult chat memory or hidden state.
 7. A goal in `evidence_pending` is not treated as verified.

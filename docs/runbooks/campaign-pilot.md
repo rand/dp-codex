@@ -26,6 +26,7 @@ dp campaign ready docs/campaigns/CAMPAIGN-field-report-cli.json --json
 # Resolve any readiness findings through reviewed child specs, ADRs, validators, Beads links, and edges.
 dp campaign ready docs/campaigns/CAMPAIGN-field-report-cli.json --write --json
 dp campaign run docs/campaigns/CAMPAIGN-field-report-cli.json --driver codex --supervised --json
+dp campaign run docs/campaigns/CAMPAIGN-field-report-cli.json --driver codex --supervised --managed --json
 dp verify --goal docs/goals/GOAL-field-report-cli-001.json --json
 dp campaign recover docs/campaigns/CAMPAIGN-field-report-cli.json --json
 ```
@@ -38,7 +39,8 @@ docs/evidence-runs/RUN-GOAL-field-report-cli-001.json
 
 ## Canonical Agent Path
 
-An agent should use the supervised handoff package from `dp campaign run`. The package contains:
+An agent should use the supervised handoff package from `dp campaign run`; `--managed` is the
+preferred form when the caller needs a stable `stop_reason`. The package contains:
 
 1. `codex_goal`
 2. `read_first`

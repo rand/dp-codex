@@ -17,9 +17,10 @@ DP-Codex treats machine-readable output as a product surface, not a side effect.
 11. `/docs/schemas/campaign-refine-llm-response.schema.json`
 12. `/docs/schemas/campaign-ready-output.schema.json`
 13. `/docs/schemas/campaign-run-output.schema.json`
-14. `/docs/schemas/campaign-sync-beads-output.schema.json`
-15. `/.dp/campaigns/events.jsonl` append-only campaign handoff events.
-16. `/docs/evidence-runs/*.json` `dp evidence run` artifacts.
+14. `/docs/schemas/agent-launch-output.schema.json`
+15. `/docs/schemas/campaign-sync-beads-output.schema.json`
+16. `/.dp/campaigns/events.jsonl` append-only campaign handoff events.
+17. `/docs/evidence-runs/*.json` `dp evidence run` artifacts.
 
 ## Contracted Command Families
 
@@ -30,7 +31,7 @@ DP-Codex treats machine-readable output as a product surface, not a side effect.
 5. `dp enforce ... --json`
 6. `dp goal lint ... --json`
 7. `dp goal status/claim/start/heartbeat/block/release/complete/verify/emit ... --json`
-8. `dp agent prompt ... --json`
+8. `dp agent prompt/launch ... --json`
 9. `dp evidence lint/run ... --json`, including `dp evidence run --output`.
 10. `dp loop lint/status/next ... --json`
 11. `dp campaign init/refine/ready/lint/status/recover/run/sync-beads ... --json`

@@ -24,23 +24,20 @@
   },
   "additionalProperties": true,
   "properties": {
+    "agent": {
+      "type": "string"
+    },
     "autonomous": {
       "const": false
     },
-    "campaign_id": {
-      "type": [
-        "string",
-        "null"
-      ]
-    },
-    "campaign_event": {
+    "claim": {
       "type": "object"
     },
-    "campaign_event_log": {
+    "codex_goal": {
       "type": "string"
     },
     "command": {
-      "const": "campaign.run"
+      "const": "agent.launch"
     },
     "driver": {
       "type": "string"
@@ -48,41 +45,29 @@
     "error": {
       "$ref": "#/$defs/error"
     },
+    "goal_id": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "goal_path": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
     "launched": {
       "const": false
     },
-    "message": {
-      "type": "string"
-    },
     "mode": {
-      "enum": [
-        "supervised_once",
-        "managed_supervised"
-      ]
-    },
-    "max_steps": {
-      "type": "integer"
-    },
-    "iterations": {
-      "items": {
-        "type": "object"
-      },
-      "type": "array"
-    },
-    "next": {
-      "type": "object"
+      "const": "supervised_goal_launch"
     },
     "ok": {
       "type": "boolean"
     },
-    "status": {
+    "start": {
       "type": "object"
-    },
-    "resume": {
-      "type": "object"
-    },
-    "stop_reason": {
-      "type": "string"
     },
     "stop_conditions": {
       "items": {
@@ -99,12 +84,11 @@
     "command",
     "mode",
     "driver",
-    "campaign_id",
     "supervised",
     "autonomous",
     "launched",
     "stop_conditions"
   ],
-  "title": "Campaign run output",
+  "title": "Agent launch output",
   "type": "object"
 }

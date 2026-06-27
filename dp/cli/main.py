@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any, Callable, Sequence, TextIO, cast
 
 from dp.core.adr import create_adr, list_adrs, show_adr, update_adr_status
+from dp.core.agent_launch import launch_agent_goal
 from dp.core.campaign_beads_sync import sync_campaign_beads
 from dp.core.campaign_init import init_campaign_from_primary_spec
 from dp.core.campaign_manifest import (
@@ -389,6 +390,18 @@ def _build_parser() -> argparse.ArgumentParser:
     agent_prompt_parser.add_argument("--json", action="store_true")
     agent_prompt_parser.set_defaults(handler=_run_agent_prompt)
 
+    agent_launch_parser = agent_subparsers.add_parser(
+        "launch",
+        help="Claim and start one goal, then emit a supervised agent handoff package.",
+    )
+    agent_launch_parser.add_argument("--goal", required=True)
+    agent_launch_parser.add_argument("--driver", default="codex")
+    agent_launch_parser.add_argument("--agent", default="codex")
+    agent_launch_parser.add_argument("--lease", default="2h")
+    agent_launch_parser.add_argument("--supervised", action="store_true")
+    agent_launch_parser.add_argument("--json", action="store_true")
+    agent_launch_parser.set_defaults(handler=_run_agent_launch)
+
     evidence_parser = subparsers.add_parser("evidence")
     evidence_subparsers = evidence_parser.add_subparsers(
         dest="evidence_command",
@@ -516,6 +529,8 @@ def _build_parser() -> argparse.ArgumentParser:
     campaign_run_parser.add_argument("--agent", default="codex")
     campaign_run_parser.add_argument("--lease", default="2h")
     campaign_run_parser.add_argument("--supervised", action="store_true")
+    campaign_run_parser.add_argument("--managed", action="store_true")
+    campaign_run_parser.add_argument("--max-steps", type=int, default=1)
     campaign_run_parser.add_argument("--json", action="store_true")
     campaign_run_parser.set_defaults(handler=_run_campaign_run)
 
@@ -781,6 +796,19 @@ def _run_agent_prompt(args: argparse.Namespace) -> int:
     return _emit_goal_command_result(result, args.json)
 
 
+def _run_agent_launch(args: argparse.Namespace) -> int:
+    return _emit_goal_command_result(
+        launch_agent_goal(
+            Path(args.goal),
+            driver=args.driver,
+            supervised=args.supervised,
+            agent=args.agent,
+            lease=args.lease,
+        ),
+        args.json,
+    )
+
+
 def _run_evidence_lint(args: argparse.Namespace) -> int:
     result = lint_evidence_file(Path(args.evidence))
 
@@ -919,6 +947,8 @@ def _run_campaign_run(args: argparse.Namespace) -> int:
             supervised=args.supervised,
             agent=args.agent,
             lease=args.lease,
+            managed=args.managed,
+            max_steps=args.max_steps,
         ),
         args.json,
     )

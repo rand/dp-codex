@@ -15,7 +15,8 @@ Reference docs are lookup-oriented and terse by design.
 9. `/docs/reference/campaign-refine.md`
 10. `/docs/reference/campaign-ready.md`
 11. `/docs/reference/campaign-run.md`
-12. `/docs/reference/campaign-beads-sync.md`
+12. `/docs/reference/agent-launch.md`
+13. `/docs/reference/campaign-beads-sync.md`
 
 ## JSON Contract Reference
 
@@ -32,6 +33,7 @@ Reference docs are lookup-oriented and terse by design.
 11. `/docs/schemas/campaign-refine-llm-response.schema.json`
 12. `/docs/schemas/campaign-ready-output.schema.json`
 13. `/docs/schemas/campaign-run-output.schema.json`
-14. `/docs/schemas/campaign-sync-beads-output.schema.json`
+14. `/docs/schemas/agent-launch-output.schema.json`
+15. `/docs/schemas/campaign-sync-beads-output.schema.json`
 
 When you need a concept, use `/docs/concepts/`. When you need a sequence, use `/docs/guides/` or `/docs/runbooks/`.

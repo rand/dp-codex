@@ -286,6 +286,91 @@ def test_campaign_run_json_output_matches_schema(
     validate(instance=payload, schema=schema)
 
 
+def test_campaign_managed_run_json_output_matches_schema(
+    tmp_path: Path,
+    capsys,
+    monkeypatch,
+) -> None:
+    schema = json.loads(
+        Path("docs/schemas/campaign-run-output.schema.json").read_text(encoding="utf-8")
+    )
+    primary_spec = tmp_path / "docs/primary/product.md"
+    primary_spec.parent.mkdir(parents=True)
+    primary_spec.write_text(
+        "# Product\n\n## Requirements\n\nThe managed runner must report a stop reason.\n\n"
+        "## Evidence\n\nRun campaign managed-run schema tests.\n",
+        encoding="utf-8",
+    )
+    monkeypatch.chdir(tmp_path)
+    assert (
+        cli_main.main(
+            [
+                "campaign",
+                "init",
+                "--primary-spec",
+                "docs/primary/product.md",
+                "--write",
+                "--json",
+            ]
+        )
+        == 0
+    )
+    init_payload = json.loads(capsys.readouterr().out)
+
+    exit_code = cli_main.main(
+        [
+            "campaign",
+            "run",
+            init_payload["artifacts"]["campaign"],
+            "--driver",
+            "codex",
+            "--supervised",
+            "--managed",
+            "--json",
+        ]
+    )
+
+    assert exit_code == 1
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["mode"] == "managed_supervised"
+    assert payload["stop_reason"] == "campaign_not_ready"
+    validate(instance=payload, schema=schema)
+
+
+def test_agent_launch_json_output_matches_schema(
+    tmp_path: Path,
+    capsys,
+    monkeypatch,
+) -> None:
+    schema = json.loads(
+        Path("docs/schemas/agent-launch-output.schema.json").read_text(encoding="utf-8")
+    )
+    goal_path = tmp_path / "goal.json"
+    goal_path.write_text(
+        Path("tests/fixtures/goals/valid_spec_70_01.json").read_text(encoding="utf-8"),
+        encoding="utf-8",
+    )
+    monkeypatch.chdir(tmp_path)
+
+    exit_code = cli_main.main(
+        [
+            "agent",
+            "launch",
+            "--goal",
+            "goal.json",
+            "--driver",
+            "codex",
+            "--supervised",
+            "--json",
+        ]
+    )
+
+    assert exit_code == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["command"] == "agent.launch"
+    validate(instance=payload, schema=schema)
+
+
 def test_campaign_ready_json_output_matches_schema(
     tmp_path: Path,
     capsys,

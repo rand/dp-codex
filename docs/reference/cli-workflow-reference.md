@@ -40,6 +40,7 @@ Quick command reference by workflow.
 9. `dp goal verify <goal.json> --evidence <run.json> [--json]`
 10. `dp goal emit <goal.json> --format codex [--json]`
 11. `dp agent prompt --goal <goal.json> --format codex [--json]`
+12. `dp agent launch --goal <goal.json> --driver codex [--agent codex] [--lease 2h] --supervised [--json]`
 
 ## Evidence Plans
 
@@ -60,7 +61,7 @@ Quick command reference by workflow.
 4. `dp campaign lint <campaign.json> [--json]`
 5. `dp campaign status <campaign.json> [--json]`
 6. `dp campaign recover <campaign.json> [--json]`
-7. `dp campaign run <campaign.json> --driver codex --supervised [--agent codex] [--lease 2h] [--json]`
+7. `dp campaign run <campaign.json> --driver codex --supervised [--managed] [--max-steps 1] [--agent codex] [--lease 2h] [--json]`
 8. `dp campaign sync-beads <campaign.json> [--write] [--json]`
 
 ## Review And Verification

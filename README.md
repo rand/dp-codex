@@ -31,8 +31,9 @@ It provides:
 11. Conservative campaign scaffolding from local primary specs
 12. Campaign resume handoffs and event logs for future agent sessions
 13. Deterministic campaign readiness promotion from draft authoring artifacts to executable graphs
-14. A supervised campaign run step that claims one next goal and emits a Codex-operable handoff
-15. Explicit Beads lifecycle synchronization for campaign dependencies and goal state
+14. Supervised and managed campaign run steps that claim at most one next goal and emit Codex-operable handoffs with stable stop reasons
+15. `dp agent launch` as a goal-level adapter that claims, starts, and emits a handoff package without spawning Codex
+16. Explicit Beads lifecycle synchronization for campaign dependencies and goal state
 
 ## Quick Start
 
@@ -71,6 +72,8 @@ dp campaign status docs/campaigns/CAMPAIGN-my-project.json --json
 dp campaign recover docs/campaigns/CAMPAIGN-my-project.json --json
 dp loop next docs/loops/LOOP-my-campaign.json --claim --emit codex --json
 dp campaign run docs/campaigns/CAMPAIGN-my-project.json --driver codex --supervised --json
+dp campaign run docs/campaigns/CAMPAIGN-my-project.json --driver codex --supervised --managed --json
+dp agent launch --goal docs/goals/GOAL-my-feature.json --driver codex --supervised --json
 dp campaign sync-beads docs/campaigns/CAMPAIGN-my-project.json --write --json
 ```
 
@@ -149,6 +152,7 @@ Reference and contributor standards:
 - `docs/reference/campaign-init.md`
 - `docs/reference/campaign-refine.md`
 - `docs/reference/campaign-run.md`
+- `docs/reference/agent-launch.md`
 - `docs/developer/contributor-handbook.md`
 - `docs/developer/documentation-style.md`
 
@@ -174,11 +178,15 @@ metadata. `dp campaign ready <campaign.json> --write --json` promotes a campaign
 ready only when deterministic graph-readiness gates pass: linted artifacts, explicit acyclic
 dependencies, node EvidencePlan alignment, child specs, Beads issue links, resolved decision/ADR
 coverage, and no unresolved `needs_*` or LLM dependency hints. `dp campaign run <campaign.json>
---driver codex --supervised --json` now provides the
-first supervised runner slice: it validates campaign state, resolves the current loop, claims one
-ready goal, emits the Codex handoff package, and stops without launching Codex, executing evidence,
-or marking work verified. If a current-loop goal already has an active non-stale claim, `campaign
-run` returns a resume package instead of claiming over it. `dp goal block --write-artifact` now
+--driver codex --supervised --json` now provides the first supervised runner slice: it validates
+campaign state, resolves the current loop, claims one ready goal, emits the Codex handoff package,
+and stops without launching Codex, executing evidence, or marking work verified. `--managed` wraps
+the same protocol in stable stop reasons such as `handoff_claimed`, `active_claim`, `stale_lease`,
+`evidence_pending`, `blocked`, `campaign_verified`, and `no_ready_work`. If a current-loop goal
+already has an active non-stale claim, `campaign run` returns a resume package instead of claiming
+over it. `dp agent launch --goal <goal.json> --driver codex --supervised --json` claims and starts
+one valid GoalContract, emits the Codex handoff package, and stops without spawning Codex.
+`dp goal block --write-artifact` now
 resolves GoalContract `blocked_routes` into spec, ADR, or EvidencePlan stubs and optional Beads
 follow-ups, with routing metadata recorded in the append-only goal event.
 `dp campaign sync-beads <campaign.json> --write --json` now reconciles current loop dependencies
@@ -212,5 +220,8 @@ cp tests/fixtures/primary_specs/scaffold_full.md "$tmpdir/primary.md"
 (cd "$tmpdir" && dp campaign init --primary-spec primary.md --write --json)
 (cd "$tmpdir" && dp campaign refine docs/campaigns/CAMPAIGN-primary.json --json)
 (cd "$tmpdir" && dp campaign refine docs/campaigns/CAMPAIGN-primary.json --llm --json)
-(cd "$tmpdir" && dp campaign run docs/campaigns/CAMPAIGN-primary.json --driver codex --supervised --json)
+agent_tmp="$(mktemp -d)"
+cp tests/fixtures/goals/valid_spec_70_01.json "$agent_tmp/goal.json"
+(cd "$agent_tmp" && dp agent launch --goal goal.json --driver codex --supervised --json)
+pytest tests/test_campaign_run.py tests/test_campaign_managed_run.py tests/test_agent_launch.py
 ```

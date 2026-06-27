@@ -34,7 +34,12 @@ GoalContract through dp without relying on chat memory.
     artifacts to a ready campaign graph.
 18. `dp campaign run <campaign.json> --driver codex --supervised`: one-step supervised handoff
     that validates campaign state, claims one ready goal, emits the Codex package, and stops.
-19. `dp campaign sync-beads <campaign.json> --write`: explicit reconciliation from LoopLedger and
+19. `dp campaign run <campaign.json> --driver codex --supervised --managed`: managed supervised
+    handoff that returns stable stop reasons such as `handoff_claimed`, `active_claim`,
+    `stale_lease`, `evidence_pending`, `blocked`, `campaign_verified`, and `no_ready_work`.
+20. `dp agent launch --goal <goal.json> --driver codex --supervised`: goal-level adapter that
+    claims and starts one GoalContract and emits the Codex package without spawning Codex.
+21. `dp campaign sync-beads <campaign.json> --write`: explicit reconciliation from LoopLedger and
     goal events back to Beads dependency/status surfaces.
 
 ## What Does Not Exist Yet
@@ -171,6 +176,7 @@ When a campaign has a current loop, ask dp to prepare exactly one Codex handoff:
 
 ```bash
 dp campaign run docs/campaigns/CAMPAIGN-example.json --driver codex --supervised --json
+dp campaign run docs/campaigns/CAMPAIGN-example.json --driver codex --supervised --managed --json
 ```
 
 The returned `next` object is the same package produced by `dp loop next --claim --emit codex`.
@@ -185,6 +191,23 @@ This command is supervised by design. It claims at most one ready goal and exits
 Codex, run evidence, verify the goal, or continue to another node. Use the emitted lifecycle
 commands to operate the claimed goal, then call `dp campaign run` again when the campaign is ready
 for another handoff.
+
+Use `--managed` when the caller wants dp to classify the next action with a stable
+`stop_reason`. Managed mode stops before claiming when it sees stale leases, active claims,
+evidence pending verification, blocked goals, verified campaigns, or no ready work.
+
+## Launch One Goal Adapter
+
+When a caller already has a specific goal path and wants the same supervised lifecycle package,
+use `agent launch`:
+
+```bash
+dp agent launch --goal docs/goals/GOAL-example.json --driver codex --supervised --json
+```
+
+The command validates the GoalContract, claims it with a finite lease, starts it for the named
+agent, emits the Codex `/goal` package, and exits with `launched: false`. It is a protocol adapter,
+not direct process launch.
 
 ## Synchronize Beads
 

@@ -90,8 +90,18 @@ not call an LLM, execute evidence, mutate Beads, launch an agent, or mark work v
 `dp campaign run <campaign.json> --driver codex --supervised --json` is a supervised operation
 adapter, not an autonomous runner. It validates campaign status, resolves the current loop, calls
 the same ready-node path as `dp loop next --claim --emit codex`, returns one Codex handoff package,
-and exits. It records only the underlying claim event. It does not launch Codex, execute evidence,
-append verified events, or continue to additional goals.
+and exits. It records only the underlying claim event.
+
+`dp campaign run ... --managed --json` uses the same underlying protocol but returns a stable
+`stop_reason` envelope for agent callers. It stops before claiming when there is a stale lease,
+active claim, evidence-pending goal, blocked goal, verified loop, or no ready work. When it does
+claim, it claims at most one ready goal and appends the same campaign handoff event as one-step
+mode.
+
+`dp agent launch --goal <goal.json> --driver codex --supervised --json` is a goal-level adapter.
+It emits a valid Codex goal package, claims the goal, starts it, and exits with `launched=false`.
+It does not spawn Codex, execute evidence, append verified events, mutate Beads, or continue to
+additional goals.
 
 `dp campaign sync-beads <campaign.json> --json` is explicit reconciliation between dp campaign
 state and Beads issue/dependency state. Dry-run mode validates the campaign, resolves the current

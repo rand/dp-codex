@@ -5,6 +5,7 @@ operation.
 
 ```bash
 dp campaign run docs/campaigns/CAMPAIGN-example.json --driver codex --supervised --json
+dp campaign run docs/campaigns/CAMPAIGN-example.json --driver codex --supervised --managed --json
 ```
 
 The command:
@@ -29,11 +30,42 @@ For generated campaigns, run `dp campaign ready <campaign.json> --write --json` 
 `state.status` is still `draft` and returns a `campaign_not_ready` error with the exact readiness
 promotion command. This keeps draft compiler/refinement markers out of agent handoffs.
 
-Successful output has command `campaign.run`, mode `supervised_once`, `autonomous: false`, and
-`launched: false`. When a new goal is claimed, the `next` object is the `loop.next` package
+Successful one-step output has command `campaign.run`, mode `supervised_once`, `autonomous: false`,
+and `launched: false`. When a new goal is claimed, the `next` object is the `loop.next` package
 containing the goal id, read-first paths, evidence plan, allowed paths, lease, Codex `/goal` text,
 and lifecycle/evidence commands. When a current-loop goal already has an active non-stale claim,
 the `next` object is a `campaign.resume` package with action `resume_claimed_goal`.
+
+## Managed Mode
+
+`--managed` wraps the same supervised protocol in a stable stop-reason envelope:
+
+```bash
+dp campaign run docs/campaigns/CAMPAIGN-example.json \
+  --driver codex --supervised --managed --max-steps 1 --json
+```
+
+Managed mode still claims at most one ready goal per invocation. It exists so a human, Codex
+session, or future thin adapter can ask dp for the next campaign action and receive a deterministic
+answer without interpreting the full status payload itself.
+
+Managed output has mode `managed_supervised`, `autonomous: false`, `launched: false`,
+`stop_reason`, `iterations`, `next`, and `stop_conditions`.
+
+Stable stop reasons:
+
+1. `campaign_not_ready`: the manifest is still draft; run `dp campaign ready`.
+2. `stale_lease`: a stale claim is present and must be handled explicitly before advancing.
+3. `active_claim`: resume the active claimed/started/pursuing goal.
+4. `evidence_pending`: verify recorded evidence before claiming more work.
+5. `blocked`: resolve the blocker route before dependent work advances.
+6. `handoff_claimed`: one ready goal was claimed and emitted for Codex.
+7. `campaign_verified`: all current-loop goals are verified.
+8. `no_ready_work`: no goal is ready, active, blocked, evidence-pending, or verified.
+9. `invalid_max_steps`: the requested managed step bound is outside the supported range.
+
+`--max-steps` is bounded for API stability. In this slice the command still stops after one
+observed condition or one handoff, so it is not a background multi-goal runner.
 
 New-claim runs also include:
 
@@ -52,9 +84,11 @@ New-claim runs also include:
 
 Exit codes:
 
-1. `0`: one supervised handoff was prepared.
-2. `1`: a loaded campaign or loop is invalid, or no ready goal could be prepared.
-3. `2`: missing `--supervised`, unsupported driver, malformed input, missing file, or incomplete
-   command input.
+1. `0`: a handoff was prepared, an active claim should be resumed, or the current loop is already
+   verified.
+2. `1`: a loaded campaign or loop is invalid, no ready goal could be prepared, evidence is pending,
+   a blocker must be resolved, or a stale lease requires explicit handling.
+3. `2`: missing `--supervised`, unsupported driver, invalid `--max-steps`, malformed input,
+   missing file, or incomplete command input.
 
 The JSON contract is documented in `/docs/schemas/campaign-run-output.schema.json`.

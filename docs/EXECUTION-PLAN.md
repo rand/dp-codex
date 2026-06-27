@@ -237,6 +237,58 @@ Separate stable process logic from agent-platform integration.
 3. Strict checks are available for risky changes while routine work keeps a
    low-friction guided path.
 
+## M8: Agent Campaign Control Plane
+
+### Outcomes
+
+1. A comprehensive primary spec can become a durable campaign made of child
+   specs, ADRs, Beads work, GoalContracts, EvidencePlans, LoopLedgers, and
+   CampaignManifests.
+2. A human or Codex session can ask dp for the next goal, claim it, start it,
+   record evidence, verify completion, block with artifact routing, release, or
+   recover from repo artifacts without chat memory.
+3. Agent-facing adapters remain thin and supervised: they emit contracts,
+   record state, and stop; they do not become background autonomous runners or
+   verification judges.
+
+### Tasks
+
+1. Maintain deterministic gates for goal, evidence, loop, campaign, readiness,
+   and output-schema contracts.
+2. Keep primary-spec campaign scaffold and refinement authoring separate from
+   readiness and verification gates.
+3. Keep LLM refinement agent-mediated with provenance and deterministic import
+   validation; no LLM calls in hooks, CI, lint, evidence assertions, or
+   verification judgments.
+4. Keep Beads as the issue/dependency substrate through explicit
+   materialization and synchronization commands.
+5. Harden the supervised operation protocol with campaign recovery,
+   managed stop reasons, and goal-level launch adapters before considering any
+   direct process launch.
+6. Prove end-to-end human and agent flows in isolated pilot tests, not by
+   self-reported agent completion.
+
+### Current Implemented Surface
+
+1. GoalContract lint, append-only goal state, blocker artifact routing, Codex
+   goal emission, EvidencePlan lint/run, evidence-backed goal verification,
+   LoopLedger lint/status/next, CampaignManifest lint/status/recover/init,
+   deterministic refine, agent-mediated LLM refinement import, campaign
+   readiness, campaign run, campaign sync-beads, managed run, and agent launch.
+2. Remaining tracked work includes primary-spec intake/source UX adapters and
+   any future direct Codex subprocess launch or multi-goal supervised runner,
+   only after the manual and managed protocols remain reliable.
+
+### Exit Criteria
+
+1. A realistic non-dp primary spec pilot can be scaffolded, refined, promoted to
+   ready, handed to Codex, verified through evidence, blocked into artifacts,
+   synchronized to Beads, and recovered by a future session.
+2. All campaign-control command families have stable JSON output, explicit exit
+   semantics, schema or focused CLI tests, and reference/runbook docs.
+3. `make check`, trace validation/coverage, dp verify, and dp doctor pass before
+   closing implementation slices.
+
 ## 7. Codex Optimization Strategy
 
 ## Task Sizing Rules

@@ -29,6 +29,12 @@ draft authoring artifacts to executable campaign graphs: it requires linted arti
 acyclic loop edges, aligned node evidence, child specs, Beads issue links, resolved ADR coverage
 for decision-like nodes, no unresolved `needs_*` metadata, and materialized LLM dependency hints
 before setting `state.status=ready`.
+`dp campaign run --driver codex --supervised --managed --json` now wraps the same handoff protocol
+in a stable stop-reason envelope for agent callers, stopping on stale leases, active claims,
+pending evidence, blockers, verified loops, no ready work, or one claimed handoff. `dp agent launch
+--goal <goal.json> --driver codex --supervised --json` now claims and starts one valid
+GoalContract, emits the Codex package, and exits without spawning Codex, running evidence, mutating
+Beads, or marking work verified.
 
 ## 1. Thesis
 
@@ -719,13 +725,16 @@ Target:
 
 ```bash
 dp agent prompt --goal <goal.json> --format codex --json
-dp agent launch --goal <goal.json> --driver codex
-dp campaign run <campaign.json> --driver codex --supervised
+dp agent launch --goal <goal.json> --driver codex --supervised --json
+dp campaign run <campaign.json> --driver codex --supervised [--managed] --json
 ```
 
 `dp campaign run --driver codex --supervised` is now implemented as a one-step supervised handoff
-over the manual protocol. `dp agent launch` and any background or multi-goal autonomous runner
-remain out of scope until the supervised protocol proves reliable.
+over the manual protocol. `--managed` adds a stable stop-reason envelope over the same protocol.
+`dp agent launch --goal ... --supervised` is now implemented as a goal-level adapter that claims,
+starts, and emits one Codex package without spawning Codex. Direct Codex subprocess launch and any
+background or multi-goal autonomous runner remain out of scope until the supervised protocol proves
+reliable.
 
 ## 10. Codex `/goal` emission
 
@@ -1163,12 +1172,16 @@ Implemented first slice:
 
 ```bash
 dp campaign run <campaign.json> --driver codex --supervised
+dp campaign run <campaign.json> --driver codex --supervised --managed
+dp agent launch --goal <goal.json> --driver codex --supervised
 ```
 
-This is a thin adapter over the same commands Codex can call manually. It validates the campaign,
-resolves the current loop, claims one ready goal through `loop.next`, emits the Codex handoff, and
-stops. It does not launch Codex, execute evidence, verify completion, or loop across multiple
-goals.
+These are thin adapters over the same commands Codex can call manually. Campaign run validates the
+campaign, resolves the current loop, claims one ready goal through `loop.next`, emits the Codex
+handoff, and stops. Managed mode returns a deterministic stop reason before claiming over stale,
+active, evidence-pending, blocked, verified, or no-ready states. Agent launch validates one goal,
+claims it, starts it, emits the Codex handoff, and stops. Neither adapter launches Codex, executes
+evidence, verifies completion, mutates Beads, or loops across multiple goals.
 
 ## 15. Acceptance criteria
 
