@@ -4,5 +4,9 @@ JSON output contracts for automation are versioned as JSON Schema files:
 
 1. `docs/schemas/review-output.schema.json`
 2. `docs/schemas/verify-output.schema.json`
+3. `docs/schemas/policy.schema.json`
+4. `docs/schemas/goal-lint-output.schema.json`
 
-Validation is enforced by unit tests that execute real `dp review --json` and `dp verify --json` flows and validate payloads against these schemas.
+Validation is enforced by unit tests that execute real JSON-producing flows and validate payloads
+against these schemas where a stable schema exists. Other JSON command families are covered by
+focused CLI tests until their schemas are promoted into `docs/schemas/`.

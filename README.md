@@ -6,7 +6,7 @@ Disciplined delivery system for Codex: `dp` CLI, policy-driven enforcement, and 
 
 `dp-codex` provides:
 
-1. A `dp` command surface for traceability, task workflow, ADR, review, verify, decompose, progress, policy, and enforcement.
+1. A `dp` command surface for traceability, task workflow, ADRs, review, verify, decompose, progress, policy, enforcement, and agent-operable goals.
 2. Governance controls that run consistently in local hooks and CI.
 3. An operating model that supports real delivery loops, not merely command demos.
 4. End-to-end documentation for users from first-time adopters to maintainers.
@@ -19,6 +19,7 @@ Disciplined delivery system for Codex: `dp` CLI, policy-driven enforcement, and 
 4. Deterministic review and goal-backward verification
 5. Policy-driven pre-commit and pre-push enforcement
 6. Decomposition and progress snapshots for fast context recovery
+7. Goal contracts, append-only goal state, and Codex-operable goal prompts
 
 ## Quick Start
 
@@ -28,6 +29,13 @@ dp doctor --json
 bd ready --claim --json
 ./hooks/install.sh
 make check
+```
+
+Validate the current GoalContract fixture and inspect the emitted Codex handoff:
+
+```bash
+dp goal lint tests/fixtures/goals/valid_spec_70_01.json --json
+dp goal emit tests/fixtures/goals/valid_spec_70_01.json --format codex --json
 ```
 
 Run an empirical end-to-end pilot in an isolated temporary repository:
@@ -73,6 +81,7 @@ Operational runbooks:
 
 - `docs/runbooks/environment-bootstrap.md`
 - `docs/runbooks/developer-commands.md`
+- `docs/runbooks/goal-workflow.md`
 - `docs/runbooks/enforcement-workflow.md`
 - `docs/runbooks/migration-guide.md`
 - `docs/runbooks/troubleshooting.md`
@@ -80,12 +89,17 @@ Operational runbooks:
 Reference and contributor standards:
 
 - `docs/reference/cli-workflow-reference.md`
+- `docs/reference/goal-contract-schema.md`
+- `docs/reference/goal-state-machine.md`
+- `docs/reference/goal-emission.md`
 - `docs/developer/contributor-handbook.md`
 - `docs/developer/documentation-style.md`
 
 ## Status
 
 M0-M6 milestone scope has been implemented and empirically validated; v1 readiness is tracked in `docs/release/v1-readiness.md`.
+
+SPEC-80 campaign-control work has started. The implemented foundation is GoalContract linting, append-only goal lifecycle state, and Codex prompt emission. Loop ledgers, evidence lint/execution, campaign manifests, primary-spec compilation, LLM-assisted refinement, and supervised campaign running remain tracked follow-up work, not current features.
 
 ## Developer Commands
 

@@ -17,9 +17,10 @@ Runbooks are operational, step-by-step documents for repeatable execution.
 3. `progress-workflow.md`
 4. `review-workflow.md`
 5. `verify-workflow.md`
-6. `task-normalization.md`
-7. `task-json-output.md`
-8. `output-schemas.md`
-9. `migration-guide.md`
+6. `goal-workflow.md`
+7. `task-normalization.md`
+8. `task-json-output.md`
+9. `output-schemas.md`
+10. `migration-guide.md`
 
 Runbooks are meant to be executable. If a step cannot be executed as written, update the runbook and the implementation in the same change.

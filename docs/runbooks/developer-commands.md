@@ -54,6 +54,14 @@ make check
 uv run dp enforce pre-commit --policy dp-policy.json --json
 ```
 
+When a task is represented by a GoalContract, validate and operate it through dp:
+
+```bash
+dp goal lint docs/goals/GOAL-example.json --json
+dp goal claim docs/goals/GOAL-example.json --agent codex --lease 2h --json
+dp goal start docs/goals/GOAL-example.json --agent codex --json
+```
+
 Before push:
 
 ```bash
@@ -67,4 +75,5 @@ bd --readonly status --json
 
 1. `/docs/guides/quickstart-first-feature.md`
 2. `/docs/guides/feature-driver-playbook.md`
-3. `/docs/reference/cli-workflow-reference.md`
+3. `/docs/runbooks/goal-workflow.md`
+4. `/docs/reference/cli-workflow-reference.md`

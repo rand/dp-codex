@@ -50,3 +50,17 @@ def test_verify_json_output_matches_schema(tmp_path: Path, capsys) -> None:
     assert exit_code == 0
     payload = json.loads(capsys.readouterr().out)
     validate(instance=payload, schema=schema)
+
+
+def test_goal_lint_json_output_matches_schema(capsys) -> None:
+    schema = json.loads(
+        Path("docs/schemas/goal-lint-output.schema.json").read_text(encoding="utf-8")
+    )
+
+    exit_code = cli_main.main(
+        ["goal", "lint", "tests/fixtures/goals/valid_spec_70_01.json", "--json"]
+    )
+
+    assert exit_code == 0
+    payload = json.loads(capsys.readouterr().out)
+    validate(instance=payload, schema=schema)

@@ -17,6 +17,11 @@ If you are driving feature delivery:
 1. Read `/docs/guides/feature-driver-playbook.md`
 2. Use workflow details in `/docs/runbooks/`
 
+If you are operating an agent goal contract:
+
+1. Read `/docs/runbooks/goal-workflow.md`
+2. Keep `/docs/reference/goal-contract-schema.md` and `/docs/reference/goal-state-machine.md` nearby
+
 If you are maintaining policy, quality gates, or release readiness:
 
 1. Read `/docs/guides/maintainer-automation-playbook.md`
@@ -34,6 +39,7 @@ If you want system design and implementation internals:
 | Task lifecycle | `/docs/guides/quickstart-first-feature.md` | `/docs/runbooks/task-normalization.md` |
 | Traceability | `/docs/concepts/traceability-chain.md` | `/docs/runbooks/decompose-workflow.md` |
 | ADR and decisioning | `/docs/guides/feature-driver-playbook.md` | `/docs/runbooks/adr-workflow.md` |
+| Agent goals | `/docs/runbooks/goal-workflow.md` | `/docs/reference/goal-contract-schema.md`, `/docs/reference/goal-state-machine.md`, `/docs/reference/goal-emission.md` |
 | Review and verify | `/docs/guides/feature-driver-playbook.md` | `/docs/runbooks/review-workflow.md`, `/docs/runbooks/verify-workflow.md` |
 | Enforcement and policy | `/docs/concepts/governance-and-risk.md` | `/docs/runbooks/enforcement-workflow.md`, `/docs/runbooks/policy-workflow.md` |
 | Migration and operations | `/docs/guides/maintainer-automation-playbook.md` | `/docs/runbooks/migration-guide.md`, `/docs/runbooks/troubleshooting.md` |
@@ -51,7 +57,8 @@ If you want system design and implementation internals:
 
 1. `/docs/EXECUTION-PLAN.md`: scope, milestones, and success criteria
 2. `/AGENTS.md`: execution protocol for Codex-driven development
-3. `/docs/release/v1-readiness.md`: current release decision and evidence links
+3. `/docs/specs/SPEC-80-agent-campaign-control-plane-for-dp-codex.md`: current campaign-control direction and non-goals
+4. `/docs/release/v1-readiness.md`: current release decision and evidence links
 
 ## Principles
 

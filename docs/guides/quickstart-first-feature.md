@@ -31,6 +31,11 @@ Read acceptance criteria before editing. Future you will appreciate past you.
 
 1. Add or update spec IDs in docs: `[SPEC-XX.YY]`
 2. Add `@trace SPEC-XX.YY` markers in code/tests where behavior is implemented.
+3. If your task includes a GoalContract, validate it before editing:
+
+```bash
+dp goal lint docs/goals/GOAL-example.json --json
+```
 
 Validate:
 

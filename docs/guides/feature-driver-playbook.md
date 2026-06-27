@@ -8,8 +8,9 @@ Goal: deliver predictable outcomes while coordinating specs, tasks, and verifica
 
 1. Check local health: `dp doctor --json`
 2. Claim a bounded task: `bd ready --claim --json` or `bd update <id> --claim`
-3. Keep each task one logical outcome.
-4. Discover follow-up work immediately when surfaced.
+3. If the task has a GoalContract, validate it with `dp goal lint <goal.json> --json`.
+4. Keep each task one logical outcome.
+5. Discover follow-up work immediately when surfaced.
 
 ## Execution Pattern
 
@@ -17,6 +18,7 @@ Goal: deliver predictable outcomes while coordinating specs, tasks, and verifica
 2. Use `dp decompose` when work spans multiple chunks.
 3. Maintain trace links as implementation evolves.
 4. Use ADRs for consequential design choices.
+5. Use `dp goal block ... --reason <known-reason> --json` when a GoalContract cannot safely proceed.
 
 ## Recommended Loop For Each Task
 
@@ -24,6 +26,7 @@ Goal: deliver predictable outcomes while coordinating specs, tasks, and verifica
 bd show <id>
 dp trace validate --json
 dp trace coverage --json
+dp goal lint <goal.json> --json  # when a GoalContract exists
 make check
 dp enforce pre-commit --policy dp-policy.json --json
 ```

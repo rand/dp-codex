@@ -21,6 +21,15 @@ This document describes how commands are dispatched and how outcomes are encoded
 2. Human text output should summarize results and actionable next steps.
 3. Error paths should include concrete causes, not generic failure text.
 
+## Goal Runtime
+
+`dp goal` commands preserve the same exit-code model:
+
+1. `dp goal lint` returns `0` for valid contracts, `1` for invalid contracts, and `2` for malformed or unsupported input.
+2. Mutating goal lifecycle commands validate the GoalContract before appending events.
+3. Goal lifecycle state is reconstructed from `.dp/goals/events.jsonl`.
+4. `dp goal complete` records `evidence_pending`; it does not declare behavioral verification.
+
 ## Provider Boundary
 
 `/dp/providers/beads.py` wraps `bd` execution and normalizes failure classes:
