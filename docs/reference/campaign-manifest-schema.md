@@ -26,6 +26,9 @@ Optional artifact fields:
 4. `artifacts.beads_epics`: Beads epic ids.
 5. `artifacts.beads_issues`: Beads issue ids.
 
+Generated campaign manifests may also include a `compiler` object. For `dp campaign init`, this is
+deterministic provenance describing primary-spec signal extraction; it is not a readiness decision.
+
 State fields:
 
 1. `state.status`: one of `draft`, `ready`, `active`, `blocked`, `verified`, or `abandoned`.

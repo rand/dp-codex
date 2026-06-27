@@ -17,12 +17,12 @@ GoalContract through dp without relying on chat memory.
    next-goal packaging.
 10. `dp campaign lint/status/recover`: deterministic CampaignManifest validation and recovery from
    repo artifacts plus append-only goal events.
-11. `dp campaign init --primary-spec <path> --write`: conservative draft scaffold generation from a
-   local primary spec.
+11. `dp campaign init --primary-spec <path> --write`: conservative draft scaffold generation plus
+   deterministic semantic-signal extraction from a local primary spec.
 
 ## What Does Not Exist Yet
 
-1. Semantic primary-spec campaign compilation.
+1. Authoring-time semantic refinement into child specs, ADRs, validators, and Beads issues.
 2. LLM-assisted campaign refinement.
 3. A supervised campaign runner.
 
@@ -136,8 +136,10 @@ dp campaign init --primary-spec docs/primary/example.md --write --json
 ```
 
 The command writes a CampaignManifest, LoopLedger, draft GoalContracts, EvidencePlan stubs, and a
-`needs_refinement` marker. Generated artifacts are linted, but the campaign remains `draft` because
-the command does not perform semantic planning.
+`needs_refinement` marker. It also emits a `compiler` object with deterministic requirement,
+evidence, decision, blocker, and dependency cues for each generated node. Generated artifacts are
+linted, but the campaign remains `draft`: dependency cues are not inferred edges, and the command
+does not author child specs, ADRs, validators, Beads issues, or verified work.
 
 ## Safe Local Smoke Test
 

@@ -6,9 +6,21 @@
 dp campaign init --primary-spec docs/primary/example.md --write --json
 ```
 
-This is a scaffold, not semantic campaign planning. It hashes the primary spec, extracts Markdown
-headings, writes lintable draft artifacts, and records `needs_refinement` markers for later
-authoring work.
+This is a draft compiler, not autonomous semantic planning. It hashes the primary spec, extracts
+Markdown sections, records deterministic semantic signals, writes lintable draft artifacts, and
+records `needs_refinement` markers for later authoring work.
+
+The JSON output includes a `compiler` object:
+
+1. `mode`: currently `deterministic_markdown_signals`.
+2. `llm`: always `false`.
+3. `semantic_planning`: always `false`; prose cues are recorded, not treated as authoritative
+   campaign decisions.
+4. `ready_for_implementation`: always `false`; generated campaigns remain draft.
+5. `summary`: counts for sections, implementation candidates, evidence candidates, decision
+   nodes, refinement states, and dependency cues.
+6. `nodes`: per-section classification, refinement state, routes, and extracted requirement,
+   evidence, decision, blocker, and dependency cues.
 
 Generated paths:
 
@@ -32,5 +44,6 @@ Safety rules:
 3. The command never creates Beads issues.
 4. Existing non-identical artifacts are not overwritten.
 5. Generated campaign state is `draft`, even when all lint gates pass.
-6. `needs_refinement` is expected; it records missing semantic decomposition, validator gaps, and
+6. Dependency cues are not converted into LoopLedger `depends_on` edges.
+7. `needs_refinement` is expected; it records missing semantic decomposition, validator gaps, and
    decision markers.

@@ -34,7 +34,8 @@ user/CI command
 11. `/dp/core/evidence_run.py`: controlled EvidencePlan execution with argv arrays, timeouts, and typed assertions.
 12. `/dp/core/loop_ledger.py`: deterministic LoopLedger lint, status, and next-goal packaging.
 13. `/dp/core/campaign_manifest.py`: deterministic CampaignManifest lint, status, and recovery.
-14. `/dp/core/campaign_init.py`: conservative primary-spec campaign scaffolding.
+14. `/dp/core/campaign_init.py`: conservative primary-spec campaign scaffolding with deterministic
+    semantic-signal extraction.
 15. `/dp/core/events.py`: JSONL event helpers.
 16. `/dp/enforcement/engine.py`: executes policy-selected checks and bypass audit logging.
 

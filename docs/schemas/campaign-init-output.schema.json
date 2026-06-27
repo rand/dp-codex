@@ -35,6 +35,163 @@
       ],
       "type": "object"
     },
+    "compiler": {
+      "additionalProperties": false,
+      "properties": {
+        "llm": {
+          "const": false
+        },
+        "mode": {
+          "const": "deterministic_markdown_signals"
+        },
+        "nodes": {
+          "items": {
+            "$ref": "#/$defs/compiler_node"
+          },
+          "type": "array"
+        },
+        "ready_for_implementation": {
+          "const": false
+        },
+        "semantic_planning": {
+          "const": false
+        },
+        "summary": {
+          "$ref": "#/$defs/compiler_summary"
+        }
+      },
+      "required": [
+        "mode",
+        "llm",
+        "semantic_planning",
+        "ready_for_implementation",
+        "summary",
+        "nodes"
+      ],
+      "type": "object"
+    },
+    "compiler_node": {
+      "additionalProperties": false,
+      "properties": {
+        "classification": {
+          "enum": [
+            "implementation",
+            "evidence",
+            "decision",
+            "context",
+            "unknown"
+          ],
+          "type": "string"
+        },
+        "line": {
+          "type": "integer"
+        },
+        "refinement_state": {
+          "enum": [
+            "implementation_candidate",
+            "evidence_candidate",
+            "needs_decision",
+            "needs_validator",
+            "needs_specification"
+          ],
+          "type": "string"
+        },
+        "routes": {
+          "items": {
+            "enum": [
+              "needs_decision",
+              "needs_specification",
+              "needs_validator"
+            ],
+            "type": "string"
+          },
+          "type": "array"
+        },
+        "section_id": {
+          "type": "string"
+        },
+        "signals": {
+          "$ref": "#/$defs/compiler_signals"
+        },
+        "title": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "section_id",
+        "title",
+        "line",
+        "classification",
+        "refinement_state",
+        "routes",
+        "signals"
+      ],
+      "type": "object"
+    },
+    "compiler_signals": {
+      "additionalProperties": false,
+      "properties": {
+        "blockers": {
+          "$ref": "#/$defs/signal_array"
+        },
+        "decisions": {
+          "$ref": "#/$defs/signal_array"
+        },
+        "dependencies": {
+          "$ref": "#/$defs/signal_array"
+        },
+        "evidence": {
+          "$ref": "#/$defs/signal_array"
+        },
+        "requirements": {
+          "$ref": "#/$defs/signal_array"
+        }
+      },
+      "required": [
+        "requirements",
+        "evidence",
+        "decisions",
+        "blockers",
+        "dependencies"
+      ],
+      "type": "object"
+    },
+    "compiler_summary": {
+      "additionalProperties": false,
+      "properties": {
+        "decision_nodes": {
+          "type": "integer"
+        },
+        "dependency_cues": {
+          "type": "integer"
+        },
+        "evidence_candidates": {
+          "type": "integer"
+        },
+        "implementation_candidates": {
+          "type": "integer"
+        },
+        "needs_specification": {
+          "type": "integer"
+        },
+        "needs_validator": {
+          "type": "integer"
+        },
+        "sections": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "sections",
+        "implementation_candidates",
+        "evidence_candidates",
+        "decision_nodes",
+        "needs_specification",
+        "needs_validator",
+        "dependency_cues"
+      ],
+      "type": "object"
+    },
     "error": {
       "additionalProperties": false,
       "properties": {
@@ -93,6 +250,12 @@
       ],
       "type": "object"
     },
+    "signal_array": {
+      "items": {
+        "type": "string"
+      },
+      "type": "array"
+    },
     "section": {
       "additionalProperties": false,
       "properties": {
@@ -131,6 +294,9 @@
         "command": {
           "const": "campaign.init"
         },
+        "compiler": {
+          "$ref": "#/$defs/compiler"
+        },
         "loop_id": {
           "type": "string"
         },
@@ -167,6 +333,7 @@
         "needs_refinement",
         "primary_spec",
         "sections",
+        "compiler",
         "refinement_markers",
         "artifacts",
         "lint",

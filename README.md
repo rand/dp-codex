@@ -135,8 +135,10 @@ controlled EvidencePlan execution, evidence-run verification into goal state, an
 next-goal scheduling. CampaignManifest lint/status/recover is also implemented, so a future Codex
 session can inspect repo artifacts and recover visible campaign state without chat memory.
 `dp campaign init --primary-spec ... --write --json` can now create a conservative draft campaign
-scaffold from a local primary spec. Semantic primary-spec compilation, LLM-assisted refinement, and
-supervised campaign running remain tracked follow-up work, not current features.
+scaffold from a local primary spec, including deterministic semantic-signal extraction for
+requirements, evidence, decisions, blockers, and dependency cues. Authoring-time semantic
+refinement, LLM-assisted refinement, and supervised campaign running remain tracked follow-up work,
+not current features.
 
 ## Developer Commands
 

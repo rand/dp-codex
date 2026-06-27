@@ -8,8 +8,11 @@ Implementation note, 2026-06-27: the foundation is implemented for GoalContract 
 append-only goal lifecycle state, Codex prompt emission, deterministic EvidencePlan linting, and
 controlled EvidencePlan execution. Evidence-run verification can now advance matching goals to
 `verified`. LoopLedger lint/status/next-goal scheduling, CampaignManifest lint/status/recover, and
-conservative primary-spec campaign scaffolding are also implemented. Semantic primary-spec campaign
-compilation, LLM-assisted refinement, and supervised running remain planned follow-up work.
+conservative primary-spec campaign scaffolding are also implemented. `dp campaign init` now records
+deterministic semantic signals from the primary spec, including requirement, evidence, decision,
+blocker, and dependency cues, while keeping generated campaigns in `draft`. Authoring-time semantic
+refinement into child specs/ADRs/validators/Beads work, LLM-assisted refinement, and supervised
+running remain planned follow-up work.
 
 ## 1. Thesis
 

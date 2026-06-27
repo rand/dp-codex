@@ -54,6 +54,17 @@ Evidence runtime does not call an LLM, execute raw shell strings, or mark goals 
 Run output records the source EvidencePlan path and sha256 so goal verification can reject stale or
 mismatched evidence.
 
+## Campaign Init Runtime
+
+`dp campaign init` is an authoring command that writes deterministic draft artifacts from a local
+primary spec. It hashes the primary spec, extracts Markdown sections and semantic signals, and then
+lints the generated CampaignManifest, LoopLedger, GoalContracts, and EvidencePlans.
+
+The compiler mode is `deterministic_markdown_signals`. It records requirement, evidence, decision,
+blocker, and dependency cues, but it does not call an LLM, create Beads issues, execute evidence,
+mark work verified, or infer LoopLedger dependency edges from prose. Generated campaign state stays
+`draft`.
+
 ## Loop Runtime
 
 `dp loop` commands operate over explicit LoopLedger files and append-only goal events:

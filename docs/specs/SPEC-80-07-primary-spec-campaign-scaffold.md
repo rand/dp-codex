@@ -6,6 +6,10 @@ Parent: SPEC-80
 
 [SPEC-80.07]
 
+Implementation note, 2026-06-27: SPEC-80.09 extends this scaffold with deterministic
+semantic-signal extraction. The guarantees in this document still apply: generated artifacts remain
+draft, no LLM is called, no evidence is executed, and dependency edges are not inferred from prose.
+
 ## Intent
 
 dp must be able to turn a local primary spec into a recoverable campaign shell before it can

@@ -6,6 +6,7 @@ from pathlib import Path
 from dp.cli.main import main
 
 FULL_PRIMARY_SPEC = Path("tests/fixtures/primary_specs/scaffold_full.md")
+SEMANTIC_PRIMARY_SPEC = Path("tests/fixtures/primary_specs/semantic_signals.md")
 
 
 def test_campaign_init_writes_valid_draft_scaffold(
@@ -60,6 +61,88 @@ def test_campaign_init_writes_valid_draft_scaffold(
     for evidence_path in evidence_paths:
         assert main(["evidence", "lint", evidence_path.as_posix(), "--json"]) == 0
         assert json.loads(capsys.readouterr().out)["valid"] is True
+
+
+def test_campaign_init_extracts_deterministic_semantic_signals(
+    tmp_path: Path,
+    monkeypatch,
+    capsys,
+) -> None:
+    primary_spec = _copy_primary_spec(
+        tmp_path,
+        SEMANTIC_PRIMARY_SPEC,
+        "docs/primary/semantic-signals.md",
+    )
+    monkeypatch.chdir(tmp_path)
+
+    exit_code = main(
+        ["campaign", "init", "--primary-spec", primary_spec.as_posix(), "--write", "--json"]
+    )
+
+    assert exit_code == 0
+    payload = json.loads(capsys.readouterr().out)
+    compiler = payload["compiler"]
+    assert compiler["mode"] == "deterministic_markdown_signals"
+    assert compiler["llm"] is False
+    assert compiler["semantic_planning"] is False
+    assert compiler["ready_for_implementation"] is False
+    assert compiler["summary"] == {
+        "sections": 4,
+        "implementation_candidates": 1,
+        "evidence_candidates": 1,
+        "decision_nodes": 1,
+        "needs_specification": 1,
+        "needs_validator": 0,
+        "dependency_cues": 2,
+    }
+
+    nodes_by_id = {node["section_id"]: node for node in compiler["nodes"]}
+    implementation = nodes_by_id["implementation-requirements"]
+    assert implementation["classification"] == "implementation"
+    assert implementation["refinement_state"] == "implementation_candidate"
+    assert any(
+        "must compile primary specs" in cue
+        for cue in implementation["signals"]["requirements"]
+    )
+    assert any(
+        "Depends on GoalContract lint" in cue
+        for cue in implementation["signals"]["dependencies"]
+    )
+
+    evidence = nodes_by_id["evidence-and-tests"]
+    assert evidence["classification"] == "evidence"
+    assert evidence["refinement_state"] == "evidence_candidate"
+    assert any(
+        "pytest tests/test_campaign_init.py" in cue for cue in evidence["signals"]["evidence"]
+    )
+
+    decision = nodes_by_id["open-decisions-and-risks"]
+    assert decision["classification"] == "decision"
+    assert decision["refinement_state"] == "needs_decision"
+    assert "needs_decision" in decision["routes"]
+
+    background = nodes_by_id["background"]
+    assert background["classification"] == "context"
+    assert background["refinement_state"] == "needs_specification"
+
+    campaign = json.loads(Path(payload["artifacts"]["campaign"]).read_text(encoding="utf-8"))
+    assert campaign["state"]["status"] == "draft"
+    assert campaign["compiler"]["mode"] == "deterministic_markdown_signals"
+
+    loop = json.loads(Path(payload["artifacts"]["loop"]).read_text(encoding="utf-8"))
+    assert loop["nodes"][0]["classification"] == "implementation"
+    assert loop["nodes"][0]["depends_on"] == []
+    assert loop["nodes"][0]["dependency_cues"]
+
+    goal = json.loads(Path(payload["artifacts"]["goals"][0]).read_text(encoding="utf-8"))
+    assert goal["compiler"]["classification"] == "implementation"
+    assert goal["compiler"]["refinement_state"] == "implementation_candidate"
+
+    marker = json.loads(
+        Path(payload["artifacts"]["needs_refinement"]).read_text(encoding="utf-8")
+    )
+    assert marker["compiler"]["summary"] == compiler["summary"]
+    assert any(item["route"] == "needs_decision" for item in marker["markers"])
 
 
 def test_campaign_init_sparse_spec_writes_refinement_routes(

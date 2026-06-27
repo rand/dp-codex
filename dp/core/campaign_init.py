@@ -18,6 +18,50 @@ SLUG_PATTERN = re.compile(r"[^a-z0-9]+")
 DECISION_TERMS = ("decision", "decisions", "question", "questions", "risk", "risks", "tradeoff")
 VALIDATOR_TERMS = ("acceptance", "evidence", "proof", "test", "tests", "validation", "verification")
 
+# @trace SPEC-80.09
+COMPILER_MODE = "deterministic_markdown_signals"
+BLOCKER_TERMS = ("blocked", "blocker", "missing", "tbd", "unclear", "unknown")
+DEPENDENCY_TERMS = ("after", "before", "blocked by", "depend", "depends", "only after")
+IMPLEMENTATION_TERMS = (
+    "artifact",
+    "campaign",
+    "cli",
+    "code",
+    "command",
+    "compile",
+    "goal",
+    "implement",
+    "schema",
+    "validator",
+)
+REQUIREMENT_TERMS = (
+    "acceptance",
+    "must",
+    "need",
+    "needs",
+    "require",
+    "required",
+    "requires",
+    "shall",
+    "should",
+)
+EVIDENCE_SIGNAL_TERMS = (
+    "acceptance",
+    "check",
+    "evidence",
+    "lint",
+    "make check",
+    "proof",
+    "pytest",
+    "test",
+    "tests",
+    "typecheck",
+    "validation",
+    "verification",
+    "verify",
+)
+MAX_SIGNAL_CUES = 8
+
 
 @dataclass(frozen=True)
 class CampaignInitResult:
@@ -31,6 +75,7 @@ class PrimarySection:
     title: str
     level: int
     line: int
+    body: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -100,9 +145,11 @@ def init_campaign_from_primary_spec(
             title="Refine Primary Spec",
             level=1,
             line=1,
+            body=source_text,
         ),
     )
-    markers = _refinement_markers(extracted_sections)
+    compiler = _compile_primary_spec_signals(goal_sections, extracted_sections=extracted_sections)
+    markers = _refinement_markers(extracted_sections, compiler=compiler)
 
     drafts = _build_artifacts(
         slug=slug,
@@ -112,6 +159,7 @@ def init_campaign_from_primary_spec(
         sections=goal_sections,
         extracted_sections=extracted_sections,
         markers=markers,
+        compiler=compiler,
     )
     collision = _first_collision(drafts)
     if collision is not None:
@@ -150,6 +198,7 @@ def init_campaign_from_primary_spec(
             "sha256": source_hash,
         },
         "sections": [section.to_dict() for section in extracted_sections],
+        "compiler": compiler,
         "refinement_markers": markers,
         "artifacts": {
             "campaign": campaign_path.as_posix(),
@@ -176,6 +225,7 @@ def _build_artifacts(
     sections: tuple[PrimarySection, ...],
     extracted_sections: tuple[PrimarySection, ...],
     markers: list[dict[str, str]],
+    compiler: dict[str, Any],
 ) -> tuple[ArtifactDraft, ...]:
     campaign_id = f"CAMPAIGN-{slug}"
     loop_id = f"LOOP-{slug}"
@@ -189,11 +239,18 @@ def _build_artifacts(
     goal_paths: list[str] = []
     evidence_paths: list[str] = []
 
+    compiler_nodes = {
+        str(node["section_id"]): node
+        for node in compiler.get("nodes", [])
+        if isinstance(node, dict)
+    }
+
     for index, section in enumerate(sections, start=1):
         goal_id = f"GOAL-{slug}-{index:03d}"
         evidence_id = f"EVIDENCE-{slug}-{index:03d}"
         goal_path = Path(f"docs/goals/{goal_id}.json")
         evidence_path = Path(f"docs/evidence/{evidence_id}.json")
+        compiler_node = compiler_nodes.get(section.id, _empty_compiler_node(section))
         goal_paths.append(goal_path.as_posix())
         evidence_paths.append(evidence_path.as_posix())
         goals.append(
@@ -206,6 +263,7 @@ def _build_artifacts(
                     primary_spec=primary_spec,
                     source_hash=source_hash,
                     slug=slug,
+                    compiler_node=compiler_node,
                 ),
             )
         )
@@ -228,6 +286,9 @@ def _build_artifacts(
                 "goal_path": goal_path.as_posix(),
                 "depends_on": [],
                 "evidence_plan": evidence_path.as_posix(),
+                "classification": compiler_node["classification"],
+                "refinement_state": compiler_node["refinement_state"],
+                "dependency_cues": compiler_node["signals"]["dependencies"],
             }
         )
 
@@ -244,6 +305,7 @@ def _build_artifacts(
             },
             "scheduler": "goal_events",
             "context_policy": "fresh_context_per_goal",
+            "compiler": _compiler_artifact_summary(compiler),
             "nodes": loop_nodes,
             "stop_rules": [
                 "stop on missing required decision",
@@ -277,6 +339,7 @@ def _build_artifacts(
                 "current_loop": loop_id,
                 "current_goal": None,
             },
+            "compiler": _compiler_artifact_summary(compiler),
             "needs_refinement": {
                 "path": marker_path.as_posix(),
                 "routes": sorted({marker["route"] for marker in markers}),
@@ -294,6 +357,7 @@ def _build_artifacts(
             },
             "needs_refinement": True,
             "sections": [section.to_dict() for section in extracted_sections],
+            "compiler": compiler,
             "markers": markers,
         },
     )
@@ -308,6 +372,7 @@ def _goal_payload(
     primary_spec: Path,
     source_hash: str,
     slug: str,
+    compiler_node: dict[str, Any],
 ) -> dict[str, Any]:
     goal_lint_command = f"dp goal lint docs/goals/{goal_id}.json --json"
     evidence_lint_command = f"dp evidence lint {evidence_path.as_posix()} --json"
@@ -394,7 +459,17 @@ def _goal_payload(
         },
         "needs_refinement": {
             "campaign_slug": slug,
-            "reason": "Generated from primary spec headings without semantic decomposition.",
+            "reason": (
+                "Generated from deterministic primary-spec signals; "
+                "authoring refinement remains required."
+            ),
+        },
+        "compiler": {
+            "mode": COMPILER_MODE,
+            "classification": compiler_node["classification"],
+            "refinement_state": compiler_node["refinement_state"],
+            "routes": compiler_node["routes"],
+            "signals": compiler_node["signals"],
         },
     }
 
@@ -440,10 +515,11 @@ def _evidence_payload(
 
 
 def _extract_sections(source_text: str) -> tuple[PrimarySection, ...]:
-    sections: list[PrimarySection] = []
+    heading_sections: list[PrimarySection] = []
     seen: dict[str, int] = {}
     in_fence = False
-    for line_number, line in enumerate(source_text.splitlines(), start=1):
+    lines = source_text.splitlines()
+    for line_number, line in enumerate(lines, start=1):
         stripped = line.strip()
         if stripped.startswith("```"):
             in_fence = not in_fence
@@ -461,15 +537,191 @@ def _extract_sections(source_text: str) -> tuple[PrimarySection, ...]:
         count = seen.get(base_slug, 0) + 1
         seen[base_slug] = count
         section_id = base_slug if count == 1 else f"{base_slug}-{count}"
-        sections.append(PrimarySection(id=section_id, title=title, level=level, line=line_number))
+        heading_sections.append(
+            PrimarySection(id=section_id, title=title, level=level, line=line_number)
+        )
+
+    sections: list[PrimarySection] = []
+    for index, section in enumerate(heading_sections):
+        next_line = (
+            heading_sections[index + 1].line
+            if index + 1 < len(heading_sections)
+            else len(lines) + 1
+        )
+        body = "\n".join(lines[section.line: next_line - 1]).strip()
+        sections.append(
+            PrimarySection(
+                id=section.id,
+                title=section.title,
+                level=section.level,
+                line=section.line,
+                body=body,
+            )
+        )
     return tuple(sections)
 
 
-def _refinement_markers(sections: tuple[PrimarySection, ...]) -> list[dict[str, str]]:
+def _compile_primary_spec_signals(
+    sections: tuple[PrimarySection, ...],
+    *,
+    extracted_sections: tuple[PrimarySection, ...],
+) -> dict[str, Any]:
+    nodes = [_compiler_node(section) for section in sections]
+    summary = {
+        "sections": len(extracted_sections),
+        "implementation_candidates": sum(
+            1 for node in nodes if node["refinement_state"] == "implementation_candidate"
+        ),
+        "evidence_candidates": sum(
+            1 for node in nodes if node["refinement_state"] == "evidence_candidate"
+        ),
+        "decision_nodes": sum(1 for node in nodes if node["classification"] == "decision"),
+        "needs_specification": sum(
+            1 for node in nodes if node["refinement_state"] == "needs_specification"
+        ),
+        "needs_validator": sum(
+            1 for node in nodes if node["refinement_state"] == "needs_validator"
+        ),
+        "dependency_cues": sum(len(node["signals"]["dependencies"]) for node in nodes),
+    }
+    return {
+        "mode": COMPILER_MODE,
+        "llm": False,
+        "semantic_planning": False,
+        "ready_for_implementation": False,
+        "summary": summary,
+        "nodes": nodes,
+    }
+
+
+def _compiler_node(section: PrimarySection) -> dict[str, Any]:
+    signals = _section_signals(section)
+    classification = _section_classification(section, signals)
+    refinement_state = _section_refinement_state(classification, signals)
+    return {
+        "section_id": section.id,
+        "title": section.title,
+        "line": section.line,
+        "classification": classification,
+        "refinement_state": refinement_state,
+        "routes": _routes_for_refinement_state(refinement_state),
+        "signals": signals,
+    }
+
+
+def _section_signals(section: PrimarySection) -> dict[str, list[str]]:
+    title_and_body = f"{section.title}\n{section.body}"
+    return {
+        "requirements": _signal_lines(title_and_body, REQUIREMENT_TERMS),
+        "evidence": _signal_lines(title_and_body, EVIDENCE_SIGNAL_TERMS),
+        "decisions": _signal_lines(title_and_body, DECISION_TERMS),
+        "blockers": _signal_lines(title_and_body, BLOCKER_TERMS),
+        "dependencies": _signal_lines(title_and_body, DEPENDENCY_TERMS),
+    }
+
+
+def _signal_lines(text: str, terms: tuple[str, ...]) -> list[str]:
+    cues: list[str] = []
+    seen: set[str] = set()
+    for raw_line in text.splitlines():
+        line = _clean_signal_line(raw_line)
+        if not line or line in seen:
+            continue
+        lowered = line.lower()
+        if any(term in lowered for term in terms):
+            seen.add(line)
+            cues.append(line)
+        if len(cues) >= MAX_SIGNAL_CUES:
+            break
+    return cues
+
+
+def _clean_signal_line(value: str) -> str:
+    stripped = value.strip()
+    stripped = re.sub(r"^[-*+]\s+", "", stripped)
+    stripped = re.sub(r"^\d+[.)]\s+", "", stripped)
+    return stripped
+
+
+def _section_classification(section: PrimarySection, signals: dict[str, list[str]]) -> str:
+    title = section.title.lower()
+    body = section.body.lower()
+    if signals["decisions"]:
+        return "decision"
+    if any(term in title for term in EVIDENCE_SIGNAL_TERMS):
+        return "evidence"
+    if any(term in title for term in ("background", "context", "overview", "motivation")):
+        return "context"
+    if signals["requirements"] or any(term in f"{title}\n{body}" for term in IMPLEMENTATION_TERMS):
+        return "implementation"
+    return "unknown"
+
+
+def _section_refinement_state(
+    classification: str,
+    signals: dict[str, list[str]],
+) -> str:
+    if classification == "decision" or signals["blockers"]:
+        return "needs_decision"
+    if classification == "evidence":
+        return "evidence_candidate"
+    if signals["requirements"] and signals["evidence"]:
+        return "implementation_candidate"
+    if signals["requirements"]:
+        return "needs_validator"
+    return "needs_specification"
+
+
+def _routes_for_refinement_state(refinement_state: str) -> list[str]:
+    if refinement_state == "needs_decision":
+        return ["needs_decision"]
+    if refinement_state == "needs_validator":
+        return ["needs_validator"]
+    if refinement_state == "needs_specification":
+        return ["needs_specification"]
+    return []
+
+
+def _empty_compiler_node(section: PrimarySection) -> dict[str, Any]:
+    return {
+        "section_id": section.id,
+        "title": section.title,
+        "line": section.line,
+        "classification": "unknown",
+        "refinement_state": "needs_specification",
+        "routes": ["needs_specification"],
+        "signals": {
+            "requirements": [],
+            "evidence": [],
+            "decisions": [],
+            "blockers": [],
+            "dependencies": [],
+        },
+    }
+
+
+def _compiler_artifact_summary(compiler: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "mode": compiler["mode"],
+        "llm": compiler["llm"],
+        "semantic_planning": compiler["semantic_planning"],
+        "ready_for_implementation": compiler["ready_for_implementation"],
+        "summary": compiler["summary"],
+    }
+
+
+def _refinement_markers(
+    sections: tuple[PrimarySection, ...],
+    *,
+    compiler: dict[str, Any],
+) -> list[dict[str, str]]:
     markers = [
         {
             "route": "needs_specification",
-            "reason": "Deterministic scaffold did not perform semantic campaign decomposition.",
+            "reason": (
+                "Deterministic compiler extracted signals but did not author child specs, ADRs, "
+                "validators, Beads issues, or final implementation goals."
+            ),
         }
     ]
     titles = " ".join(section.title.lower() for section in sections)
@@ -500,6 +752,20 @@ def _refinement_markers(sections: tuple[PrimarySection, ...]) -> list[dict[str, 
                 ),
             }
         )
+    for node in compiler.get("nodes", []):
+        if not isinstance(node, dict):
+            continue
+        section_title = str(node.get("title", "unknown section"))
+        for route in node.get("routes", []):
+            if route == "needs_specification":
+                reason = f"Section '{section_title}' needs implementation-specific decomposition."
+            elif route == "needs_validator":
+                reason = f"Section '{section_title}' has requirements but no evidence cues."
+            elif route == "needs_decision":
+                reason = f"Section '{section_title}' contains decision, risk, or blocker cues."
+            else:
+                continue
+            markers.append({"route": route, "reason": reason})
     return _deduplicate_markers(markers)
 
 
