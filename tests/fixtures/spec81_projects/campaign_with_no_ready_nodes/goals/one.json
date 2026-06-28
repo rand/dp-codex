@@ -1,0 +1,75 @@
+{
+  "schema_version": "0.1",
+  "id": "GOAL-SPEC-70.01",
+  "title": "Make SPEC-70.01 true",
+  "source": {
+    "kind": "spec",
+    "id": "SPEC-70.01",
+    "path": "docs/specs/SPEC-70-01-beads-doctor.md",
+    "input_hash": "sha256:0123456789abcdef"
+  },
+  "level": "goal",
+  "objective": "Implement the SPEC-70.01 Beads doctor baseline with deterministic health checks, stable JSON output, explicit exit codes, and current Beads command guidance.",
+  "evidence": {
+    "evidence_plan": "docs/evidence/EVIDENCE-SPEC-70.01.json",
+    "verification_commands": [
+      "dp doctor --json",
+      "make check"
+    ],
+    "trace_ids": [
+      "SPEC-70.01"
+    ]
+  },
+  "boundaries": {
+    "read_first": [
+      "docs/specs/SPEC-70-01-beads-doctor.md",
+      "dp/cli/main.py"
+    ],
+    "preferred_paths": [
+      "dp",
+      "tests",
+      "docs"
+    ],
+    "allowed_paths": [
+      "dp",
+      "tests",
+      "docs"
+    ],
+    "forbidden_paths": [],
+    "allowed_commands": [
+      "dp doctor --json",
+      "make check"
+    ]
+  },
+  "iteration_policy": {
+    "mode": "smallest_relevant_check_first",
+    "max_attempts": 5,
+    "after_each_attempt": [
+      "run targeted tests"
+    ]
+  },
+  "terminal_states": {
+    "success": "The linked evidence commands pass.",
+    "blocked": "Required Beads behavior is missing.",
+    "budget_exhausted": "Iteration budget is exhausted without satisfying evidence.",
+    "unsafe_scope": "Required changes exceed declared boundaries."
+  },
+  "blocked_routes": {
+    "needs_specification": {
+      "action": "create_spec_stub",
+      "also_create_beads_issue": true
+    },
+    "needs_decision": {
+      "action": "create_adr_stub",
+      "also_create_beads_issue": true
+    },
+    "needs_validator": {
+      "action": "create_evidence_stub",
+      "also_create_beads_issue": true
+    },
+    "unsafe_scope": {
+      "action": "create_scope_decision",
+      "also_create_beads_issue": true
+    }
+  }
+}

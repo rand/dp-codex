@@ -14,6 +14,10 @@ commands keep legacy JSON by default and expose response envelopes only through 
 `--detail` modes. Adoption plans are additive, AGENTS.md files are preserved, hooks remain local and
 LLM-free, and token budgets are enforced by tests.
 
+Follow-up note, 2026-06-28: SPEC-81.01 strengthens `dp agent eval --json` with executable
+fixture-backed transcripts for bootstrap, instruction preservation, legacy adoption, hook audit,
+skill triggering, token budgets, and no-ready loop handling.
+
 ## 1. Thesis
 
 SPEC-80 made dp powerful.

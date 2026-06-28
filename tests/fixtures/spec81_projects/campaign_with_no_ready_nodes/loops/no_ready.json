@@ -1,0 +1,28 @@
+{
+  "schema_version": "0.1",
+  "id": "LOOP-SPEC-81-NO-READY",
+  "title": "SPEC-81 no-ready loop fixture",
+  "nodes": [
+    {
+      "id": "first",
+      "kind": "goal",
+      "goal_id": "GOAL-SPEC-70.01",
+      "goal_path": "goals/one.json",
+      "beads_issue_id": "dpcx-eval-one",
+      "depends_on": [],
+      "evidence_plan": "docs/evidence/EVIDENCE-SPEC-70.01.json"
+    },
+    {
+      "id": "second",
+      "kind": "goal",
+      "goal_id": "GOAL-SPEC-80.01-LINT",
+      "goal_path": "goals/two.json",
+      "beads_issue_id": "dpcx-eval-two",
+      "depends_on": [],
+      "evidence_plan": "docs/evidence/EVIDENCE-SPEC-80.01.json"
+    }
+  ],
+  "stop_rules": [
+    "stop when no ready nodes remain"
+  ]
+}

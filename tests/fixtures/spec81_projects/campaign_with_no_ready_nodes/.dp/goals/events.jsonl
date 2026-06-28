@@ -1,0 +1,2 @@
+{"schema_version":"0.1","event":"blocked","goal_id":"GOAL-SPEC-70.01","goal_path":"goals/one.json","timestamp":"2026-01-01T00:00:00Z","reason":"needs_decision"}
+{"schema_version":"0.1","event":"blocked","goal_id":"GOAL-SPEC-80.01-LINT","goal_path":"goals/two.json","timestamp":"2026-01-01T00:00:01Z","reason":"needs_validator"}

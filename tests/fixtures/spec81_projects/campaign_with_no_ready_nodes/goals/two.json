@@ -1,0 +1,76 @@
+{
+  "schema_version": "0.1",
+  "id": "GOAL-SPEC-80.01-LINT",
+  "title": "Implement deterministic GoalContract lint",
+  "source": {
+    "kind": "campaign_node",
+    "id": "SPEC-80.01",
+    "path": "docs/specs/SPEC-80-01-goal-contracts.md",
+    "input_hash": "sha256:abcdef0123456789"
+  },
+  "level": "node",
+  "objective": "Add deterministic GoalContract linting with stable JSON output, explicit exit codes, golden fixtures, and reference documentation.",
+  "evidence": {
+    "evidence_plan": "docs/evidence/EVIDENCE-SPEC-80.01.json",
+    "verification_commands": [
+      "dp goal lint tests/fixtures/goals/valid_spec_70_01.json --json",
+      "make check"
+    ],
+    "trace_ids": [
+      "SPEC-80.01"
+    ]
+  },
+  "boundaries": {
+    "read_first": [
+      "docs/specs/SPEC-80-agent-campaign-control-plane-for-dp-codex.md",
+      "dp/cli/main.py"
+    ],
+    "preferred_paths": [
+      "dp/core",
+      "dp/cli",
+      "tests",
+      "docs"
+    ],
+    "allowed_paths": [
+      "dp",
+      "tests",
+      "docs"
+    ],
+    "forbidden_paths": [],
+    "allowed_commands": [
+      "pytest tests/test_goal_lint.py",
+      "make check"
+    ]
+  },
+  "iteration_policy": {
+    "mode": "smallest_relevant_check_first",
+    "max_attempts": 5,
+    "after_each_attempt": [
+      "run targeted tests"
+    ]
+  },
+  "terminal_states": {
+    "success": "Goal lint fixtures and CLI tests pass.",
+    "blocked": "A schema boundary is ambiguous.",
+    "budget_exhausted": "Iteration budget is exhausted without satisfying evidence.",
+    "unsafe_scope": "The work requires campaign compilation."
+  },
+  "blocked_routes": {
+    "needs_specification": {
+      "action": "create_spec_stub",
+      "also_create_beads_issue": true
+    },
+    "needs_decision": {
+      "action": "create_adr_stub",
+      "also_create_beads_issue": true
+    },
+    "needs_validator": {
+      "action": "create_evidence_stub",
+      "also_create_beads_issue": true
+    },
+    "unsafe_scope": {
+      "action": "create_scope_decision",
+      "also_create_beads_issue": true
+    }
+  }
+}

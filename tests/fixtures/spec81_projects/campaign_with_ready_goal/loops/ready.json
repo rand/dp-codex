@@ -1,0 +1,19 @@
+{
+  "schema_version": "0.1",
+  "id": "LOOP-SPEC-81-READY",
+  "title": "SPEC-81 ready loop fixture",
+  "nodes": [
+    {
+      "id": "bootstrap",
+      "kind": "goal",
+      "goal_id": "GOAL-SPEC-70.01",
+      "goal_path": "goals/one.json",
+      "beads_issue_id": "dpcx-eval-ready",
+      "depends_on": [],
+      "evidence_plan": "docs/evidence/EVIDENCE-SPEC-70.01.json"
+    }
+  ],
+  "stop_rules": [
+    "stop on missing evidence surface"
+  ]
+}
