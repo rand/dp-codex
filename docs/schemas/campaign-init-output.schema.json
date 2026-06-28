@@ -272,6 +272,7 @@
     },
     "signal_array": {
       "items": {
+        "maxLength": 220,
         "type": "string"
       },
       "type": "array"

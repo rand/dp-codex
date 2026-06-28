@@ -69,6 +69,9 @@ dp campaign init --primary-spec <path> --write --json
     still draft.
 12. The campaign state MUST remain `draft`.
 13. Existing deterministic lint gates MUST continue to pass for generated artifacts.
+14. Signal cues in public compiler JSON MUST be bounded excerpts. The primary spec is the source of
+    truth; campaign-init output summarizes and points, it does not paste unbounded source
+    paragraphs back into the agent context.
 
 ## Formal Invariants
 
@@ -89,6 +92,8 @@ Let `P` be the primary spec text, `S(P)` the ordered section list, and `A(P)` th
 6. Refined recoverability:
    every generated GoalContract and loop node references its compiler classification or refinement
    state so a future session can recover why the node exists without chat memory.
+7. Bounded context:
+   for every signal cue `c` emitted by the compiler, `len(c) <= 220`.
 
 ## Non-Goals
 
@@ -109,3 +114,12 @@ make check
 dp trace validate --json
 dp trace coverage --json
 ```
+
+## Realistic Primary-Spec Benchmark
+
+The compiler has been checked against local Waveguide- and Supastructure-style primary specs. Those
+specs exposed the main hardening requirement for this slice: large architecture specs can contain
+long paragraph-level evidence, decision, and dependency cues, and the dry-run JSON must remain
+compact enough for human and agent users. The benchmark expectation is not semantic readiness; it
+is deterministic, lint-valid, bounded output that preserves draft status and identifies the need for
+refinement.

@@ -215,6 +215,11 @@ stable JSON/Markdown friction metrics.
 SPEC-70.06 now records the Codex packaging decision: keep dp CLI-first, add the repo-local
 `dp-campaign-control` skill as a procedural scaffold, and defer MCP/plugin packaging until a later
 ADR proves a concrete integration gap.
+SPEC-80's tracked campaign-control closure gates are now satisfied for the local control-plane
+contract: current Beads intake, Codex integration, structured evidence, flow evals, CLI-first
+packaging, primary-spec intake UX, realistic-spec compiler benchmarking, recovery, managed handoff,
+and Beads synchronization all have deterministic tests and docs. Direct background autonomy remains
+outside the implemented contract.
 
 ## Developer Commands
 

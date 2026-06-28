@@ -257,6 +257,55 @@ def test_campaign_init_large_spec_preview_is_bounded(
     assert not Path(payload["artifacts"]["campaign"]).exists()
 
 
+# @trace SPEC-80.09
+def test_campaign_init_large_architecture_signals_are_bounded(
+    tmp_path: Path,
+    monkeypatch,
+    capsys,
+) -> None:
+    primary_spec = tmp_path / "docs/primary/architecture.md"
+    primary_spec.parent.mkdir(parents=True, exist_ok=True)
+    long_decision = (
+        "The architecture decision requires a governed capture envelope, authority envelope, "
+        "policy boundary, branch revision model, durable recovery checkpoint, evaluation trace, "
+        "training slice, dependency DAG, and verifier-backed promotion path before any agent can "
+        "treat the generated campaign as implementation-ready."
+    )
+    primary_spec.write_text(
+        "# Architecture Spec\n\n"
+        + "\n\n".join(
+            (
+                f"## Capability Area {index}\n\n"
+                f"{long_decision} The implementation must preserve traceability and verification "
+                f"for area {index}. Evidence comes from pytest tests/test_area_{index}.py, "
+                "dp campaign lint, and make check. This section depends on the policy model and "
+                "is blocked by unresolved validator design."
+            )
+            for index in range(1, 36)
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.chdir(tmp_path)
+
+    exit_code = main(
+        ["campaign", "init", "--primary-spec", "docs/primary/architecture.md", "--json"]
+    )
+
+    assert exit_code == 0
+    output = capsys.readouterr().out
+    payload = json.loads(output)
+    assert len(output) < 80_000
+    assert payload["section_count"] == 35
+    assert payload["sections_truncated"] is True
+    assert payload["compiler"]["node_count"] == 35
+    assert payload["compiler"]["nodes_truncated"] is True
+    assert payload["compiler"]["summary"]["decision_nodes"] == 35
+    for node in payload["compiler"]["nodes"]:
+        for signal_values in node["signals"].values():
+            assert len(signal_values) <= 8
+            assert all(len(cue) <= 220 for cue in signal_values)
+
+
 def test_campaign_init_rejects_missing_primary_spec(capsys) -> None:
     exit_code = main(
         ["campaign", "init", "--primary-spec", "docs/primary/missing.md", "--write", "--json"]

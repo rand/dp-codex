@@ -1,6 +1,6 @@
 # SPEC-80: Agent Campaign Control Plane for dp-codex
 
-Status: proposed
+Status: implemented
 Audience: local Codex, future dp maintainers
 Scope: principled upgrade to dp-codex so a comprehensive primary spec can be compiled into a disciplined, agent-operable campaign of specs, ADRs, validators, tests, Beads work, goals, evidence, and loops.
 
@@ -35,6 +35,12 @@ pending evidence, blockers, verified loops, no ready work, or one claimed handof
 --goal <goal.json> --driver codex --supervised --json` now claims and starts one valid
 GoalContract, emits the Codex package, and exits without spawning Codex, running evidence, mutating
 Beads, or marking work verified.
+The end-to-end completion gates in SPEC-80.22 are also satisfied: current Beads task intake, Codex
+integration guidance, hardened verification evidence, flow evals, CLI-first Codex packaging,
+primary-spec intake UX, realistic primary-spec benchmarks, and recovery from repo artifacts are all
+tracked in closed Beads issues with passing deterministic gates. Future direct agent subprocess
+launch or background multi-goal execution remains a separate follow-up decision, not part of the
+implemented SPEC-80 control-plane contract.
 
 ## 1. Thesis
 

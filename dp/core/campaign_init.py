@@ -63,6 +63,7 @@ EVIDENCE_SIGNAL_TERMS = (
     "verify",
 )
 MAX_SIGNAL_CUES = 8
+MAX_SIGNAL_CHARS = 220
 MAX_PUBLIC_ITEMS = 25
 
 
@@ -671,6 +672,9 @@ def _clean_signal_line(value: str) -> str:
     stripped = value.strip()
     stripped = re.sub(r"^[-*+]\s+", "", stripped)
     stripped = re.sub(r"^\d+[.)]\s+", "", stripped)
+    stripped = re.sub(r"\s+", " ", stripped)
+    if len(stripped) > MAX_SIGNAL_CHARS:
+        return stripped[: MAX_SIGNAL_CHARS - 3].rstrip() + "..."
     return stripped
 
 

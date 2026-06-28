@@ -46,6 +46,28 @@ The following existing Beads work is in-scope for SPEC-80 completion:
 SPEC-70.06 is satisfied when an ADR-quality packaging comparison exists, the chosen scaffold is
 checked in and documented, and tests prove the scaffold preserves dp's deterministic gate boundary.
 
+## Closure Evidence
+
+As of 2026-06-27, the SPEC-80.22 gate is satisfied by these repo artifacts and Beads closures:
+
+1. `dpcx-ea9.1` / SPEC-70.02 task intake is closed with `dp task claim` context extraction over
+   current Beads claim semantics.
+2. `dpcx-ea9.2` / SPEC-70.03 Codex integration is closed with deterministic preflight and
+   opt-in hook/config guidance.
+3. `dpcx-ea9.3` / SPEC-70.04 evidence quality is closed with structured verify-manifest evidence.
+4. `dpcx-ea9.4` / SPEC-70.05 flow evals are closed with deterministic doctor/claim/verify/close
+   friction metrics.
+5. `dpcx-ea9.5` / SPEC-70.06 packaging is closed with ADR-0014, CLI-first guidance, and the
+   repo-local `dp-campaign-control` skill scaffold.
+6. `dpcx-pb5.18` / SPEC-80.21 primary-spec intake UX is closed with dry-run preview, source
+   provenance, unsupported URL diagnostics, and large-spec preview fields.
+7. `dpcx-pb5.9` / SPEC-80.09 semantic compiler hardening is closed with bounded signal excerpts
+   and local Waveguide/Supastructure-style dry-run benchmarks.
+
+The large-spec benchmark found and fixed a real agent-experience issue: unbounded paragraph cues in
+dry-run compiler JSON. `dp campaign init` now caps individual signal cues at 220 characters while
+leaving the primary spec as the source of truth.
+
 SPEC-80 may depend on these issues rather than duplicating their implementation. The important
 rule is closure: the SPEC-80 epic must not close while those gates remain open or unproven.
 

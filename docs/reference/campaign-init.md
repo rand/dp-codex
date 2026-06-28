@@ -43,7 +43,8 @@ markers, validator gaps, decision coverage, Beads links, and dependency hints ha
 The JSON output includes `write`, `written`, and `preview` booleans plus `next_commands` for the
 normal write/refine/ready sequence. Large primary specs are summarized with `section_count`,
 `sections_truncated`, `compiler.node_count`, and `compiler.nodes_truncated` so preview output stays
-bounded.
+bounded. Individual compiler signal cues are deterministic excerpts capped at 220 characters; the
+primary spec remains the source of truth for full source text.
 
 Remote URL intake is deliberately explicit. Until a source adapter exists, URL input fails with
 `unsupported_primary_spec_source` and writes nothing.
