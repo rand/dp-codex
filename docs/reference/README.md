@@ -38,5 +38,6 @@ Reference docs are lookup-oriented and terse by design.
 15. `/docs/schemas/agent-launch-output.schema.json`
 16. `/docs/schemas/campaign-sync-beads-output.schema.json`
 17. `/docs/schemas/codex-preflight-output.schema.json`
+18. `/docs/schemas/flow-eval-summary.schema.json`
 
 When you need a concept, use `/docs/concepts/`. When you need a sequence, use `/docs/guides/` or `/docs/runbooks/`.

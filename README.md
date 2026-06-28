@@ -98,10 +98,12 @@ Run the SPEC-80.19 campaign-control pilot in an isolated temporary repository:
 
 ```bash
 pytest tests/test_campaign_pilot.py
+pytest tests/test_flow_evals.py
 ```
 
-See `docs/runbooks/campaign-pilot.md` for the human and agent flows. The older migration pilot
-remains available at `scripts/run_pilot_migration.sh`.
+See `docs/runbooks/campaign-pilot.md` for the human and agent campaign-control flows, and
+`docs/runbooks/flow-evals.md` for the SPEC-70.05 doctor/claim/verify/preflight/closeout friction
+eval. The older migration pilot remains available at `scripts/run_pilot_migration.sh`.
 
 ## Reliability Model
 
@@ -200,6 +202,9 @@ operations while leaving dp evidence verification as the source of completion tr
 Goal-backward `dp verify` manifests preserve legacy artifact existence checks while optionally
 validating recorded SHA-256 digests, command outcomes, Beads issue ids, and spec ids for stronger
 campaign closeout evidence.
+SPEC-70.05 flow evals now exercise doctor, task claim, implementation artifact writing, strict
+Codex preflight, manifest verification, and task closeout in an isolated deterministic pilot with
+stable JSON/Markdown friction metrics.
 
 ## Developer Commands
 
@@ -232,4 +237,5 @@ agent_tmp="$(mktemp -d)"
 cp tests/fixtures/goals/valid_spec_70_01.json "$agent_tmp/goal.json"
 (cd "$agent_tmp" && dp agent launch --goal goal.json --driver codex --supervised --json)
 pytest tests/test_campaign_run.py tests/test_campaign_managed_run.py tests/test_agent_launch.py
+pytest tests/test_flow_evals.py
 ```

@@ -10,6 +10,7 @@ Runbooks are operational, step-by-step documents for repeatable execution.
 4. `enforcement-workflow.md`: hook/CI enforcement and bypass protocol
 5. `troubleshooting.md`: failure diagnosis and recovery
 6. `codex-integration.md`: opt-in Codex guidance, hooks, and cheap preflight checks
+7. `flow-evals.md`: deterministic flow pilots and friction metrics
 
 ## Workflow-Specific Runbooks
 
@@ -23,5 +24,6 @@ Runbooks are operational, step-by-step documents for repeatable execution.
 8. `task-json-output.md`
 9. `output-schemas.md`
 10. `migration-guide.md`
+11. `campaign-pilot.md`
 
 Runbooks are meant to be executable. If a step cannot be executed as written, update the runbook and the implementation in the same change.

@@ -49,6 +49,7 @@ If you want system design and implementation internals:
 | Agent goals, evidence plans, loop ledgers, and campaign manifests | `/docs/runbooks/goal-workflow.md` | `/docs/reference/goal-contract-schema.md`, `/docs/reference/goal-state-machine.md`, `/docs/reference/goal-emission.md`, `/docs/reference/evidence-plan-schema.md`, `/docs/reference/loop-ledger-schema.md`, `/docs/reference/campaign-manifest-schema.md`, `/docs/reference/campaign-init.md`, `/docs/reference/campaign-refine.md`, `/docs/reference/campaign-ready.md`, `/docs/reference/campaign-run.md`, `/docs/reference/agent-launch.md` |
 | Review and verify | `/docs/guides/feature-driver-playbook.md` | `/docs/runbooks/review-workflow.md`, `/docs/runbooks/verify-workflow.md` |
 | Enforcement and policy | `/docs/concepts/governance-and-risk.md` | `/docs/runbooks/enforcement-workflow.md`, `/docs/runbooks/policy-workflow.md` |
+| Flow evals and pilots | `/docs/runbooks/flow-evals.md` | `/docs/runbooks/campaign-pilot.md`, `/docs/pilot/` |
 | Migration and operations | `/docs/guides/maintainer-automation-playbook.md` | `/docs/runbooks/migration-guide.md`, `/docs/runbooks/troubleshooting.md` |
 
 ## Doc Families

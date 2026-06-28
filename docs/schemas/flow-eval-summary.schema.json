@@ -1,0 +1,149 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$defs": {
+    "step": {
+      "additionalProperties": false,
+      "properties": {
+        "exit_code": {
+          "type": "integer"
+        },
+        "id": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "ok": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "ok",
+        "exit_code"
+      ],
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "artifacts": {
+      "additionalProperties": false,
+      "properties": {
+        "evidence_artifact": {
+          "type": "string"
+        },
+        "verify_manifest": {
+          "type": "string"
+        },
+        "written_files": {
+          "items": {
+            "type": "string"
+          },
+          "type": "array"
+        }
+      },
+      "required": [
+        "written_files",
+        "verify_manifest",
+        "evidence_artifact"
+      ],
+      "type": "object"
+    },
+    "friction": {
+      "additionalProperties": false,
+      "properties": {
+        "false_positive_preflight_blocks": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "manual_interventions_required": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "open_blockers": {
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "false_positive_preflight_blocks",
+        "manual_interventions_required",
+        "open_blockers"
+      ],
+      "type": "object"
+    },
+    "metrics": {
+      "additionalProperties": false,
+      "properties": {
+        "claim_round_trips": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "closeout_exit_code": {
+          "type": "integer"
+        },
+        "evidence_completeness": {
+          "maximum": 1,
+          "minimum": 0,
+          "type": "number"
+        },
+        "evidence_levels_total": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "evidence_levels_verified": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "implementation_artifacts_written": {
+          "minimum": 0,
+          "type": "integer"
+        },
+        "setup_recovery_ok": {
+          "type": "boolean"
+        },
+        "strict_preflight_blocking_count": {
+          "minimum": 0,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "setup_recovery_ok",
+        "claim_round_trips",
+        "implementation_artifacts_written",
+        "evidence_levels_verified",
+        "evidence_levels_total",
+        "evidence_completeness",
+        "strict_preflight_blocking_count",
+        "closeout_exit_code"
+      ],
+      "type": "object"
+    },
+    "scenario": {
+      "const": "guided_task_to_verify_close"
+    },
+    "schema_version": {
+      "const": "0.1"
+    },
+    "spec_id": {
+      "const": "SPEC-70.05"
+    },
+    "steps": {
+      "items": {
+        "$ref": "#/$defs/step"
+      },
+      "minItems": 1,
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema_version",
+    "spec_id",
+    "scenario",
+    "steps",
+    "metrics",
+    "friction",
+    "artifacts"
+  ],
+  "title": "dp flow eval summary",
+  "type": "object"
+}

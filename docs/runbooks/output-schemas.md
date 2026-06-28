@@ -1,6 +1,6 @@
 # Output Schema Runbook
 
-JSON output contracts for automation are versioned as JSON Schema files:
+JSON output and report contracts for automation are versioned as JSON Schema files:
 
 1. `docs/schemas/review-output.schema.json`
 2. `docs/schemas/verify-output.schema.json`
@@ -18,6 +18,7 @@ JSON output contracts for automation are versioned as JSON Schema files:
 14. `docs/schemas/agent-launch-output.schema.json`
 15. `docs/schemas/campaign-sync-beads-output.schema.json`
 16. `docs/schemas/codex-preflight-output.schema.json`
+17. `docs/schemas/flow-eval-summary.schema.json`
 
 Validation is enforced by unit tests that execute real JSON-producing flows and validate payloads
 against these schemas where a stable schema exists. Other JSON command families are covered by
