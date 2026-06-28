@@ -12,6 +12,10 @@ Runbooks are operational, step-by-step documents for repeatable execution.
 6. `codex-integration.md`: opt-in Codex guidance, hooks, and cheap preflight checks
 7. `flow-evals.md`: deterministic flow pilots and friction metrics
 8. `codex-packaging.md`: CLI-first Codex packaging, repo-local skill, and deferred MCP/plugin rules
+9. `agent-session-bootstrap.md`: first-command agent orientation and compact discovery
+10. `agent-session-handoff.md`: clean evidence-backed agent closeout
+11. `adopting-dp-in-existing-project.md`: inspect-plan-apply-verify adoption flow
+12. `debugging-agent-handoffs.md`: hint-led repair for failed handoffs and evidence
 
 ## Workflow-Specific Runbooks
 

@@ -1,0 +1,42 @@
+{
+  "changes": [
+    {
+      "id": "create-goal-event-dir",
+      "kind": "mkdir",
+      "mode": "apply",
+      "path": ".dp/goals",
+      "reason": "Enable append-only goal lifecycle events."
+    },
+    {
+      "id": "create-campaign-event-dir",
+      "kind": "mkdir",
+      "mode": "apply",
+      "path": ".dp/campaigns",
+      "reason": "Enable append-only campaign handoff events."
+    }
+  ],
+  "conflicts": [],
+  "id": "MIGRATION-2026-06-28-agent-experience",
+  "rules": {
+    "additive_by_default": true,
+    "apply_requires_explicit_flag": true,
+    "create_agents_override": false,
+    "overwrite_agents_md": false
+  },
+  "schema_version": "dp.adoption_plan.v1",
+  "source_state": {
+    "classification": "current_spec81",
+    "has_agent_bootstrap_guidance": true,
+    "has_agents_md": true,
+    "has_campaigns": false,
+    "has_legacy_verify": true,
+    "has_spec81": true
+  },
+  "status": "planned",
+  "verification": [
+    "dp instructions audit --json",
+    "dp agent bootstrap --json --detail brief",
+    "dp doctor --json",
+    "dp adopt verify --json"
+  ]
+}

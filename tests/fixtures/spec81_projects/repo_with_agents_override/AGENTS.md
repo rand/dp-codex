@@ -1,0 +1,3 @@
+# Agent Instructions
+
+Root rules.

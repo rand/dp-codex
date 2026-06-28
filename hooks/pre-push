@@ -4,13 +4,21 @@ set -euo pipefail
 repo_root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 cd "${repo_root}"
 export UV_CACHE_DIR="${UV_CACHE_DIR:-${repo_root}/.uv-cache}"
+timeout_seconds="${DP_HOOK_TIMEOUT_SECONDS:-180}"
+
+run_with_timeout() {
+  if command -v timeout >/dev/null 2>&1; then
+    exec timeout "${timeout_seconds}" "$@"
+  fi
+  exec "$@"
+}
 
 if command -v uv >/dev/null 2>&1; then
-  exec uv run dp enforce pre-push --policy dp-policy.json
+  run_with_timeout uv run dp enforce pre-push --policy dp-policy.json
 fi
 
 if command -v dp >/dev/null 2>&1; then
-  exec dp enforce pre-push --policy dp-policy.json
+  run_with_timeout dp enforce pre-push --policy dp-policy.json
 fi
 
 echo "dp enforcement failed: neither 'uv' nor 'dp' command is available." >&2

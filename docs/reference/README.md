@@ -18,6 +18,16 @@ Reference docs are lookup-oriented and terse by design.
 12. `/docs/reference/agent-launch.md`
 13. `/docs/reference/campaign-beads-sync.md`
 14. `/docs/reference/codex-preflight.md`
+15. `/docs/reference/agent-response-contract.md`
+16. `/docs/reference/agent-bootstrap.md`
+17. `/docs/reference/agent-capabilities.md`
+18. `/docs/reference/toolcards.md`
+19. `/docs/reference/hint-codes.md`
+20. `/docs/reference/instruction-governance.md`
+21. `/docs/reference/adoption-workflow.md`
+22. `/docs/reference/skills.md`
+23. `/docs/reference/hook-governance.md`
+24. `/docs/reference/agent-usability-evals.md`
 
 ## JSON Contract Reference
 

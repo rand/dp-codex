@@ -35,6 +35,7 @@ It provides:
 15. `dp agent launch` as a goal-level adapter that claims, starts, and emits a handoff package without spawning Codex
 16. Explicit Beads lifecycle synchronization for campaign dependencies and goal state
 17. CLI-first Codex packaging with repo instructions and an optional repo-local campaign-control skill
+18. Agent Experience commands for compact bootstrap, capabilities, hints, instruction governance, adoption planning, skills, hooks, and evals
 
 ## Quick Start
 
@@ -95,6 +96,18 @@ as chat state:
 dp goal block docs/goals/GOAL-my-feature.json --reason needs_decision --write-artifact --json
 ```
 
+For agent-oriented session startup and command discovery:
+
+```bash
+dp agent bootstrap --json --detail brief
+dp agent capabilities --json
+dp explain DP-HINT-EVIDENCE-MISSING --json
+dp instructions audit --json
+dp adopt inspect --json
+dp hooks audit --json
+dp skills audit --json
+```
+
 Run the SPEC-80.19 campaign-control pilot in an isolated temporary repository:
 
 ```bash
@@ -150,6 +163,10 @@ Operational runbooks:
 - `docs/runbooks/developer-commands.md`
 - `docs/runbooks/goal-workflow.md`
 - `docs/runbooks/codex-packaging.md`
+- `docs/runbooks/agent-session-bootstrap.md`
+- `docs/runbooks/agent-session-handoff.md`
+- `docs/runbooks/adopting-dp-in-existing-project.md`
+- `docs/runbooks/debugging-agent-handoffs.md`
 - `docs/runbooks/enforcement-workflow.md`
 - `docs/runbooks/migration-guide.md`
 - `docs/runbooks/troubleshooting.md`
@@ -167,6 +184,16 @@ Reference and contributor standards:
 - `docs/reference/campaign-refine.md`
 - `docs/reference/campaign-run.md`
 - `docs/reference/agent-launch.md`
+- `docs/reference/agent-response-contract.md`
+- `docs/reference/agent-bootstrap.md`
+- `docs/reference/agent-capabilities.md`
+- `docs/reference/toolcards.md`
+- `docs/reference/hint-codes.md`
+- `docs/reference/instruction-governance.md`
+- `docs/reference/adoption-workflow.md`
+- `docs/reference/skills.md`
+- `docs/reference/hook-governance.md`
+- `docs/reference/agent-usability-evals.md`
 - `docs/developer/contributor-handbook.md`
 - `docs/developer/documentation-style.md`
 
@@ -220,6 +247,9 @@ contract: current Beads intake, Codex integration, structured evidence, flow eva
 packaging, primary-spec intake UX, realistic-spec compiler benchmarking, recovery, managed handoff,
 and Beads synchronization all have deterministic tests and docs. Direct background autonomy remains
 outside the implemented contract.
+SPEC-81 now adds the compact Agent Experience layer: response envelopes, ToolCards, stable hints,
+bootstrap/capabilities, instruction governance, conservative adoption planning, focused skills,
+hook governance, token-budget tests, and deterministic agent usability evals.
 
 ## Developer Commands
 

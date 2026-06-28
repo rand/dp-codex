@@ -12,6 +12,12 @@ Prefer small, independently verifiable increments over large multi-concern chang
 2. Pull and claim ready work with `dp task claim --json`, or claim a known issue with `dp task claim <id> --json`.
 3. Read the returned `context.read_first` files before editing.
 
+## Agent Experience
+
+1. Start agent sessions with `dp agent bootstrap --json --detail brief` for compact local orientation.
+2. Use `dp agent capabilities --json` when command safety, mutability, or next actions are unclear.
+3. Treat dp hints as workflow affordances; this file and nested `AGENTS.md` files remain project law.
+
 ## Implementation Rules
 
 1. Keep each issue scoped to one logical outcome.

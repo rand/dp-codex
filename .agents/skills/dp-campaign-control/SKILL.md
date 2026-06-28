@@ -1,9 +1,11 @@
 ---
 name: dp-campaign-control
-description: Operate SPEC-80-style campaigns through the dp CLI in dp-codex-aware repositories. Use when Codex is asked to continue, recover, claim, run, block, verify, or close out a dp campaign or goal in a repository with `.beads/`, `dp-policy.json`, or instructions that mention dp-codex.
+description: Operate SPEC-80-style campaign work in dp-codex-aware repositories; trigger on campaign, next goal, recover, block, verify, handoff.
 ---
 
 # DP Campaign Control
+
+Respect `AGENTS.md` and any nested `AGENTS.md` before using this skill.
 
 Use dp as the campaign control plane. Codex may reason and edit, but dp owns state, evidence,
 blocking gates, and recovery artifacts.

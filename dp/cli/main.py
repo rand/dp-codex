@@ -7,7 +7,14 @@ import sys
 from pathlib import Path
 from typing import Any, Callable, Sequence, TextIO, cast
 
+from dp.core.adoption import apply_adoption, inspect_adoption, plan_adoption, verify_adoption
 from dp.core.adr import create_adr, list_adrs, show_adr, update_adr_status
+from dp.core.agent_experience import (
+    agent_bootstrap,
+    agent_capabilities,
+    agent_eval,
+    wrap_progressive_payload,
+)
 from dp.core.agent_launch import launch_agent_goal
 from dp.core.campaign_beads_sync import sync_campaign_beads
 from dp.core.campaign_init import init_campaign_from_primary_spec
@@ -37,6 +44,9 @@ from dp.core.goal_state import (
     verify_goal,
 )
 from dp.core.goal_verification import verify_goal_orchestrated
+from dp.core.hints import explain_code
+from dp.core.hooks import audit_hooks, doctor_hooks, scaffold_hooks
+from dp.core.instructions import audit_instructions, inspect_instructions, plan_instruction_update
 from dp.core.loop_ledger import lint_loop_file, loop_next, loop_status
 from dp.core.policy import load_policy_config
 from dp.core.progress import (
@@ -47,6 +57,7 @@ from dp.core.progress import (
     write_progress_report,
 )
 from dp.core.review import run_review
+from dp.core.skills import audit_skills, eval_skills, lint_skills, scaffold_skills
 from dp.core.spec_parser import parse_spec_ids
 from dp.core.task_normalization import normalize_priority, normalize_status
 from dp.core.trace_parser import parse_trace_markers, parse_trace_references
@@ -156,7 +167,17 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Check local dp-codex workflow health without mutating state.",
     )
     doctor_parser.add_argument("--json", action="store_true")
+    doctor_parser.add_argument("--detail", choices=["brief", "normal", "full"])
     doctor_parser.set_defaults(handler=_run_doctor)
+
+    explain_parser = subparsers.add_parser(
+        "explain",
+        help="Explain a stable dp hint or error code.",
+    )
+    explain_parser.add_argument("code")
+    explain_parser.add_argument("--json", action="store_true")
+    explain_parser.add_argument("--format", choices=["json", "markdown"], default="json")
+    explain_parser.set_defaults(handler=_run_explain)
 
     codex_parser = subparsers.add_parser("codex")
     codex_subparsers = codex_parser.add_subparsers(dest="codex_command", required=True)
@@ -187,6 +208,7 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     goal_status_parser.add_argument("goal")
     goal_status_parser.add_argument("--json", action="store_true")
+    goal_status_parser.add_argument("--detail", choices=["brief", "normal", "full"])
     goal_status_parser.set_defaults(handler=_run_goal_status)
 
     goal_claim_parser = goal_subparsers.add_parser(
@@ -251,6 +273,7 @@ def _build_parser() -> argparse.ArgumentParser:
     goal_verify_parser.add_argument("goal")
     goal_verify_parser.add_argument("--evidence", required=True)
     goal_verify_parser.add_argument("--json", action="store_true")
+    goal_verify_parser.add_argument("--detail", choices=["brief", "normal", "full"])
     goal_verify_parser.set_defaults(handler=_run_goal_verify)
 
     goal_emit_parser = goal_subparsers.add_parser(
@@ -403,6 +426,32 @@ def _build_parser() -> argparse.ArgumentParser:
     agent_parser = subparsers.add_parser("agent")
     agent_subparsers = agent_parser.add_subparsers(dest="agent_command", required=True)
 
+    agent_bootstrap_parser = agent_subparsers.add_parser(
+        "bootstrap",
+        help="Orient an agent in the current dp-aware repository.",
+    )
+    agent_bootstrap_parser.add_argument("--json", action="store_true")
+    agent_bootstrap_parser.add_argument(
+        "--detail",
+        choices=["brief", "normal", "full"],
+        default="brief",
+    )
+    agent_bootstrap_parser.set_defaults(handler=_run_agent_bootstrap)
+
+    agent_capabilities_parser = agent_subparsers.add_parser(
+        "capabilities",
+        help="Expose compact ToolCards for agent command discovery.",
+    )
+    agent_capabilities_parser.add_argument("--json", action="store_true")
+    agent_capabilities_parser.set_defaults(handler=_run_agent_capabilities)
+
+    agent_eval_parser = agent_subparsers.add_parser(
+        "eval",
+        help="Run lightweight deterministic agent-usability evals.",
+    )
+    agent_eval_parser.add_argument("--json", action="store_true")
+    agent_eval_parser.set_defaults(handler=_run_agent_eval)
+
     agent_prompt_parser = agent_subparsers.add_parser(
         "prompt",
         help="Emit an agent prompt from a valid GoalContract.",
@@ -423,6 +472,89 @@ def _build_parser() -> argparse.ArgumentParser:
     agent_launch_parser.add_argument("--supervised", action="store_true")
     agent_launch_parser.add_argument("--json", action="store_true")
     agent_launch_parser.set_defaults(handler=_run_agent_launch)
+
+    instructions_parser = subparsers.add_parser("instructions")
+    instructions_subparsers = instructions_parser.add_subparsers(
+        dest="instructions_command",
+        required=True,
+    )
+    instructions_inspect_parser = instructions_subparsers.add_parser(
+        "inspect",
+        help="Discover instruction files and precedence without mutation.",
+    )
+    instructions_inspect_parser.add_argument("--json", action="store_true")
+    instructions_inspect_parser.add_argument(
+        "--detail",
+        choices=["brief", "normal", "full"],
+        default="normal",
+    )
+    instructions_inspect_parser.set_defaults(handler=_run_instructions_inspect)
+
+    instructions_audit_parser = instructions_subparsers.add_parser(
+        "audit",
+        help="Audit instruction conflicts without mutation.",
+    )
+    instructions_audit_parser.add_argument("--json", action="store_true")
+    instructions_audit_parser.set_defaults(handler=_run_instructions_audit)
+
+    instructions_plan_parser = instructions_subparsers.add_parser(
+        "plan-update",
+        help="Preview a minimal instruction update plan without mutation.",
+    )
+    instructions_plan_parser.add_argument("--json", action="store_true")
+    instructions_plan_parser.set_defaults(handler=_run_instructions_plan_update)
+
+    adopt_parser = subparsers.add_parser("adopt")
+    adopt_subparsers = adopt_parser.add_subparsers(dest="adopt_command", required=True)
+    _add_adoption_subcommands(adopt_subparsers)
+
+    migrate_parser = subparsers.add_parser("migrate")
+    migrate_subparsers = migrate_parser.add_subparsers(dest="migrate_command", required=True)
+    _add_adoption_subcommands(migrate_subparsers, handler_prefix="migrate")
+
+    skills_parser = subparsers.add_parser("skills")
+    skills_subparsers = skills_parser.add_subparsers(dest="skills_command", required=True)
+    skills_scaffold_parser = skills_subparsers.add_parser(
+        "scaffold",
+        help="Scaffold focused repo-scoped Codex skills.",
+    )
+    skills_scaffold_parser.add_argument("--target", choices=["repo"], required=True)
+    skills_scaffold_parser.add_argument("--json", action="store_true")
+    skills_scaffold_parser.set_defaults(handler=_run_skills_scaffold)
+
+    skills_lint_parser = skills_subparsers.add_parser("lint", help="Lint repo-scoped skills.")
+    skills_lint_parser.add_argument("--json", action="store_true")
+    skills_lint_parser.set_defaults(handler=_run_skills_lint)
+
+    skills_audit_parser = skills_subparsers.add_parser("audit", help="Audit repo-scoped skills.")
+    skills_audit_parser.add_argument("--json", action="store_true")
+    skills_audit_parser.set_defaults(handler=_run_skills_audit)
+
+    skills_eval_parser = skills_subparsers.add_parser(
+        "eval",
+        help="Run deterministic skill trigger evals.",
+    )
+    skills_eval_parser.add_argument("--json", action="store_true")
+    skills_eval_parser.set_defaults(handler=_run_skills_eval)
+
+    hooks_parser = subparsers.add_parser("hooks")
+    hooks_subparsers = hooks_parser.add_subparsers(dest="hooks_command", required=True)
+    hooks_audit_parser = hooks_subparsers.add_parser("audit", help="Audit local hooks.")
+    hooks_audit_parser.add_argument("--json", action="store_true")
+    hooks_audit_parser.set_defaults(handler=_run_hooks_audit)
+
+    hooks_doctor_parser = hooks_subparsers.add_parser("doctor", help="Summarize hook health.")
+    hooks_doctor_parser.add_argument("--json", action="store_true")
+    hooks_doctor_parser.set_defaults(handler=_run_hooks_doctor)
+
+    hooks_scaffold_parser = hooks_subparsers.add_parser(
+        "scaffold",
+        help="Preview deterministic hook templates.",
+    )
+    hooks_scaffold_parser.add_argument("--target", choices=["git", "codex"], required=True)
+    hooks_scaffold_parser.add_argument("--write", action="store_true")
+    hooks_scaffold_parser.add_argument("--json", action="store_true")
+    hooks_scaffold_parser.set_defaults(handler=_run_hooks_scaffold)
 
     evidence_parser = subparsers.add_parser("evidence")
     evidence_subparsers = evidence_parser.add_subparsers(
@@ -446,6 +578,7 @@ def _build_parser() -> argparse.ArgumentParser:
     evidence_run_parser.add_argument("--output")
     evidence_run_parser.add_argument("--force", action="store_true")
     evidence_run_parser.add_argument("--json", action="store_true")
+    evidence_run_parser.add_argument("--detail", choices=["brief", "normal", "full"])
     evidence_run_parser.set_defaults(handler=_run_evidence_run)
 
     loop_parser = subparsers.add_parser("loop")
@@ -480,6 +613,7 @@ def _build_parser() -> argparse.ArgumentParser:
     loop_next_parser.add_argument("--lease", default="2h")
     loop_next_parser.add_argument("--emit", choices=["codex"])
     loop_next_parser.add_argument("--json", action="store_true")
+    loop_next_parser.add_argument("--detail", choices=["brief", "normal", "full"])
     loop_next_parser.set_defaults(handler=_run_loop_next)
 
     campaign_parser = subparsers.add_parser("campaign")
@@ -511,6 +645,7 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     campaign_status_parser.add_argument("campaign")
     campaign_status_parser.add_argument("--json", action="store_true")
+    campaign_status_parser.add_argument("--detail", choices=["brief", "normal", "full"])
     campaign_status_parser.set_defaults(handler=_run_campaign_status)
 
     campaign_recover_parser = campaign_subparsers.add_parser(
@@ -566,6 +701,51 @@ def _build_parser() -> argparse.ArgumentParser:
     campaign_sync_beads_parser.set_defaults(handler=_run_campaign_sync_beads)
 
     return parser
+
+
+def _add_adoption_subcommands(
+    subparsers: Any,
+    *,
+    handler_prefix: str = "adopt",
+) -> None:
+    inspect_parser = subparsers.add_parser(
+        "inspect",
+        help="Classify current dp adoption state without mutation.",
+    )
+    inspect_parser.add_argument("--json", action="store_true")
+    inspect_parser.set_defaults(
+        handler=_run_migrate_inspect if handler_prefix == "migrate" else _run_adopt_inspect
+    )
+
+    plan_parser = subparsers.add_parser(
+        "plan",
+        help="Plan additive dp adoption or migration.",
+    )
+    plan_parser.add_argument("--write", action="store_true")
+    plan_parser.add_argument("--json", action="store_true")
+    plan_parser.set_defaults(
+        handler=_run_migrate_plan if handler_prefix == "migrate" else _run_adopt_plan
+    )
+
+    apply_parser = subparsers.add_parser(
+        "apply",
+        help="Dry-run or explicitly apply an adoption plan.",
+    )
+    apply_parser.add_argument("plan")
+    apply_parser.add_argument("--apply", action="store_true")
+    apply_parser.add_argument("--json", action="store_true")
+    apply_parser.set_defaults(
+        handler=_run_migrate_apply if handler_prefix == "migrate" else _run_adopt_apply
+    )
+
+    verify_parser = subparsers.add_parser(
+        "verify",
+        help="Verify current adoption health.",
+    )
+    verify_parser.add_argument("--json", action="store_true")
+    verify_parser.set_defaults(
+        handler=_run_migrate_verify if handler_prefix == "migrate" else _run_adopt_verify
+    )
 
 
 def _run_trace_coverage(args: argparse.Namespace) -> int:
@@ -716,6 +896,20 @@ def _run_doctor(args: argparse.Namespace) -> int:
         },
     }
 
+    if args.detail is not None:
+        response = wrap_progressive_payload(
+            command="doctor",
+            command_line=f"dp doctor --json --detail {args.detail}",
+            payload=payload,
+            exit_code=0 if health.ok else 2,
+            detail=args.detail,
+        )
+        if args.json:
+            print(json.dumps(response, sort_keys=True))
+        else:
+            print(response["summary"])
+        return 0 if health.ok else 2
+
     if args.json:
         print(json.dumps(payload, sort_keys=True))
         return 0 if health.ok else 2
@@ -735,6 +929,24 @@ def _run_doctor(args: argparse.Namespace) -> int:
     if health.recovery_hint is not None:
         print(f"recovery: {health.recovery_hint}", file=sys.stderr)
     return 0 if health.ok else 2
+
+
+def _run_explain(args: argparse.Namespace) -> int:
+    payload, exit_code = explain_code(args.code)
+    if args.json or args.format == "json":
+        print(json.dumps(payload, sort_keys=True))
+        return exit_code
+
+    print(f"# {payload['code']}")
+    print()
+    print(payload["summary"])
+    print()
+    print(payload["why_it_matters"])
+    print()
+    print("Next actions:")
+    for action in payload["next_actions"]:
+        print(f"- `{action['command']}`: {action['why']}")
+    return exit_code
 
 
 def _run_codex_preflight(args: argparse.Namespace) -> int:
@@ -782,7 +994,17 @@ def _run_goal_lint(args: argparse.Namespace) -> int:
 
 
 def _run_goal_status(args: argparse.Namespace) -> int:
-    return _emit_goal_command_result(goal_status(Path(args.goal)), args.json)
+    result = goal_status(Path(args.goal))
+    if args.detail is not None:
+        return _emit_progressive_result(
+            command="goal.status",
+            command_line=f"dp goal status {args.goal} --json --detail {args.detail}",
+            payload=result.payload,
+            exit_code=result.exit_code,
+            detail=args.detail,
+            json_output=args.json,
+        )
+    return _emit_goal_command_result(result, args.json)
 
 
 def _run_goal_claim(args: argparse.Namespace) -> int:
@@ -825,8 +1047,21 @@ def _run_goal_complete(args: argparse.Namespace) -> int:
 
 
 def _run_goal_verify(args: argparse.Namespace) -> int:
+    result = verify_goal(Path(args.goal), evidence_path=Path(args.evidence))
+    if args.detail is not None:
+        return _emit_progressive_result(
+            command="goal.verify",
+            command_line=(
+                f"dp goal verify {args.goal} --evidence {args.evidence} "
+                f"--json --detail {args.detail}"
+            ),
+            payload=result.payload,
+            exit_code=result.exit_code,
+            detail=args.detail,
+            json_output=args.json,
+        )
     return _emit_goal_command_result(
-        verify_goal(Path(args.goal), evidence_path=Path(args.evidence)),
+        result,
         args.json,
     )
 
@@ -834,6 +1069,21 @@ def _run_goal_verify(args: argparse.Namespace) -> int:
 def _run_goal_emit(args: argparse.Namespace) -> int:
     result = emit_goal_prompt(Path(args.goal), output_format=args.format)
     return _emit_goal_command_result(result, args.json)
+
+
+def _run_agent_bootstrap(args: argparse.Namespace) -> int:
+    result = agent_bootstrap(detail=args.detail)
+    return _emit_agent_command_result(result.payload, result.exit_code, args.json)
+
+
+def _run_agent_capabilities(args: argparse.Namespace) -> int:
+    result = agent_capabilities()
+    return _emit_agent_command_result(result.payload, result.exit_code, args.json)
+
+
+def _run_agent_eval(args: argparse.Namespace) -> int:
+    result = agent_eval()
+    return _emit_agent_command_result(result.payload, result.exit_code, args.json)
 
 
 def _run_agent_prompt(args: argparse.Namespace) -> int:
@@ -854,6 +1104,92 @@ def _run_agent_launch(args: argparse.Namespace) -> int:
         ),
         args.json,
     )
+
+
+def _run_instructions_inspect(args: argparse.Namespace) -> int:
+    result = inspect_instructions(detail=args.detail)
+    return _emit_agent_command_result(result.payload, result.exit_code, args.json)
+
+
+def _run_instructions_audit(args: argparse.Namespace) -> int:
+    result = audit_instructions()
+    return _emit_agent_command_result(result.payload, result.exit_code, args.json)
+
+
+def _run_instructions_plan_update(args: argparse.Namespace) -> int:
+    result = plan_instruction_update()
+    return _emit_agent_command_result(result.payload, result.exit_code, args.json)
+
+
+def _run_adopt_inspect(args: argparse.Namespace) -> int:
+    result = inspect_adoption()
+    return _emit_agent_command_result(result.payload, result.exit_code, args.json)
+
+
+def _run_adopt_plan(args: argparse.Namespace) -> int:
+    result = plan_adoption(write=args.write)
+    return _emit_agent_command_result(result.payload, result.exit_code, args.json)
+
+
+def _run_adopt_apply(args: argparse.Namespace) -> int:
+    result = apply_adoption(Path(args.plan), apply=args.apply)
+    return _emit_agent_command_result(result.payload, result.exit_code, args.json)
+
+
+def _run_adopt_verify(args: argparse.Namespace) -> int:
+    result = verify_adoption()
+    return _emit_agent_command_result(result.payload, result.exit_code, args.json)
+
+
+def _run_migrate_inspect(args: argparse.Namespace) -> int:
+    return _run_adopt_inspect(args)
+
+
+def _run_migrate_plan(args: argparse.Namespace) -> int:
+    return _run_adopt_plan(args)
+
+
+def _run_migrate_apply(args: argparse.Namespace) -> int:
+    return _run_adopt_apply(args)
+
+
+def _run_migrate_verify(args: argparse.Namespace) -> int:
+    return _run_adopt_verify(args)
+
+
+def _run_skills_scaffold(args: argparse.Namespace) -> int:
+    result = scaffold_skills(target=args.target)
+    return _emit_agent_command_result(result.payload, result.exit_code, args.json)
+
+
+def _run_skills_lint(args: argparse.Namespace) -> int:
+    result = lint_skills()
+    return _emit_agent_command_result(result.payload, result.exit_code, args.json)
+
+
+def _run_skills_audit(args: argparse.Namespace) -> int:
+    result = audit_skills()
+    return _emit_agent_command_result(result.payload, result.exit_code, args.json)
+
+
+def _run_skills_eval(args: argparse.Namespace) -> int:
+    result = eval_skills()
+    return _emit_agent_command_result(result.payload, result.exit_code, args.json)
+
+
+def _run_hooks_audit(args: argparse.Namespace) -> int:
+    result = audit_hooks()
+    return _emit_agent_command_result(result.payload, result.exit_code, args.json)
+
+
+def _run_hooks_doctor(args: argparse.Namespace) -> int:
+    result = doctor_hooks()
+    return _emit_agent_command_result(result.payload, result.exit_code, args.json)
+
+
+def _run_hooks_scaffold(args: argparse.Namespace) -> int:
+    result = scaffold_hooks(target=args.target, write=args.write)
+    return _emit_agent_command_result(result.payload, result.exit_code, args.json)
 
 
 def _run_evidence_lint(args: argparse.Namespace) -> int:
@@ -881,6 +1217,22 @@ def _run_evidence_run(args: argparse.Namespace) -> int:
         output_path=Path(args.output) if args.output else None,
         force=args.force,
     )
+
+    if args.detail is not None:
+        command_line = f"dp evidence run {args.evidence} --json --detail {args.detail}"
+        if args.output:
+            command_line = (
+                f"dp evidence run {args.evidence} --output {args.output} "
+                f"--json --detail {args.detail}"
+            )
+        return _emit_progressive_result(
+            command="evidence.run",
+            command_line=command_line,
+            payload=result.payload,
+            exit_code=result.exit_code,
+            detail=args.detail,
+            json_output=args.json,
+        )
 
     if args.json:
         print(json.dumps(result.payload, sort_keys=True))
@@ -920,16 +1272,32 @@ def _run_loop_status(args: argparse.Namespace) -> int:
 
 
 def _run_loop_next(args: argparse.Namespace) -> int:
-    return _emit_loop_command_result(
-        loop_next(
-            Path(args.loop),
-            claim=args.claim,
-            emit_format=args.emit,
-            agent=args.agent,
-            lease=args.lease,
-        ),
-        args.json,
+    result = loop_next(
+        Path(args.loop),
+        claim=args.claim,
+        emit_format=args.emit,
+        agent=args.agent,
+        lease=args.lease,
     )
+    if args.detail is not None:
+        flags = []
+        if args.claim:
+            flags.append("--claim")
+        if args.emit:
+            flags.extend(["--emit", args.emit])
+        flag_text = " ".join(flags)
+        command_line = (
+            f"dp loop next {args.loop} {flag_text} --json --detail {args.detail}"
+        ).replace("  ", " ")
+        return _emit_progressive_result(
+            command="loop.next",
+            command_line=command_line,
+            payload=result.payload,
+            exit_code=result.exit_code,
+            detail=args.detail,
+            json_output=args.json,
+        )
+    return _emit_loop_command_result(result, args.json)
 
 
 def _run_campaign_init(args: argparse.Namespace) -> int:
@@ -959,7 +1327,17 @@ def _run_campaign_lint(args: argparse.Namespace) -> int:
 
 
 def _run_campaign_status(args: argparse.Namespace) -> int:
-    return _emit_campaign_command_result(campaign_status(Path(args.campaign)), args.json)
+    result = campaign_status(Path(args.campaign))
+    if args.detail is not None:
+        return _emit_progressive_result(
+            command="campaign.status",
+            command_line=f"dp campaign status {args.campaign} --json --detail {args.detail}",
+            payload=result.payload,
+            exit_code=result.exit_code,
+            detail=args.detail,
+            json_output=args.json,
+        )
+    return _emit_campaign_command_result(result, args.json)
 
 
 def _run_campaign_recover(args: argparse.Namespace) -> int:
@@ -1009,6 +1387,38 @@ def _run_campaign_sync_beads(args: argparse.Namespace) -> int:
         ),
         args.json,
     )
+
+
+def _emit_agent_command_result(payload: dict[str, Any], exit_code: int, json_output: bool) -> int:
+    if json_output:
+        print(json.dumps(payload, sort_keys=True))
+        return exit_code
+    summary = payload.get("summary") or payload.get("status") or payload.get("command") or "ok"
+    print(str(summary))
+    return exit_code
+
+
+def _emit_progressive_result(
+    *,
+    command: str,
+    command_line: str,
+    payload: dict[str, Any],
+    exit_code: int,
+    detail: str,
+    json_output: bool,
+) -> int:
+    response = wrap_progressive_payload(
+        command=command,
+        command_line=command_line,
+        payload=payload,
+        exit_code=exit_code,
+        detail=detail,
+    )
+    if json_output:
+        print(json.dumps(response, sort_keys=True))
+    else:
+        print(response["summary"])
+    return exit_code
 
 
 def _emit_campaign_command_result(result: Any, json_output: bool) -> int:
