@@ -250,6 +250,10 @@ outside the implemented contract.
 SPEC-81 now adds the compact Agent Experience layer: response envelopes, ToolCards, stable hints,
 bootstrap/capabilities, instruction governance, conservative adoption planning, focused skills,
 hook governance, token-budget tests, and deterministic agent usability evals.
+SPEC-82.01 now records the whole-system release-readiness contract: the public CLI command surface
+must stay documented, package-version claims must be explicit, outside-repository smoke checks must
+run, deferred MCP/plugin/background-autonomy surfaces must not be overclaimed, and final gates must
+pass before publication.
 
 ## Developer Commands
 

@@ -27,10 +27,15 @@ Quick command reference by workflow.
 
 1. `dp decompose --item "..." [--preset codex-small|codex-medium|codex-large] [--json]`
 2. `dp progress [--output-dir ...] [--watch] [--previous ...] [--json]`
+3. `dp doctor [--json] [--detail brief|normal|full]`
+4. `dp explain <hint-or-error-code> [--json] [--format json|markdown]`
 
 ## Codex Session Integration
 
 1. `dp codex preflight --event session_start|stop [--strict] [--json]`
+2. `dp agent bootstrap --json [--detail brief|normal|full]`
+3. `dp agent capabilities --json`
+4. `dp agent eval --json`
 
 ## Agent Goals
 
@@ -68,6 +73,27 @@ Quick command reference by workflow.
 6. `dp campaign recover <campaign.json> [--json]`
 7. `dp campaign run <campaign.json> --driver codex --supervised [--managed] [--max-steps 1] [--agent codex] [--lease 2h] [--json]`
 8. `dp campaign sync-beads <campaign.json> [--write] [--json]`
+
+## Agent Experience Governance
+
+1. `dp instructions inspect [--json]`
+2. `dp instructions audit [--json]`
+3. `dp instructions plan-update [--json]`
+4. `dp adopt inspect [--json]`
+5. `dp adopt plan [--write] [--json]`
+6. `dp adopt apply <plan.json> [--apply] [--json]`
+7. `dp adopt verify [--json]`
+8. `dp migrate inspect [--json]`
+9. `dp migrate plan [--write] [--json]`
+10. `dp migrate apply <plan.json> [--apply] [--json]`
+11. `dp migrate verify [--json]`
+12. `dp skills scaffold --target repo [--json]`
+13. `dp skills lint [--json]`
+14. `dp skills audit [--json]`
+15. `dp skills eval [--json]`
+16. `dp hooks audit [--json]`
+17. `dp hooks doctor [--json]`
+18. `dp hooks scaffold --target git|codex [--json]`
 
 ## Review And Verification
 

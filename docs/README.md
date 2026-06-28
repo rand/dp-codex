@@ -35,6 +35,8 @@ If you are maintaining policy, quality gates, or release readiness:
 
 1. Read `/docs/guides/maintainer-automation-playbook.md`
 2. Read `/docs/internals/architecture.md`
+3. Read `/docs/specs/SPEC-82-whole-system-release-readiness.md`
+4. Read `/docs/release/v1-readiness.md`
 
 If you want system design and implementation internals:
 
@@ -69,7 +71,8 @@ If you want system design and implementation internals:
 1. `/docs/EXECUTION-PLAN.md`: scope, milestones, and success criteria
 2. `/AGENTS.md`: execution protocol for Codex-driven development
 3. `/docs/specs/SPEC-80-agent-campaign-control-plane-for-dp-codex.md`: current campaign-control direction and non-goals
-4. `/docs/release/v1-readiness.md`: current release decision and evidence links
+4. `/docs/specs/SPEC-82-whole-system-release-readiness.md`: current whole-system release contract
+5. `/docs/release/v1-readiness.md`: current release decision and evidence links
 
 ## Principles
 
