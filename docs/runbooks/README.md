@@ -11,6 +11,7 @@ Runbooks are operational, step-by-step documents for repeatable execution.
 5. `troubleshooting.md`: failure diagnosis and recovery
 6. `codex-integration.md`: opt-in Codex guidance, hooks, and cheap preflight checks
 7. `flow-evals.md`: deterministic flow pilots and friction metrics
+8. `codex-packaging.md`: CLI-first Codex packaging, repo-local skill, and deferred MCP/plugin rules
 
 ## Workflow-Specific Runbooks
 

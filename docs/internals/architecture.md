@@ -8,6 +8,8 @@ DP-Codex intentionally separates process logic from integration surfaces.
 2. CLI layer (`/dp/cli/main.py`): command parsing, orchestration, output formatting, exit codes.
 3. Provider layer (`/dp/providers/`): external systems (currently Beads via `bd`).
 4. Enforcement layer (`/dp/enforcement/`): policy-driven checks for hooks and CI.
+5. Agent packaging (`/AGENTS.md` and `/.agents/skills/`): repo-local Codex instructions that
+   describe how to use the CLI without becoming a second execution runtime.
 
 ## Runtime Shape
 

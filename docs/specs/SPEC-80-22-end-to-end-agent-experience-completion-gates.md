@@ -43,6 +43,9 @@ The following existing Beads work is in-scope for SPEC-80 completion:
 4. `dpcx-ea9.4` / SPEC-70.05 flow pilots and friction metrics.
 5. `dpcx-ea9.5` / SPEC-70.06 skill, MCP, and plugin packaging evaluation.
 
+SPEC-70.06 is satisfied when an ADR-quality packaging comparison exists, the chosen scaffold is
+checked in and documented, and tests prove the scaffold preserves dp's deterministic gate boundary.
+
 SPEC-80 may depend on these issues rather than duplicating their implementation. The important
 rule is closure: the SPEC-80 epic must not close while those gates remain open or unproven.
 

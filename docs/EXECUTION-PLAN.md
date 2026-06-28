@@ -281,9 +281,11 @@ Separate stable process logic from agent-platform integration.
    LoopLedger lint/status/next, CampaignManifest lint/status/recover/init,
    deterministic refine, agent-mediated LLM refinement import, campaign
    readiness, campaign run, campaign sync-beads, managed run, and agent launch.
-2. Remaining tracked work includes primary-spec intake/source UX adapters,
-   semantic graph hardening against realistic primary specs, and the
-   M7-derived end-to-end agent experience gates required for SPEC-80 closure.
+2. Remaining tracked work includes primary-spec intake/source UX adapters and
+   semantic graph hardening against realistic primary specs. The
+   M7-derived end-to-end agent experience gates required for SPEC-80 closure
+   now have concrete slices for task intake, Codex integration, evidence
+   quality, flow friction, and CLI-first Codex packaging.
    Any future direct Codex subprocess launch or multi-goal supervised runner
    remains conditional on the manual and managed protocols staying reliable.
 

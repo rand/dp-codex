@@ -34,6 +34,7 @@ It provides:
 14. Supervised and managed campaign run steps that claim at most one next goal and emit Codex-operable handoffs with stable stop reasons
 15. `dp agent launch` as a goal-level adapter that claims, starts, and emits a handoff package without spawning Codex
 16. Explicit Beads lifecycle synchronization for campaign dependencies and goal state
+17. CLI-first Codex packaging with repo instructions and an optional repo-local campaign-control skill
 
 ## Quick Start
 
@@ -105,6 +106,11 @@ See `docs/runbooks/campaign-pilot.md` for the human and agent campaign-control f
 `docs/runbooks/flow-evals.md` for the SPEC-70.05 doctor/claim/verify/preflight/closeout friction
 eval. The older migration pilot remains available at `scripts/run_pilot_migration.sh`.
 
+For Codex packaging guidance, see `docs/runbooks/codex-packaging.md` and
+`docs/adr/ADR-0014-codex-packaging-stays-cli-first.md`. The current recommendation is deliberately
+CLI-first: use `dp`, repository `AGENTS.md`, and the repo-local
+`.agents/skills/dp-campaign-control` skill before considering MCP or plugin distribution.
+
 ## Reliability Model
 
 1. Deterministic commands with explicit exit semantics.
@@ -143,6 +149,7 @@ Operational runbooks:
 - `docs/runbooks/environment-bootstrap.md`
 - `docs/runbooks/developer-commands.md`
 - `docs/runbooks/goal-workflow.md`
+- `docs/runbooks/codex-packaging.md`
 - `docs/runbooks/enforcement-workflow.md`
 - `docs/runbooks/migration-guide.md`
 - `docs/runbooks/troubleshooting.md`
@@ -205,6 +212,9 @@ campaign closeout evidence.
 SPEC-70.05 flow evals now exercise doctor, task claim, implementation artifact writing, strict
 Codex preflight, manifest verification, and task closeout in an isolated deterministic pilot with
 stable JSON/Markdown friction metrics.
+SPEC-70.06 now records the Codex packaging decision: keep dp CLI-first, add the repo-local
+`dp-campaign-control` skill as a procedural scaffold, and defer MCP/plugin packaging until a later
+ADR proves a concrete integration gap.
 
 ## Developer Commands
 

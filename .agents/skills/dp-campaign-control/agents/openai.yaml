@@ -1,0 +1,4 @@
+interface:
+  display_name: "DP Campaign Control"
+  short_description: "Operate dp campaign goals through the CLI"
+  default_prompt: "Use dp-campaign-control to recover or run the next dp campaign goal."

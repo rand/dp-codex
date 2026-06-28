@@ -28,6 +28,8 @@ If you are operating an agent goal contract:
 7. Keep `/docs/reference/campaign-ready.md` nearby when promoting a refined campaign graph
 8. Keep `/docs/reference/campaign-run.md` nearby when preparing a supervised Codex handoff
 9. Keep `/docs/reference/agent-launch.md` nearby when starting one known GoalContract
+10. Keep `/docs/runbooks/codex-packaging.md` nearby when deciding whether to use CLI-only,
+    repo-local skill, MCP, or plugin packaging
 
 If you are maintaining policy, quality gates, or release readiness:
 
@@ -47,6 +49,7 @@ If you want system design and implementation internals:
 | Traceability | `/docs/concepts/traceability-chain.md` | `/docs/runbooks/decompose-workflow.md` |
 | ADR and decisioning | `/docs/guides/feature-driver-playbook.md` | `/docs/runbooks/adr-workflow.md` |
 | Agent goals, evidence plans, loop ledgers, and campaign manifests | `/docs/runbooks/goal-workflow.md` | `/docs/reference/goal-contract-schema.md`, `/docs/reference/goal-state-machine.md`, `/docs/reference/goal-emission.md`, `/docs/reference/evidence-plan-schema.md`, `/docs/reference/loop-ledger-schema.md`, `/docs/reference/campaign-manifest-schema.md`, `/docs/reference/campaign-init.md`, `/docs/reference/campaign-refine.md`, `/docs/reference/campaign-ready.md`, `/docs/reference/campaign-run.md`, `/docs/reference/agent-launch.md` |
+| Codex integration and packaging | `/docs/runbooks/codex-integration.md` | `/docs/runbooks/codex-packaging.md`, `/docs/adr/ADR-0014-codex-packaging-stays-cli-first.md` |
 | Review and verify | `/docs/guides/feature-driver-playbook.md` | `/docs/runbooks/review-workflow.md`, `/docs/runbooks/verify-workflow.md` |
 | Enforcement and policy | `/docs/concepts/governance-and-risk.md` | `/docs/runbooks/enforcement-workflow.md`, `/docs/runbooks/policy-workflow.md` |
 | Flow evals and pilots | `/docs/runbooks/flow-evals.md` | `/docs/runbooks/campaign-pilot.md`, `/docs/pilot/` |

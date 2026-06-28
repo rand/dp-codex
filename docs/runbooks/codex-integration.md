@@ -21,6 +21,18 @@ prompting.
 3. Do not put LLM calls, network calls, evidence execution, or full `make check` runs in Codex
    stop hooks. Hooks should call cheap status checks and leave verification to explicit commands.
 
+## Packaging Surface
+
+The default packaging surface is CLI-first:
+
+1. `dp` remains the execution and state API.
+2. Repository `AGENTS.md` provides always-visible operating rules.
+3. `.agents/skills/dp-campaign-control` provides a repo-local Codex workflow for SPEC-80 campaign
+   operation.
+
+Do not add MCP or plugin distribution until a follow-up ADR identifies a concrete gap not served by
+the stable CLI JSON protocol and the repo-local skill. See `/docs/runbooks/codex-packaging.md`.
+
 ## Optional Hook Wiring
 
 Copy the examples from `/docs/examples/codex/` into an adopting repository's `.codex/` directory
