@@ -43,6 +43,9 @@ In a directory that has not opted into dp-codex, `dp doctor --json` should retur
 nonzero diagnostic instead of crashing. For a positive health smoke, run `dp doctor --json` from a
 safe dp-aware repository outside the dp-codex checkout.
 
+The SPEC-81 external adoption pilot against a zoo checkout copy is recorded in
+`docs/pilot/spec81-zoo-adoption-pilot.md`.
+
 For an editable local install smoke, run from a temporary directory:
 
 ```bash

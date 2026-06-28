@@ -37,6 +37,29 @@ def test_adopt_apply_explicit_apply_scaffolds_repo_skills(tmp_path: Path) -> Non
     assert scaffold["written_count"] == 8
 
 
+def test_adopt_apply_explicit_apply_creates_minimal_policy(tmp_path: Path) -> None:
+    plan_path = _write_plan(tmp_path, conflicts=[], include_policy=True)
+
+    result = apply_adoption(plan_path, apply=True, repo_root=tmp_path)
+
+    assert result.exit_code == 0
+    assert (tmp_path / "dp-policy.json").read_text(encoding="utf-8") == (
+        '{\n  "mode": "guided"\n}\n'
+    )
+
+
+def test_adopt_apply_does_not_overwrite_existing_policy(tmp_path: Path) -> None:
+    (tmp_path / "dp-policy.json").write_text('{"mode":"strict"}\n', encoding="utf-8")
+    plan_path = _write_plan(tmp_path, conflicts=[], include_policy=True)
+
+    result = apply_adoption(plan_path, apply=True, repo_root=tmp_path)
+
+    assert result.exit_code == 0
+    assert (tmp_path / "dp-policy.json").read_text(encoding="utf-8") == '{"mode":"strict"}\n'
+    policy = next(item for item in result.payload["applied"] if item["id"] == "create-policy")
+    assert policy["status"] == "skipped_existing"
+
+
 def test_adopt_apply_stops_on_conflicts(tmp_path: Path) -> None:
     plan_path = _write_plan(
         tmp_path,
@@ -54,6 +77,7 @@ def _write_plan(
     *,
     conflicts: list[dict[str, str]],
     include_skill_command: bool = False,
+    include_policy: bool = False,
 ) -> Path:
     changes = [
         {
@@ -72,6 +96,16 @@ def _write_plan(
                 "path": ".agents/skills",
                 "mode": "apply",
                 "command": "dp skills scaffold --target repo --json",
+                "reason": "test",
+            }
+        )
+    if include_policy:
+        changes.append(
+            {
+                "id": "create-policy",
+                "kind": "file",
+                "path": "dp-policy.json",
+                "mode": "apply",
                 "reason": "test",
             }
         )

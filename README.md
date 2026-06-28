@@ -182,7 +182,10 @@ Reference and contributor standards:
 - `docs/reference/campaign-manifest-schema.md`
 - `docs/reference/campaign-init.md`
 - `docs/reference/campaign-refine.md`
+- `docs/reference/campaign-ready.md`
 - `docs/reference/campaign-run.md`
+- `docs/reference/campaign-beads-sync.md`
+- `docs/reference/codex-preflight.md`
 - `docs/reference/agent-launch.md`
 - `docs/reference/agent-response-contract.md`
 - `docs/reference/agent-bootstrap.md`
@@ -194,66 +197,30 @@ Reference and contributor standards:
 - `docs/reference/skills.md`
 - `docs/reference/hook-governance.md`
 - `docs/reference/agent-usability-evals.md`
+- `docs/reference/e2e-flow-matrix.md`
 - `docs/developer/contributor-handbook.md`
 - `docs/developer/documentation-style.md`
 
 ## Status
 
-M0-M6 milestone scope has been implemented and empirically validated; v1 readiness is tracked in
-`docs/release/v1-readiness.md`.
+M0-M7 disciplined delivery, Beads intake, enforcement, flow evals, and Codex integration are
+implemented as deterministic CLI workflows.
 
-SPEC-80 campaign-control work has started. The implemented foundation is GoalContract linting,
-append-only goal lifecycle state, deterministic blocker artifact routing, Codex prompt emission,
-deterministic EvidencePlan linting, controlled EvidencePlan execution, evidence-run verification
-into goal state, LoopLedger next-goal scheduling, and campaign resume handoffs with append-only
-campaign handoff events. CampaignManifest lint/status/recover is also implemented, so a future
-Codex session can inspect repo artifacts and recover visible campaign state without chat memory.
-`dp campaign init --primary-spec ... --write --json` can now create a conservative draft campaign
-scaffold from a local primary spec, including deterministic semantic-signal extraction for
-requirements, evidence, decisions, blockers, and dependency cues. `dp campaign refine ... --write`
-can deterministically materialize child spec/ADR stubs, GoalContract and EvidencePlan refinement
-metadata, and optionally Beads epics/issues with `--create-beads`. `dp campaign refine --llm`
-now emits an agent-mediated request package for the calling agent's model, and
-`--llm-response <response.json> --write` imports validated model output as draft refinement
-metadata. `dp campaign ready <campaign.json> --write --json` promotes a campaign from draft to
-ready only when deterministic graph-readiness gates pass: linted artifacts, explicit acyclic
-dependencies, node EvidencePlan alignment, child specs, Beads issue links, resolved decision/ADR
-coverage, and no unresolved `needs_*` or LLM dependency hints. `dp campaign run <campaign.json>
---driver codex --supervised --json` now provides the first supervised runner slice: it validates
-campaign state, resolves the current loop, claims one ready goal, emits the Codex handoff package,
-and stops without launching Codex, executing evidence, or marking work verified. `--managed` wraps
-the same protocol in stable stop reasons such as `handoff_claimed`, `active_claim`, `stale_lease`,
-`evidence_pending`, `blocked`, `campaign_verified`, and `no_ready_work`. If a current-loop goal
-already has an active non-stale claim, `campaign run` returns a resume package instead of claiming
-over it. `dp agent launch --goal <goal.json> --driver codex --supervised --json` claims and starts
-one valid GoalContract, emits the Codex handoff package, and stops without spawning Codex.
-`dp goal block --write-artifact` now
-resolves GoalContract `blocked_routes` into spec, ADR, or EvidencePlan stubs and optional Beads
-follow-ups, with routing metadata recorded in the append-only goal event.
-`dp campaign sync-beads <campaign.json> --write --json` now reconciles current loop dependencies
-and goal lifecycle state back to Beads through explicit `bd dep add`, `bd update`, and `bd close`
-operations while leaving dp evidence verification as the source of completion truth.
-Goal-backward `dp verify` manifests preserve legacy artifact existence checks while optionally
-validating recorded SHA-256 digests, command outcomes, Beads issue ids, and spec ids for stronger
-campaign closeout evidence.
-SPEC-70.05 flow evals now exercise doctor, task claim, implementation artifact writing, strict
-Codex preflight, manifest verification, and task closeout in an isolated deterministic pilot with
-stable JSON/Markdown friction metrics.
-SPEC-70.06 now records the Codex packaging decision: keep dp CLI-first, add the repo-local
-`dp-campaign-control` skill as a procedural scaffold, and defer MCP/plugin packaging until a later
-ADR proves a concrete integration gap.
-SPEC-80's tracked campaign-control closure gates are now satisfied for the local control-plane
-contract: current Beads intake, Codex integration, structured evidence, flow evals, CLI-first
-packaging, primary-spec intake UX, realistic-spec compiler benchmarking, recovery, managed handoff,
-and Beads synchronization all have deterministic tests and docs. Direct background autonomy remains
-outside the implemented contract.
-SPEC-81 now adds the compact Agent Experience layer: response envelopes, ToolCards, stable hints,
-bootstrap/capabilities, instruction governance, conservative adoption planning, focused skills,
-hook governance, token-budget tests, and deterministic agent usability evals.
-SPEC-82.01 now records the whole-system release-readiness contract: the public CLI command surface
-must stay documented, package-version claims must be explicit, outside-repository smoke checks must
-run, deferred MCP/plugin/background-autonomy surfaces must not be overclaimed, and final gates must
-pass before publication.
+SPEC-80 campaign-control is implemented as a CLI-first control plane for GoalContracts,
+EvidencePlans, LoopLedgers, CampaignManifests, supervised handoffs, recovery, readiness promotion,
+blocker artifact routing, and explicit Beads synchronization. It does not spawn Codex or mark work
+complete from agent narration.
+
+SPEC-81 agent-experience is implemented for compact response envelopes, ToolCards, stable hints,
+bootstrap/capabilities, instruction governance, conservative adoption, focused skills, hook
+governance, token budgets, and deterministic usability evals.
+
+SPEC-82.01 records the whole-system release-readiness contract: the public CLI command surface must
+stay documented, package-version claims must be explicit, outside-repository smoke checks must run,
+deferred MCP/plugin/background-autonomy surfaces must not be overclaimed, and final gates must pass
+before publication.
+
+Current release-readiness status and historical v1 evidence live in `docs/release/v1-readiness.md`.
 
 ## Developer Commands
 

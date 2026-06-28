@@ -59,6 +59,34 @@ def test_release_readiness_documents_outside_repo_smoke_and_final_gates() -> Non
     assert "Do not publish" in release
 
 
+# @trace SPEC-82.01
+def test_readme_status_matches_current_release_contract() -> None:
+    readme = _read("README.md")
+
+    assert "SPEC-80 campaign-control work has started" not in readme
+    assert "M0-M6 milestone scope has been implemented" not in readme
+    assert "SPEC-80 campaign-control is implemented" in readme
+    assert "SPEC-81 agent-experience is implemented" in readme
+    assert "SPEC-82.01" in readme
+
+
+# @trace SPEC-82.01
+def test_external_adoption_pilot_report_records_zoo_evidence() -> None:
+    report = _read("docs/pilot/spec81-zoo-adoption-pilot.md")
+
+    for phrase in (
+        "/Users/rand/src/zoo",
+        "not_adopted",
+        "dp adopt plan --write --json",
+        "dp adopt apply docs/migrations/MIGRATION-2026-06-28-agent-experience.json --apply --json",
+        "dp adopt verify --json",
+        "AGENTS.md was not created",
+        "dp-policy.json",
+        "No .beads directory found",
+    ):
+        assert phrase in report
+
+
 def _leaf_commands(parser: argparse.ArgumentParser) -> list[str]:
     return sorted(_walk_leaf_commands(parser, prefix=()))
 

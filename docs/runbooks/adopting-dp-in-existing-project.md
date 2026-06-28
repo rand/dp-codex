@@ -11,3 +11,8 @@
 
 Do not overwrite `AGENTS.md`. Preserve legacy artifacts unless the plan explicitly records how they
 are being superseded.
+
+When a project has no policy, the default plan may create a minimal guided `dp-policy.json`. It must
+not overwrite an existing policy. Beads initialization remains separate; if `dp doctor --json`
+reports no `.beads` directory after adoption, run the repository's chosen Beads initialization path
+explicitly.

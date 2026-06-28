@@ -32,3 +32,18 @@ def test_adopt_plan_write_creates_reviewable_artifacts(tmp_path: Path) -> None:
         (tmp_path / "AGENTS.md").read_text(encoding="utf-8")
         == "# Agent Instructions\n\nExisting project law.\n"
     )
+
+
+def test_adopt_plan_for_not_adopted_project_adds_minimal_policy() -> None:
+    result = plan_adoption(FIXTURES / "not_adopted_project")
+
+    policy_change = next(
+        change for change in result.payload["plan"]["changes"] if change["id"] == "create-policy"
+    )
+    assert policy_change == {
+        "id": "create-policy",
+        "kind": "file",
+        "path": "dp-policy.json",
+        "mode": "apply",
+        "reason": "Create minimal guided dp policy for verification and local gates.",
+    }

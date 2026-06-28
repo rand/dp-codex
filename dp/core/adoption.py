@@ -171,6 +171,15 @@ def apply_adoption(
         if kind == "mkdir" and path:
             (root / path).mkdir(parents=True, exist_ok=True)
             applied.append({"id": change.get("id"), "path": path, "status": "applied"})
+        elif kind == "file" and path == "dp-policy.json" and change.get("id") == "create-policy":
+            policy_path = root / path
+            if policy_path.exists():
+                applied.append(
+                    {"id": change.get("id"), "path": path, "status": "skipped_existing"}
+                )
+            else:
+                policy_path.write_text('{\n  "mode": "guided"\n}\n', encoding="utf-8")
+                applied.append({"id": change.get("id"), "path": path, "status": "applied"})
         elif (
             kind == "command"
             and change.get("command") == "dp skills scaffold --target repo --json"
@@ -342,6 +351,16 @@ def _classify(signals: dict[str, Any]) -> str:
 def _planned_changes(source_state: dict[str, Any]) -> list[dict[str, Any]]:
     signals = source_state["signals"]
     changes: list[dict[str, Any]] = []
+    if not signals["has_policy"]:
+        changes.append(
+            {
+                "id": "create-policy",
+                "kind": "file",
+                "path": "dp-policy.json",
+                "mode": "apply",
+                "reason": "Create minimal guided dp policy for verification and local gates.",
+            }
+        )
     if not signals["has_goal_event_dir"]:
         changes.append(
             {

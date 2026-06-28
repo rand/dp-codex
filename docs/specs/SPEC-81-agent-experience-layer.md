@@ -20,7 +20,7 @@ skill triggering, token budgets, and no-ready loop handling.
 
 ## 1. Thesis
 
-SPEC-80 made dp powerful.
+SPEC-80 made dp a durable campaign-control plane.
 
 SPEC-81 makes dp legible to agents.
 

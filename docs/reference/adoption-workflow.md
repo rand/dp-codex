@@ -22,6 +22,7 @@ Classifications:
 - `current_spec81`
 - `unknown`
 
-Plans are additive by default. They may propose AGENTS.md patches, create event directories, and
-scaffold focused repo skills through the known local `dp skills scaffold --target repo --json`
-action, but they do not overwrite local instructions or execute arbitrary commands.
+Plans are additive by default. They may create a minimal `dp-policy.json` when no policy exists,
+propose AGENTS.md patches, create event directories, and scaffold focused repo skills through the
+known local `dp skills scaffold --target repo --json` action. They do not overwrite local
+instructions, create `AGENTS.override.md`, or execute arbitrary commands.
