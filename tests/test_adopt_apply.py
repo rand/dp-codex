@@ -25,6 +25,18 @@ def test_adopt_apply_explicit_apply_creates_apply_mode_dirs(tmp_path: Path) -> N
     assert (tmp_path / ".dp/goals").exists()
 
 
+def test_adopt_apply_explicit_apply_scaffolds_repo_skills(tmp_path: Path) -> None:
+    plan_path = _write_plan(tmp_path, conflicts=[], include_skill_command=True)
+
+    result = apply_adoption(plan_path, apply=True, repo_root=tmp_path)
+
+    assert result.exit_code == 0
+    assert (tmp_path / ".agents/skills/dp-agent-bootstrap/SKILL.md").is_file()
+    scaffold = next(item for item in result.payload["applied"] if item["id"] == "scaffold-skills")
+    assert scaffold["status"] == "applied"
+    assert scaffold["written_count"] == 8
+
+
 def test_adopt_apply_stops_on_conflicts(tmp_path: Path) -> None:
     plan_path = _write_plan(
         tmp_path,
@@ -37,21 +49,38 @@ def test_adopt_apply_stops_on_conflicts(tmp_path: Path) -> None:
     assert result.payload["status"] == "blocked"
 
 
-def _write_plan(tmp_path: Path, *, conflicts: list[dict[str, str]]) -> Path:
+def _write_plan(
+    tmp_path: Path,
+    *,
+    conflicts: list[dict[str, str]],
+    include_skill_command: bool = False,
+) -> Path:
+    changes = [
+        {
+            "id": "create-goal-event-dir",
+            "kind": "mkdir",
+            "path": ".dp/goals",
+            "mode": "apply",
+            "reason": "test",
+        }
+    ]
+    if include_skill_command:
+        changes.append(
+            {
+                "id": "scaffold-skills",
+                "kind": "command",
+                "path": ".agents/skills",
+                "mode": "apply",
+                "command": "dp skills scaffold --target repo --json",
+                "reason": "test",
+            }
+        )
     payload = {
         "schema_version": "dp.adoption_plan.v1",
         "id": "MIGRATION-test",
         "status": "planned",
         "source_state": {"classification": "legacy_dp"},
-        "changes": [
-            {
-                "id": "create-goal-event-dir",
-                "kind": "mkdir",
-                "path": ".dp/goals",
-                "mode": "apply",
-                "reason": "test",
-            }
-        ],
+        "changes": changes,
         "conflicts": conflicts,
         "verification": [],
     }

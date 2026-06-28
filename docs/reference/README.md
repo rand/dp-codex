@@ -28,6 +28,7 @@ Reference docs are lookup-oriented and terse by design.
 22. `/docs/reference/skills.md`
 23. `/docs/reference/hook-governance.md`
 24. `/docs/reference/agent-usability-evals.md`
+25. `/docs/reference/e2e-flow-matrix.md`
 
 ## JSON Contract Reference
 

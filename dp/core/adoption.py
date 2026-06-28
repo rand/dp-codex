@@ -9,6 +9,7 @@ from typing import Any
 from dp.core.agent_response import next_action
 from dp.core.hints import hint_payload
 from dp.core.instructions import audit_instructions, inspect_instructions
+from dp.core.skills import scaffold_skills
 
 INSPECT_SCHEMA_VERSION = "dp.adopt.inspect.v1"
 PLAN_SCHEMA_VERSION = "dp.adoption_plan.v1"
@@ -166,9 +167,63 @@ def apply_adoption(
         if not apply:
             applied.append({"id": change.get("id"), "path": path, "status": "would_apply"})
             continue
-        if str(change.get("kind")) == "mkdir" and path:
+        kind = str(change.get("kind") or "")
+        if kind == "mkdir" and path:
             (root / path).mkdir(parents=True, exist_ok=True)
             applied.append({"id": change.get("id"), "path": path, "status": "applied"})
+        elif (
+            kind == "command"
+            and change.get("command") == "dp skills scaffold --target repo --json"
+        ):
+            skill_result = scaffold_skills(root, target="repo")
+            applied.append(
+                {
+                    "id": change.get("id"),
+                    "path": path,
+                    "status": "applied" if skill_result.exit_code == 0 else "failed",
+                    "written_count": len(skill_result.payload.get("written", [])),
+                    "skipped_count": len(skill_result.payload.get("skipped", [])),
+                }
+            )
+            if skill_result.exit_code != 0:
+                return AdoptionCommandResult(
+                    payload={
+                        "schema_version": APPLY_SCHEMA_VERSION,
+                        "ok": False,
+                        "status": "failed",
+                        "dry_run": False,
+                        "plan": plan_path.as_posix(),
+                        "applied": applied,
+                        "error": skill_result.payload.get("error"),
+                    },
+                    exit_code=skill_result.exit_code,
+                )
+        else:
+            applied.append(
+                {
+                    "id": change.get("id"),
+                    "path": path,
+                    "status": "unsupported_apply_change",
+                    "kind": kind,
+                }
+            )
+            return AdoptionCommandResult(
+                payload={
+                    "schema_version": APPLY_SCHEMA_VERSION,
+                    "ok": False,
+                    "status": "failed",
+                    "dry_run": False,
+                    "plan": plan_path.as_posix(),
+                    "applied": applied,
+                    "error": {
+                        "code": "unsupported_apply_change",
+                        "message": (
+                            "Adoption apply only supports known local deterministic changes."
+                        ),
+                    },
+                },
+                exit_code=2,
+            )
 
     payload = {
         "schema_version": APPLY_SCHEMA_VERSION,

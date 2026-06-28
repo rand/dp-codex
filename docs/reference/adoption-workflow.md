@@ -23,4 +23,5 @@ Classifications:
 - `unknown`
 
 Plans are additive by default. They may propose AGENTS.md patches, create event directories, and
-recommend skills or hook audits, but they do not overwrite local instructions.
+scaffold focused repo skills through the known local `dp skills scaffold --target repo --json`
+action, but they do not overwrite local instructions or execute arbitrary commands.
