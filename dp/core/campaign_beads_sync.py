@@ -416,11 +416,19 @@ def _read_existing_dependencies(issue_id: str) -> set[tuple[str, str, str]] | di
     for item in payload:
         if not isinstance(item, dict):
             continue
-        issue = _non_empty_string(item.get("issue_id")) or _non_empty_string(item.get("from"))
+        issue = (
+            _non_empty_string(item.get("issue_id"))
+            or _non_empty_string(item.get("from"))
+            or issue_id
+        )
         depends_on = _non_empty_string(item.get("depends_on_id")) or _non_empty_string(
             item.get("to")
+        ) or _non_empty_string(item.get("id"))
+        dependency_type = (
+            _non_empty_string(item.get("type"))
+            or _non_empty_string(item.get("dependency_type"))
+            or "blocks"
         )
-        dependency_type = _non_empty_string(item.get("type")) or "blocks"
         if issue is not None and depends_on is not None:
             edges.add((issue, depends_on, dependency_type))
     return edges

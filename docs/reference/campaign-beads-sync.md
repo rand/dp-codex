@@ -13,7 +13,8 @@ The command:
 1. validates the CampaignManifest;
 2. resolves `state.current_loop` to a declared LoopLedger;
 3. reconstructs goal state from `.dp/goals/events.jsonl`;
-4. reads existing Beads dependencies with `bd dep list <issue> --json`;
+4. reads existing Beads dependencies with `bd dep list <issue> --json`, accepting both current
+   expanded issue objects (`id`, `dependency_type`) and legacy flat edge records;
 5. plans missing LoopLedger dependency edges as Beads `blocks` dependencies;
 6. links routed blocker follow-up issues back to the blocked source issue;
 7. maps active, blocked, released, and verified goal states to Beads update/close operations;

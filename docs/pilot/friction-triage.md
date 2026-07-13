@@ -25,6 +25,10 @@ Pilot execution surfaced several high-impact friction points that were remediate
    Impact: Migration friction in external pilot repositories.
    Remediation: Added migration/troubleshooting runbooks and a reproducible pilot script with explicit bootstrap behavior.
    Status: Resolved for documented path.
+5. `F-005` (High): Beads dependency reads changed from flat edge records to expanded issue objects.
+   Impact: `campaign sync-beads` repeatedly planned already-existing edges, weakening dry-run idempotence.
+   Remediation: Dependency reconciliation now accepts current `id`/`dependency_type` objects while preserving legacy flat-record compatibility.
+   Status: Resolved.
 
 ## Severity Decision
 

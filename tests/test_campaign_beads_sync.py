@@ -181,6 +181,45 @@ def test_campaign_sync_beads_skips_existing_dependency(
     assert calls == [["dep", "list", "dpcx-goal-lint", "--json"]]
 
 
+def test_campaign_sync_beads_skips_current_expanded_dependency_shape(
+    tmp_path: Path,
+    monkeypatch,
+    capsys,
+) -> None:
+    campaign_path = _write_campaign_project(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    sync_module = importlib.import_module("dp.core.campaign_beads_sync")
+    calls: list[list[str]] = []
+
+    def fake_run_bd(args: Sequence[str]) -> CommandResult:
+        calls.append(list(args))
+        return CommandResult(
+            returncode=0,
+            stdout=json.dumps(
+                [
+                    {
+                        "id": "dpcx-beads-doctor",
+                        "title": "Beads doctor",
+                        "status": "closed",
+                        "dependency_type": "blocks",
+                    }
+                ]
+            )
+            + "\n",
+            stderr="",
+        )
+
+    monkeypatch.setattr(sync_module, "run_bd", fake_run_bd)
+
+    exit_code = main(["campaign", "sync-beads", campaign_path.as_posix(), "--json"])
+
+    assert exit_code == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["summary"] == {"planned": 0, "applied": 0, "skipped": 1, "failed": 0}
+    assert payload["operations"][0]["status"] == "skipped"
+    assert calls == [["dep", "list", "dpcx-goal-lint", "--json"]]
+
+
 def test_campaign_sync_beads_blocked_and_released_states_update_notes(
     tmp_path: Path,
     monkeypatch,
