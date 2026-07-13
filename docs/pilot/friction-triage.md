@@ -15,7 +15,7 @@ Pilot execution surfaced several high-impact friction points that were remediate
    Status: Resolved.
 2. `F-002` (High): Review conflict-marker detection treated quoted example text as merge conflicts.
    Impact: Pre-push enforcement blocked valid repositories with documentation/test fixtures.
-   Remediation: `dp/core/review.py` now requires conflict markers at line start (after whitespace), preventing quoted/example false positives.
+   Remediation: `dp/core/review.py` now requires exact seven-character Git marker shapes at line start (after whitespace), preventing quoted examples and longer pytest-style separators from producing false positives.
    Status: Resolved.
 3. `F-003` (Medium): Enforcement subcommands using `uv` failed in restricted environments without writable default cache.
    Impact: Hook and pilot execution failed in sandboxed environments.

@@ -8,6 +8,8 @@ from typing import Literal
 Severity = Literal["blocking", "advisory"]
 TEXT_SUFFIXES = {".md", ".py", ".pyi", ".sh", ".toml", ".ts", ".tsx", ".yaml", ".yml"}
 DEFERRED_MARKERS = ("TO" + "DO", "FIX" + "ME")
+CONFLICT_SIDE_MARKERS = ("<<<<<<<", ">>>>>>>")
+CONFLICT_MIDDLE_MARKER = "======="
 
 
 @dataclass(frozen=True)
@@ -115,15 +117,13 @@ def _find_worktree_dirty_findings(status_output: str) -> list[ReviewFinding]:
 
 
 def _find_conflict_markers(repo_root: Path, tracked_files: list[Path]) -> list[ReviewFinding]:
-    markers = ("<<<<<<<", "=======", ">>>>>>>")
     findings: list[ReviewFinding] = []
     for relative_path in tracked_files:
         target = repo_root / relative_path
         if not _is_scannable_text_file(target):
             continue
         for line_number, line in _read_lines(target):
-            stripped = line.lstrip()
-            if any(stripped.startswith(marker) for marker in markers):
+            if _is_conflict_marker_line(line):
                 findings.append(
                     ReviewFinding(
                         check_id="merge-conflict-marker",
@@ -134,6 +134,16 @@ def _find_conflict_markers(repo_root: Path, tracked_files: list[Path]) -> list[R
                     )
                 )
     return findings
+
+
+def _is_conflict_marker_line(line: str) -> bool:
+    """Match Git's seven-character marker lines, not longer output separators."""
+    stripped = line.strip()
+    if stripped == CONFLICT_MIDDLE_MARKER:
+        return True
+    return any(
+        stripped == marker or stripped.startswith(f"{marker} ") for marker in CONFLICT_SIDE_MARKERS
+    )
 
 
 def _find_todo_markers(repo_root: Path, tracked_files: list[Path]) -> list[ReviewFinding]:
@@ -159,9 +169,7 @@ def _find_todo_markers(repo_root: Path, tracked_files: list[Path]) -> list[Revie
 
 def _is_scannable_text_file(path: Path) -> bool:
     return (
-        path.is_file()
-        and path.suffix.lower() in TEXT_SUFFIXES
-        and path.stat().st_size <= 1_000_000
+        path.is_file() and path.suffix.lower() in TEXT_SUFFIXES and path.stat().st_size <= 1_000_000
     )
 
 

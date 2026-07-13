@@ -66,3 +66,54 @@ def test_run_review_ignores_quoted_conflict_marker_examples(
 
     assert report.ready_to_commit is True
     assert all(finding.check_id != "merge-conflict-marker" for finding in report.findings)
+
+
+def test_run_review_detects_indented_git_conflict_marker_shapes(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    target = tmp_path / "dp/core/conflicted.py"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(
+        "  <<<<<<< HEAD\nleft\n  =======\nright\n  >>>>>>> branch\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr("dp.core.review._git_status_porcelain", lambda _: "")
+    monkeypatch.setattr(
+        "dp.core.review._git_tracked_files", lambda _: [Path("dp/core/conflicted.py")]
+    )
+
+    report = run_review(tmp_path)
+
+    conflict_findings = [
+        finding for finding in report.findings if finding.check_id == "merge-conflict-marker"
+    ]
+    assert report.ready_to_commit is False
+    assert [(finding.line, finding.path) for finding in conflict_findings] == [
+        (1, "dp/core/conflicted.py"),
+        (3, "dp/core/conflicted.py"),
+        (5, "dp/core/conflicted.py"),
+    ]
+
+
+def test_run_review_ignores_long_repeated_character_separators(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    target = tmp_path / "reports/pytest-output.md"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(
+        "============================== 3 failed in 1.09s ===============================\n"
+        "<<<<<<<<<<<<<<<<<<<<<<<<<<<<<< section divider\n"
+        ">>>>>>>>>>>>>>>>>>>>>>>>>>>>>> section divider\n",
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr("dp.core.review._git_status_porcelain", lambda _: "")
+    monkeypatch.setattr(
+        "dp.core.review._git_tracked_files", lambda _: [Path("reports/pytest-output.md")]
+    )
+
+    report = run_review(tmp_path)
+
+    assert report.ready_to_commit is True
+    assert all(finding.check_id != "merge-conflict-marker" for finding in report.findings)

@@ -7,7 +7,7 @@ Use `dp review` to run deterministic, local checklist checks before commit/push.
 Blocking checks:
 
 1. Dirty worktree detection from `git status --porcelain`
-2. Merge conflict marker scan (`<<<<<<<`, `=======`, `>>>>>>>`)
+2. Exact merge conflict marker-line scan (`<<<<<<< [label]`, `=======`, `>>>>>>> [label]`); longer repeated-character output separators are ignored
 
 Advisory checks:
 
