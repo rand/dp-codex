@@ -18,6 +18,8 @@ def test_agent_eval_reports_required_categories(capsys) -> None:
         "bootstrap-first-command",
         "next-action-quality",
         "error-repair-routing",
+        "true-blocker-routing",
+        "purposeful-collaboration-guidance",
         "instruction-preservation",
         "legacy-project-adoption",
         "skill-triggering",
@@ -27,6 +29,17 @@ def test_agent_eval_reports_required_categories(capsys) -> None:
         "no-ready-loop-handling",
     } <= categories
     assert payload["golden_transcript"][0] == "dp agent bootstrap --json --detail brief"
+    repair_index = payload["golden_transcript"].index(
+        "<run the smallest discriminating check and authorized repair>"
+    )
+    recovered_index = payload["golden_transcript"].index(
+        "<if recovered: complete and verify with current evidence>"
+    )
+    block_index = payload["golden_transcript"].index(
+        "<if a true blocker remains: dp goal block <goal.json> --reason <reason> "
+        "--write-artifact --json>"
+    )
+    assert repair_index < recovered_index < block_index
 
 
 def test_agent_eval_reports_fixture_backed_transcripts(capsys) -> None:
@@ -65,6 +78,28 @@ def test_agent_eval_reports_fixture_backed_transcripts(capsys) -> None:
     assert no_ready["steps"][0]["observed_error_code"] == "no_ready_goal"
     assert no_ready["steps"][0]["hints"][0]["code"] == "DP-HINT-LOOP-NO-READY-NODES"
 
+    repair = transcripts["error-repair-routing"]
+    assert repair["steps"][0]["observed"]["classification"] == "repairable_failure"
+    assert repair["steps"][0]["observed"]["blocks_completion"] is True
+    assert repair["steps"][0]["observed"]["blocks_repair"] is False
+    assert repair["steps"][0]["observed"]["failed_check_status"] == "failed"
+    assert repair["steps"][0]["observed"]["repaired_check_status"] == "passed"
+    assert repair["steps"][0]["observed"]["evidence_plan_unchanged"] is True
+    assert repair["steps"][0]["observed"]["blocked_event_written"] is False
+
+    blocker = transcripts["true-blocker-routing"]
+    assert blocker["steps"][0]["observed"]["classification"] == "true_blocker"
+    assert blocker["steps"][0]["observed"]["blocker_reason"] == "needs_validator"
+    assert blocker["fixture"] == "missing_validator"
+    assert blocker["steps"][0]["observed"]["goal_contract_valid"] is True
+    assert blocker["steps"][0]["observed"]["validator_missing"] is True
+    assert blocker["steps"][0]["observed"]["validator_repair_authorized"] is False
+    assert blocker["steps"][0]["next_actions"][-1]["command"].startswith("dp goal block")
+
+    collaboration = transcripts["purposeful-collaboration-guidance"]
+    assert collaboration["steps"][0]["observed"]["primary_agent_owns_decision"] is True
+    assert payload["metrics"]["recovery_success_rate"] == 1.0
+
 
 def test_spec81_eval_project_fixtures_are_executable_contracts() -> None:
     assert (FIXTURES / "campaign_with_ready_goal/dp-policy.json").is_file()
@@ -74,3 +109,4 @@ def test_spec81_eval_project_fixtures_are_executable_contracts() -> None:
     assert (FIXTURES / "campaign_with_no_ready_nodes/.dp/goals/events.jsonl").is_file()
     assert (FIXTURES / "evidence_failure/dp-policy.json").is_file()
     assert (FIXTURES / "evidence_failure/docs/evidence/failure.json").is_file()
+    assert (FIXTURES / "missing_validator/goals/one.json").is_file()

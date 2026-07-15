@@ -27,10 +27,13 @@ spawn Codex, execute evidence, or mark work complete.
 2. Start the goal with `dp goal start docs/goals/<goal>.json --agent codex --json`.
 3. Stay inside the handoff boundaries and GoalContract allowed paths.
 4. Run the smallest relevant check first.
-5. Repair local failures before broadening to `make check`.
-6. Use `dp evidence run docs/evidence/<evidence>.json --output docs/evidence-runs/<run>.json --json` when the goal has an evidence plan.
-7. Use `dp verify --goal docs/goals/<goal>.json --evidence docs/evidence-runs/<run>.json --json` before claiming completion.
-8. Use `dp campaign sync-beads docs/campaigns/<campaign>.json --write --json` when campaign state needs to reconcile back to Beads.
+5. On failure, use the recovery classification from `dp-failure-recovery`. A failed gate blocks
+   completion, not diagnosis or authorized repair.
+6. Repair local failures before broadening to `make check`; do not repeat unchanged attempts or
+   weaken evidence.
+7. Use `dp evidence run docs/evidence/<evidence>.json --output docs/evidence-runs/<run>.json --json` when the goal has an evidence plan.
+8. Use `dp verify --goal docs/goals/<goal>.json --evidence docs/evidence-runs/<run>.json --json` before claiming completion.
+9. Use `dp campaign sync-beads docs/campaigns/<campaign>.json --write --json` when campaign state needs to reconcile back to Beads.
 
 ## Block or Release
 

@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 
 from dp.cli.main import main
+from dp.core.goal_lint import lint_goal_payload
 
 FIXTURE_DIR = Path("tests/fixtures/goals")
 
@@ -71,3 +72,14 @@ def test_goal_lint_reports_non_object_input_as_input_error(tmp_path: Path, capsy
     assert exit_code == 2
     payload = json.loads(capsys.readouterr().out)
     assert payload["errors"][0]["code"] == "json_object_required"
+
+
+@pytest.mark.parametrize("invalid_value", [True, 0, -1])
+def test_goal_lint_rejects_invalid_iteration_attempt_budget(invalid_value: object) -> None:
+    payload = json.loads((FIXTURE_DIR / "valid_spec_70_01.json").read_text(encoding="utf-8"))
+    payload["iteration_policy"]["max_attempts"] = invalid_value
+
+    result = lint_goal_payload(payload)
+
+    assert result.exit_code == 1
+    assert "invalid_max_attempts" in {error.code for error in result.report.errors}

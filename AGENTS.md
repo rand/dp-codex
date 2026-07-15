@@ -25,6 +25,30 @@ Prefer small, independently verifiable increments over large multi-concern chang
 3. Keep commands reproducible (`make`, scripts, or explicit one-liners).
 4. Avoid introducing hidden state in tooling; prefer explicit config files.
 
+<!-- dp-agent-discipline:v1 -->
+
+## Recovery and Escalation
+
+1. A failed gate blocks completion, not diagnosis or authorized repair.
+2. Capture the exact failure and classify it before declaring a blocker: invalid execution,
+   repairable in-scope failure, independent repair, or true decision/authority/scope blocker.
+3. Make the smallest coherent reversible repair allowed by project law, then rerun the focused
+   check and required gates. Never weaken evidence to obtain green.
+4. Do not repeat an unchanged action unless relevant state or the hypothesis changed. Respect the
+   GoalContract attempt budget when present.
+5. Route a durable blocker only when no safe in-scope repair remains or new authority is required.
+   Verification decides done.
+
+## Agent Collaboration
+
+1. Use specialist or adversarial agents proactively for independent diagnosis, domain risk,
+   context pressure, or fresh review when orchestration is available and project law allows it.
+2. Give each helper a bounded question, read/write scope, forbidden actions, expected output, and
+   stop condition. Default helpers to read-only.
+3. One writer owns one worktree. Writing helpers require isolated worktrees and disjoint paths.
+4. The primary agent owns decisions, lifecycle and tracker changes, integrated edits, and
+   verification. External agent output is advisory and cannot establish completion.
+
 ## Verification Rules
 
 Run all applicable checks before closing work:
@@ -91,6 +115,10 @@ Execution sequencing, milestones, and acceptance criteria are defined in `docs/E
 
 **CRITICAL RULES:**
 - Work is NOT complete until `git push` succeeds
-- NEVER stop before pushing - that leaves work stranded locally
+- Do not voluntarily leave pushable work unpushed. If an external authority or remote policy still
+  prevents push after principled diagnosis, record the blocker and exact next action instead of
+  claiming completion.
 - NEVER say "ready to push when you are" - YOU must push
-- If push fails, resolve and retry until it succeeds
+- If push fails, diagnose the exact cause and make a state-changing repair before retrying; do not
+  repeat an unchanged push. Record an external authority or remote-state blocker when it cannot be
+  repaired safely.

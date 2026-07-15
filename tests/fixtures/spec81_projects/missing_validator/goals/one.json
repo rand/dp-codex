@@ -1,0 +1,55 @@
+{
+  "schema_version": "0.1",
+  "id": "GOAL-SPEC-81.02-MISSING-VALIDATOR",
+  "title": "Exercise true validator blocker routing",
+  "source": {
+    "kind": "spec",
+    "id": "SPEC-81.02",
+    "path": "docs/specs/SPEC-81-02-agent-recovery-and-collaboration-discipline.md",
+    "input_hash": "sha256:0123456789abcdef"
+  },
+  "level": "goal",
+  "objective": "Prove deterministic routing when a required validator is absent outside the active write scope.",
+  "evidence": {
+    "evidence_plan": "docs/evidence/missing-validator.json",
+    "trace_ids": [
+      "SPEC-81.02"
+    ]
+  },
+  "boundaries": {
+    "read_first": [
+      "docs/specs/SPEC-81-02-agent-recovery-and-collaboration-discipline.md"
+    ],
+    "preferred_paths": [
+      "src"
+    ],
+    "allowed_paths": [
+      "src"
+    ],
+    "forbidden_paths": [
+      "docs/evidence"
+    ],
+    "allowed_commands": [
+      "dp goal lint goals/one.json --json"
+    ]
+  },
+  "iteration_policy": {
+    "mode": "smallest_relevant_check_first",
+    "max_attempts": 3,
+    "after_each_attempt": [
+      "rerun the exact failed check"
+    ]
+  },
+  "terminal_states": {
+    "success": "The registered evidence plan verifies the goal.",
+    "blocked": "A required validator is absent outside the active write scope.",
+    "budget_exhausted": "Iteration budget exhausted.",
+    "unsafe_scope": "Scope exceeded."
+  },
+  "blocked_routes": {
+    "needs_validator": {
+      "action": "create_evidence_stub",
+      "also_create_beads_issue": true
+    }
+  }
+}

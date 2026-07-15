@@ -9,7 +9,17 @@ def test_explain_known_hint_code() -> None:
     assert exit_code == 0
     assert payload["schema_version"] == "dp.explain.v1"
     assert payload["severity"] == "error"
-    assert payload["next_actions"][0]["command"].startswith("dp goal block")
+    assert payload["next_actions"][0]["command"].startswith("dp goal lint")
+    assert payload["next_actions"][1]["command"].startswith("dp goal emit")
+    assert payload["next_actions"][-1]["command"].startswith("dp goal block")
+
+
+def test_explain_instruction_discipline_hint_routes_non_mutating_plan() -> None:
+    payload, exit_code = explain_code("DP-HINT-INSTRUCTIONS-DISCIPLINE-MISSING")
+
+    assert exit_code == 0
+    assert payload["severity"] == "warning"
+    assert payload["next_actions"][0]["command"] == "dp instructions plan-update --json"
 
 
 def test_explain_common_error_code_alias() -> None:

@@ -24,6 +24,11 @@ def test_goal_emit_codex_returns_operable_prompt(capsys) -> None:
         "--write-artifact --json"
     ) in payload["codex_goal"]
     assert "Never claim completion from narration" in payload["codex_goal"]
+    assert "A failed gate blocks completion, not diagnosis or authorized repair" in (
+        payload["codex_goal"]
+    )
+    assert "at most 5 materially distinct attempts" in payload["codex_goal"]
+    assert "specialist or adversarial agents" in payload["codex_goal"]
     run_path = "docs/evidence-runs/RUN-GOAL-SPEC-70.01.json"
     assert payload["commands"]["evidence_run"].endswith(f"--output {run_path} --force --json")
     assert payload["commands"]["complete"].endswith(f"--evidence {run_path} --json")

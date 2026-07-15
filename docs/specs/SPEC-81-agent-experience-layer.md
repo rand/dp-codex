@@ -18,6 +18,10 @@ Follow-up note, 2026-06-28: SPEC-81.01 strengthens `dp agent eval --json` with e
 fixture-backed transcripts for bootstrap, instruction preservation, legacy adoption, hook audit,
 skill triggering, token budgets, and no-ready loop handling.
 
+Follow-up note, 2026-07-15: SPEC-81.02 adds bounded recovery and collaboration discipline. A failed
+gate blocks completion but does not prohibit authorized diagnosis and repair; agent consultation is
+advisory, single-owner, and subordinate to deterministic verification.
+
 ## 1. Thesis
 
 SPEC-80 made dp a durable campaign-control plane.

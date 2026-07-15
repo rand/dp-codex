@@ -4,13 +4,14 @@
   "goal_id": "GOAL-SPEC-70.01",
   "checks": [
     {
-      "id": "goal-lint-wrong-assertion",
+      "id": "policy-validation",
       "kind": "registered_command",
       "argv": [
         "dp",
-        "goal",
-        "lint",
-        "goals/one.json",
+        "policy",
+        "validate",
+        "--config",
+        "dp-policy.json",
         "--json"
       ],
       "timeout_seconds": 30,
@@ -23,8 +24,8 @@
         },
         {
           "type": "json_path_equals",
-          "path": "$.valid",
-          "value": false
+          "path": "$.ok",
+          "value": true
         }
       ],
       "mutation_policy": "read_only"

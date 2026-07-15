@@ -2,12 +2,14 @@ from __future__ import annotations
 
 import json
 import os
+import shutil
 from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from importlib import metadata
 from pathlib import Path
+from tempfile import TemporaryDirectory
 from typing import Any
 
 from dp.core.adoption import inspect_adoption
@@ -20,9 +22,12 @@ from dp.core.agent_response import (
     expansion,
     next_action,
 )
-from dp.core.hints import hint_payload
+from dp.core.evidence_lint import lint_evidence_file
+from dp.core.evidence_run import run_evidence_file
+from dp.core.goal_lint import lint_goal_file
+from dp.core.hints import explain_code, hint_payload
 from dp.core.hooks import audit_hooks
-from dp.core.instructions import inspect_instructions
+from dp.core.instructions import inspect_instructions, plan_instruction_update
 from dp.core.loop_ledger import loop_next
 from dp.core.skills import eval_skills
 from dp.core.toolcards import capabilities_payload
@@ -126,6 +131,7 @@ def agent_capabilities() -> AgentCommandResult:
     return AgentCommandResult(payload=capabilities_payload(), exit_code=0)
 
 
+# @trace SPEC-81.02
 def agent_eval(repo_root: Path | None = None) -> AgentCommandResult:
     root = (repo_root or Path.cwd()).resolve()
     transcripts = _agent_eval_transcripts(root)
@@ -134,6 +140,8 @@ def agent_eval(repo_root: Path | None = None) -> AgentCommandResult:
         "bootstrap-first-command",
         "next-action-quality",
         "error-repair-routing",
+        "true-blocker-routing",
+        "purposeful-collaboration-guidance",
         "instruction-preservation",
         "legacy-project-adoption",
         "skill-triggering",
@@ -157,6 +165,12 @@ def agent_eval(repo_root: Path | None = None) -> AgentCommandResult:
     )
     step_count = sum(len(item.get("steps", [])) for item in transcripts)
     ok = all(item["ok"] for item in results)
+    recovery_categories = ("error-repair-routing", "true-blocker-routing")
+    recovery_passed = sum(
+        1
+        for category in recovery_categories
+        if transcript_by_id.get(category, {}).get("ok") is True
+    )
     payload = {
         "schema_version": AGENT_EVAL_SCHEMA_VERSION,
         "ok": ok,
@@ -174,7 +188,7 @@ def agent_eval(repo_root: Path | None = None) -> AgentCommandResult:
             "skill_trigger_precision": 1.0,
             "skill_trigger_recall": 1.0,
             "hook_false_block_rate": 0.0,
-            "recovery_success_rate": 1.0,
+            "recovery_success_rate": recovery_passed / len(recovery_categories),
             "fixture_backed_categories": fixture_backed,
             "transcript_step_count": step_count,
         },
@@ -184,7 +198,12 @@ def agent_eval(repo_root: Path | None = None) -> AgentCommandResult:
             "dp loop next <loop.json> --claim --emit codex --json --detail normal",
             "dp evidence run <evidence.json> --json --detail normal",
             "dp explain DP-HINT-EVIDENCE-FAILED --json",
-            "dp goal block <goal.json> --reason needs_validator --write-artifact --json",
+            "<classify failure against project law, GoalContract scope, and attempt budget>",
+            "<run the smallest discriminating check and authorized repair>",
+            "<rerun the failed check and full evidence plan>",
+            "<if recovered: complete and verify with current evidence>",
+            "<if a true blocker remains: dp goal block <goal.json> --reason <reason> "
+            "--write-artifact --json>",
             "dp agent bootstrap --json --detail brief",
         ],
     }
@@ -197,6 +216,8 @@ def _agent_eval_transcripts(root: Path) -> list[dict[str, Any]]:
         _eval_bootstrap_transcript(fixture_root / "repo_with_root_agents"),
         _eval_next_action_transcript(fixture_root / "campaign_with_ready_goal"),
         _eval_error_repair_transcript(fixture_root / "evidence_failure"),
+        _eval_true_blocker_transcript(fixture_root / "missing_validator"),
+        _eval_collaboration_transcript(fixture_root / "repo_with_root_agents"),
         _eval_instruction_transcript(fixture_root / "repo_with_nested_agents"),
         _eval_adoption_transcript(fixture_root / "old_dp_project_minimal"),
         _eval_skill_transcript(),
@@ -278,18 +299,31 @@ def _eval_next_action_transcript(fixture: Path) -> dict[str, Any]:
 def _eval_error_repair_transcript(fixture: Path) -> dict[str, Any]:
     if not fixture.exists():
         return _missing_fixture_transcript("error-repair-routing", fixture)
-    failure = {
-        "ok": False,
-        "command": "evidence.run",
-        "evidence_id": "EVIDENCE-SPEC-81-FAILURE",
-        "goal_id": "GOAL-SPEC-70.01",
-        "summary": {"total": 1, "passed": 0, "failed": 1, "timed_out": 0, "errored": 0},
-        "checks": [{"id": "goal-lint-wrong-assertion", "status": "failed"}],
-        "error": {
-            "code": "evidence_checks_failed",
-            "message": "One registered evidence check failed.",
-        },
-    }
+    with TemporaryDirectory(prefix="dp-agent-eval-recovery-") as temp_dir:
+        recovery_root = Path(temp_dir) / "evidence_failure"
+        shutil.copytree(fixture, recovery_root)
+        with _pushd(recovery_root):
+            evidence_path = Path("docs/evidence/failure.json")
+            goal = json.loads(Path("goals/one.json").read_text(encoding="utf-8"))
+            original_evidence = evidence_path.read_bytes()
+            failure_result = run_evidence_file(evidence_path)
+            allowed_paths = goal.get("boundaries", {}).get("allowed_paths", [])
+            repair_is_authorized = "dp-policy.json" in allowed_paths
+            policy_path = Path("dp-policy.json")
+            policy = json.loads(policy_path.read_text(encoding="utf-8"))
+            policy["mode"] = "guided"
+            policy_path.write_text(
+                json.dumps(policy, indent=2, sort_keys=True) + "\n",
+                encoding="utf-8",
+            )
+            repaired_result = run_evidence_file(evidence_path)
+            evidence_unchanged = evidence_path.read_bytes() == original_evidence
+            events_path = Path(".dp/goals/events.jsonl")
+            blocked_event_written = events_path.exists() and any(
+                json.loads(line).get("event") == "blocked"
+                for line in events_path.read_text(encoding="utf-8").splitlines()
+            )
+    failure = failure_result.payload
     response = wrap_progressive_payload(
         command="evidence.run",
         command_line="dp evidence run docs/evidence/failure.json --json --detail normal",
@@ -300,10 +334,31 @@ def _eval_error_repair_transcript(fixture: Path) -> dict[str, Any]:
     hints = response.get("hints", [])
     next_actions = response.get("next_actions", [])
     hint_codes = {str(hint.get("code")) for hint in hints if isinstance(hint, dict)}
-    ok = "DP-HINT-EVIDENCE-FAILED" in hint_codes and any(
+    explained, explain_exit = explain_code("DP-HINT-EVIDENCE-FAILED")
+    repair_actions = explained.get("next_actions", [])
+    routed_to_explain = any(
         str(action.get("command", "")).startswith("dp explain")
         for action in next_actions
         if isinstance(action, dict)
+    )
+    why_it_matters = str(explained.get("why_it_matters") or "")
+    ok = (
+        failure_result.exit_code == 1
+        and failure.get("error", {}).get("code") == "evidence_checks_failed"
+        and repair_is_authorized
+        and repaired_result.exit_code == 0
+        and repaired_result.payload.get("ok") is True
+        and evidence_unchanged
+        and not blocked_event_written
+        and "DP-HINT-EVIDENCE-FAILED" in hint_codes
+        and routed_to_explain
+        and explain_exit == 0
+        and "blocks completion, not diagnosis or authorized repair" in why_it_matters
+        and any(
+            str(action.get("command", "")).endswith("--detail full")
+            for action in repair_actions
+            if isinstance(action, dict)
+        )
     )
     return _eval_transcript(
         "error-repair-routing",
@@ -313,10 +368,110 @@ def _eval_error_repair_transcript(fixture: Path) -> dict[str, Any]:
                 "dp evidence run docs/evidence/failure.json --json --detail normal",
                 1,
                 ok,
-                "Evidence failure routes to a stable repair hint and explain command.",
+                "Evidence failure routes to diagnosis and authorized repair before blocking.",
+                observed={
+                    "classification": "repairable_failure",
+                    "blocks_completion": True,
+                    "blocks_repair": False,
+                    "routed_to_explain": routed_to_explain,
+                    "failed_check_status": failure.get("checks", [{}])[0].get("status"),
+                    "repaired_check_status": repaired_result.payload.get("checks", [{}])[0].get(
+                        "status"
+                    ),
+                    "blocked_event_written": blocked_event_written,
+                    "evidence_plan_unchanged": evidence_unchanged,
+                },
                 observed_error_code="evidence_checks_failed",
                 hints=hints[:1],
-                next_actions=next_actions[:1],
+                next_actions=repair_actions[:2],
+            )
+        ],
+    )
+
+
+def _eval_true_blocker_transcript(fixture: Path) -> dict[str, Any]:
+    if not fixture.exists():
+        return _missing_fixture_transcript("true-blocker-routing", fixture)
+    with _pushd(fixture):
+        goal_path = Path("goals/one.json")
+        goal = json.loads(goal_path.read_text(encoding="utf-8"))
+        evidence_path = Path(str(goal["evidence"]["evidence_plan"]))
+        goal_lint = lint_goal_file(goal_path)
+        evidence_lint = lint_evidence_file(evidence_path)
+        allowed_paths = goal.get("boundaries", {}).get("allowed_paths", [])
+        validator_repair_authorized = any(
+            evidence_path.is_relative_to(Path(path)) for path in allowed_paths
+        )
+    explained, exit_code = explain_code("DP-HINT-EVIDENCE-MISSING")
+    actions = explained.get("next_actions", [])
+    commands = [
+        str(action.get("command", "")) for action in actions if isinstance(action, dict)
+    ]
+    ok = (
+        goal_lint.exit_code == 0
+        and evidence_lint.exit_code == 2
+        and evidence_lint.report.errors[0].code == "missing_file"
+        and not validator_repair_authorized
+        and exit_code == 0
+        and bool(commands)
+        and commands[0].startswith("dp goal lint")
+        and commands[1].startswith("dp goal emit")
+        and commands[-1].startswith("dp goal block")
+    )
+    return _eval_transcript(
+        "true-blocker-routing",
+        fixture,
+        [
+            _eval_step(
+                "dp explain DP-HINT-EVIDENCE-MISSING --json",
+                exit_code,
+                ok,
+                "Confirm a missing validator before blocking.",
+                observed={
+                    "classification": "true_blocker",
+                    "blocker_reason": "needs_validator",
+                    "goal_contract_valid": goal_lint.report.valid,
+                    "validator_missing": evidence_lint.report.errors[0].code == "missing_file",
+                    "validator_repair_authorized": validator_repair_authorized,
+                    "inspect_before_block": bool(commands)
+                    and commands[0].startswith("dp goal lint"),
+                },
+                next_actions=actions[-1:],
+            )
+        ],
+    )
+
+
+def _eval_collaboration_transcript(fixture: Path) -> dict[str, Any]:
+    if not fixture.exists():
+        return _missing_fixture_transcript("purposeful-collaboration-guidance", fixture)
+    result = plan_instruction_update(fixture)
+    changes = result.payload.get("changes", [])
+    preview = "\n".join(
+        str(change.get("patch_preview") or "")
+        for change in changes
+        if isinstance(change, dict)
+    )
+    ok = (
+        result.exit_code == 0
+        and "## Agent Collaboration" in preview
+        and "One writer owns one worktree" in preview
+        and "primary agent owns integration and verification" in preview
+    )
+    return _eval_transcript(
+        "purposeful-collaboration-guidance",
+        fixture,
+        [
+            _eval_step(
+                "dp instructions plan-update --json",
+                result.exit_code,
+                ok,
+                "Instruction planning proposes bounded advisory collaboration without mutation.",
+                observed={
+                    "primary_agent_owns_decision": "primary agent owns integration" in preview,
+                    "one_writer_per_worktree": "One writer owns one worktree" in preview,
+                    "would_mutate": result.payload.get("would_mutate"),
+                },
             )
         ],
     )

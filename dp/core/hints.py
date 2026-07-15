@@ -118,6 +118,22 @@ HINTS: dict[str, HintDefinition] = {
         ),
         docs=("docs/reference/instruction-governance.md",),
     ),
+    "DP-HINT-INSTRUCTIONS-DISCIPLINE-MISSING": HintDefinition(
+        code="DP-HINT-INSTRUCTIONS-DISCIPLINE-MISSING",
+        severity="warning",
+        summary="Agent instructions lack bounded recovery or collaboration guidance.",
+        why_it_matters=(
+            "A failed completion gate should lead to authorized diagnosis before a true blocker, "
+            "and helpers must not gain decision authority."
+        ),
+        next_actions=(
+            _action(
+                "dp instructions plan-update --json",
+                "Preview additive recovery and collaboration guidance without mutating files.",
+            ),
+        ),
+        docs=("docs/reference/agent-recovery-and-collaboration.md",),
+    ),
     "DP-HINT-ADOPTION-AVAILABLE": HintDefinition(
         code="DP-HINT-ADOPTION-AVAILABLE",
         severity="info",
@@ -166,14 +182,28 @@ HINTS: dict[str, HintDefinition] = {
         code="DP-HINT-EVIDENCE-MISSING",
         severity="error",
         summary="The goal references evidence that is missing or cannot be verified.",
-        why_it_matters="Verification cannot advance without an external evidence artifact.",
+        why_it_matters=(
+            "Verification cannot advance without evidence, but a missing local path may be an "
+            "authorized repair rather than proof that no validator exists."
+        ),
         next_actions=(
             _action(
+                "dp goal lint <goal.json> --json",
+                "Validate the GoalContract before classifying the failure.",
+            ),
+            _action(
+                "dp goal emit <goal.json> --format codex --json",
+                "Inspect the contract boundaries, evidence cues, and iteration budget.",
+            ),
+            _action(
                 "dp goal block <goal.json> --reason needs_validator --write-artifact --json",
-                "Route the missing validator into a durable artifact.",
+                "Route a durable blocker only after confirming the validator is truly missing.",
             ),
         ),
-        docs=("docs/reference/evidence-plan-schema.md",),
+        docs=(
+            "docs/reference/evidence-plan-schema.md",
+            "docs/reference/agent-recovery-and-collaboration.md",
+        ),
     ),
     "DP-HINT-EVIDENCE-RUN-STALE": HintDefinition(
         code="DP-HINT-EVIDENCE-RUN-STALE",
@@ -189,14 +219,24 @@ HINTS: dict[str, HintDefinition] = {
         code="DP-HINT-EVIDENCE-FAILED",
         severity="error",
         summary="A registered evidence check failed.",
-        why_it_matters="Gates must be deterministic, and failed evidence blocks completion.",
+        why_it_matters=(
+            "Gates must be deterministic. Failed evidence blocks completion, not diagnosis or "
+            "authorized repair inside project law and GoalContract scope."
+        ),
         next_actions=(
             _action(
                 "dp evidence run <evidence.json> --json --detail full",
                 "Inspect the failing check output.",
             ),
+            _action(
+                "dp goal emit <goal.json> --format codex --json",
+                "Inspect the contract boundaries, evidence cues, and iteration budget.",
+            ),
         ),
-        docs=("docs/runbooks/debugging-agent-handoffs.md",),
+        docs=(
+            "docs/runbooks/debugging-agent-handoffs.md",
+            "docs/reference/agent-recovery-and-collaboration.md",
+        ),
     ),
     "DP-HINT-CAMPAIGN-DRAFT": HintDefinition(
         code="DP-HINT-CAMPAIGN-DRAFT",

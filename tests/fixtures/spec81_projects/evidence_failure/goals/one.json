@@ -13,7 +13,7 @@
   "evidence": {
     "evidence_plan": "docs/evidence/failure.json",
     "verification_commands": [
-      "dp goal lint goals/one.json --json"
+      "dp policy validate --config dp-policy.json --json"
     ],
     "trace_ids": [
       "SPEC-70.01"
@@ -24,18 +24,14 @@
       "docs/specs/SPEC-70-01-beads-doctor.md"
     ],
     "preferred_paths": [
-      "dp",
-      "tests",
-      "docs"
+      "dp-policy.json"
     ],
     "allowed_paths": [
-      "dp",
-      "tests",
-      "docs"
+      "dp-policy.json"
     ],
     "forbidden_paths": [],
     "allowed_commands": [
-      "dp goal lint goals/one.json --json"
+      "dp policy validate --config dp-policy.json --json"
     ]
   },
   "iteration_policy": {

@@ -13,7 +13,15 @@ prompting.
 3. Read the returned `context.read_first` files before editing.
 4. Run the smallest relevant check first, then `make check` before closeout.
 5. Use `dp codex preflight --event stop --json` as a cheap status check.
+6. Treat a failed gate as a completion stop, then follow the bounded recovery ladder before
+   declaring a true blocker.
+7. Use read-only specialist or adversarial agents for separable diagnosis and review when allowed;
+   keep the primary agent responsible for edits, lifecycle, and verification.
 ```
+
+For machine-global guidance, review and merge
+`docs/examples/codex/global-dp-guidance.md` into `~/.codex/AGENTS.md`. Preserve a timestamped backup
+of the prior file. Do not overwrite unrelated global instructions.
 
 2. Keep project-local Codex config opt-in. Codex loads `.codex/config.toml` and hooks only after the
    project is trusted, and changed hooks must be reviewed and trusted by the operator.

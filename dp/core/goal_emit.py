@@ -89,6 +89,7 @@ def emit_goal_prompt(goal_path: Path, *, output_format: str) -> GoalEmitResult:
     return GoalEmitResult(payload=payload, exit_code=0)
 
 
+# @trace SPEC-81.02
 def _render_codex_goal(
     *,
     objective: str,
@@ -109,8 +110,18 @@ def _render_codex_goal(
         boundaries.get("allowed_commands", []) if isinstance(boundaries, dict) else []
     )
     policy_mode = "smallest_relevant_check_first"
+    max_attempts: int | None = None
     if isinstance(iteration_policy, dict) and isinstance(iteration_policy.get("mode"), str):
         policy_mode = iteration_policy["mode"]
+    if isinstance(iteration_policy, dict) and isinstance(
+        iteration_policy.get("max_attempts"), int
+    ):
+        max_attempts = int(iteration_policy["max_attempts"])
+    attempt_text = (
+        f"at most {max_attempts} materially distinct attempts"
+        if max_attempts is not None
+        else "materially distinct attempts within the declared budget"
+    )
     blocked = "Required context, fixture, command, validator, or decision is missing."
     if isinstance(terminal_states, dict) and isinstance(terminal_states.get("blocked"), str):
         blocked = terminal_states["blocked"]
@@ -121,7 +132,13 @@ def _render_codex_goal(
         f"Read first: {read_first}. Stay inside allowed paths: {allowed_paths}. "
         f"Use allowed commands as evidence cues: {allowed_commands}. "
         f"Between iterations, follow `{policy_mode}`: run the smallest relevant check first, "
-        "repair failures before broadening scope, and keep progress in dp. "
+        "capture and classify failures before blocking, and keep progress in dp. "
+        "A failed gate blocks completion, not diagnosis or authorized repair. "
+        f"For an admitted in-scope repair, state a hypothesis, use {attempt_text}, do not repeat "
+        "an unchanged action, and rerun the failed check before broadening verification. "
+        "When available and allowed, use read-only specialist or adversarial agents for bounded "
+        "independent diagnosis or review; the primary agent retains lifecycle, edits, and "
+        "verification ownership. "
         f"If blocked, budget-exhausted, or no safe path remains, use `{commands['block']}`; "
         f"blocked means: {blocked}. Release with `{commands['release']}` on context reset. "
         "Never claim completion from narration; produce an evidence artifact with "
