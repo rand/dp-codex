@@ -491,8 +491,7 @@ def _contains_all(text: str, anchors: tuple[str, ...]) -> bool:
 
 
 def _contains_discipline(text: str, anchors: tuple[str, ...]) -> bool:
-    if DP_AGENT_DISCIPLINE_MARKER in text:
-        return _contains_all(text, anchors)
+    # The managed marker identifies the block version, but never substitutes for its content.
     return _contains_all(text, anchors)
 
 
