@@ -19,6 +19,19 @@ def test_instructions_inspect_discovers_nested_agents() -> None:
     assert root["precedence"] < nested["precedence"]
 
 
+def test_instructions_inspect_ignores_temporary_plugin_cache(tmp_path: Path) -> None:
+    (tmp_path / "AGENTS.md").write_text("# Root\n", encoding="utf-8")
+    cached = tmp_path / ".tmp/plugins/example/AGENTS.md"
+    cached.parent.mkdir(parents=True)
+    cached.write_text("# Cached plugin instructions\n", encoding="utf-8")
+
+    result = inspect_instructions(tmp_path, detail="full")
+    paths = {item["path"] for item in result.payload["files"]}
+
+    assert "AGENTS.md" in paths
+    assert ".tmp/plugins/example/AGENTS.md" not in paths
+
+
 def test_instructions_audit_flags_old_dp_guidance() -> None:
     result = audit_instructions(FIXTURES / "repo_with_old_dp_guidance")
 

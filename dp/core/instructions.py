@@ -35,6 +35,7 @@ IGNORED_PARTS = frozenset(
         ".mypy_cache",
         ".pytest_cache",
         ".ruff_cache",
+        ".tmp",
         ".uv-cache",
         ".venv",
         "__pycache__",

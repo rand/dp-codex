@@ -1,6 +1,6 @@
 # SPEC-81.02 Agent Recovery and Collaboration Discipline
 
-Status: accepted
+Status: implemented
 Depends on: SPEC-81 Agent Experience Layer
 Trace: `SPEC-81.02`
 

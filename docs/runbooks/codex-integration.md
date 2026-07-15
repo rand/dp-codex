@@ -23,6 +23,11 @@ For machine-global guidance, review and merge
 `docs/examples/codex/global-dp-guidance.md` into `~/.codex/AGENTS.md`. Preserve a timestamped backup
 of the prior file. Do not overwrite unrelated global instructions.
 
+Record the source commit beside the managed `<!-- dp-agent-discipline:v1 -->` marker, then validate
+the installed file from `~/.codex` with `dp instructions audit --json`. Keep the backup checksum in
+the implementation receipt. Rollback restores that backup and reinstalls the prior reviewed
+dp-codex revision; it never requires deleting unrelated global guidance.
+
 2. Keep project-local Codex config opt-in. Codex loads `.codex/config.toml` and hooks only after the
    project is trusted, and changed hooks must be reviewed and trusted by the operator.
 
