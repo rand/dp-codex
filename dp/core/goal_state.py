@@ -11,6 +11,7 @@ from dp.core.blocker_routing import route_blocker_artifact
 from dp.core.events import append_jsonl_event, read_jsonl_events
 from dp.core.evidence_lint import lint_evidence_file
 from dp.core.goal_lint import GoalLintReport, lint_goal_file
+from dp.core.hints import hint_payload
 
 # @trace SPEC-80.02
 GOAL_EVENT_SCHEMA_VERSION = "0.1"
@@ -24,6 +25,10 @@ KNOWN_BLOCK_REASONS = frozenset(
         "budget_exhausted",
     }
 )
+KNOWN_OUTCOME_CLASSES = frozenset({"useful", "mixed", "not_useful"})
+CONFIRMING_OUTCOME_CLASSES = frozenset({"useful", "mixed"})
+RECEIPT_EVENTS = frozenset({"verified"})
+REPEATED_BLOCK_THRESHOLD = 2
 
 
 @dataclass(frozen=True)
@@ -41,6 +46,9 @@ class GoalState:
     lease: dict[str, Any] | None
     blocked: dict[str, Any] | None
     last_event: dict[str, Any] | None
+    receipts_since_last_outcome_contact: int | None = None
+    last_outcome: dict[str, Any] | None = None
+    blocks_since_claim: int = 0
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -51,6 +59,9 @@ class GoalState:
             "lease": self.lease,
             "blocked": self.blocked,
             "last_event": self.last_event,
+            "receipts_since_last_outcome_contact": self.receipts_since_last_outcome_contact,
+            "last_outcome": self.last_outcome,
+            "blocks_since_claim": self.blocks_since_claim,
         }
 
 
@@ -67,6 +78,7 @@ def goal_status(goal_path: Path, *, event_log: Path = DEFAULT_GOAL_EVENT_LOG) ->
         now=_utc_now(),
     )
     payload = {"ok": True, "command": "goal.status", **state.to_dict()}
+    _apply_repeated_block_hint(payload, state)
     return GoalCommandResult(payload=payload, exit_code=0)
 
 
@@ -124,15 +136,14 @@ def claim_goal(
         event_log=event_log,
         now=now,
     )
-    return GoalCommandResult(
-        payload={
-            "ok": True,
-            "command": "goal.claim",
-            "event_log": append_result.path,
-            **state.to_dict(),
-        },
-        exit_code=0,
-    )
+    payload = {
+        "ok": True,
+        "command": "goal.claim",
+        "event_log": append_result.path,
+        **state.to_dict(),
+    }
+    _apply_intent_reinjection(payload, goal_path)
+    return GoalCommandResult(payload=payload, exit_code=0)
 
 
 def start_goal(
@@ -178,15 +189,14 @@ def start_goal(
         event_log=event_log,
         now=now,
     )
-    return GoalCommandResult(
-        payload={
-            "ok": True,
-            "command": "goal.start",
-            "event_log": append_result.path,
-            **state.to_dict(),
-        },
-        exit_code=0,
-    )
+    payload = {
+        "ok": True,
+        "command": "goal.start",
+        "event_log": append_result.path,
+        **state.to_dict(),
+    }
+    _apply_intent_reinjection(payload, goal_path)
+    return GoalCommandResult(payload=payload, exit_code=0)
 
 
 def heartbeat_goal(
@@ -294,6 +304,7 @@ def block_goal(
         "event_log": append_result.path,
         **state.to_dict(),
     }
+    _apply_repeated_block_hint(payload, state)
     if routing_result is not None:
         payload["routing"] = routing_result.routing
         if routing_result.error is not None:
@@ -337,6 +348,63 @@ def release_goal(
             "ok": True,
             "command": "goal.release",
             "event_log": append_result.path,
+            **state.to_dict(),
+        },
+        exit_code=0,
+    )
+
+
+def outcome_goal(
+    goal_path: Path,
+    *,
+    outcome_class: str,
+    ref: str,
+    event_log: Path = DEFAULT_GOAL_EVENT_LOG,
+) -> GoalCommandResult:
+    lint_result = lint_goal_file(goal_path)
+    if lint_result.exit_code != 0:
+        return _lint_failure_payload("goal.outcome", lint_result.report, lint_result.exit_code)
+    if outcome_class not in KNOWN_OUTCOME_CLASSES:
+        return _usage_error(
+            "goal.outcome",
+            "unknown_outcome_class",
+            "$.class",
+            "Outcome class must be one of: mixed, not_useful, useful.",
+        )
+    if not ref.strip():
+        return _usage_error(
+            "goal.outcome",
+            "outcome_ref_required",
+            "$.ref",
+            "Outcome contact requires a governed ref recording where the signal lives.",
+        )
+
+    now = _utc_now()
+    goal_id = _require_goal_id(lint_result.report)
+    event = _base_event(
+        "outcome_contact",
+        goal_id=goal_id,
+        goal_path=goal_path,
+        timestamp=now,
+    )
+    event["class"] = outcome_class
+    event["ref"] = ref.strip()
+    event["goal_sha256"] = _file_sha256(goal_path)
+    append_result = append_jsonl_event(event_log, event)
+    state = reconstruct_goal_state(
+        goal_id=goal_id,
+        goal_path=goal_path,
+        event_log=event_log,
+        now=now,
+    )
+    return GoalCommandResult(
+        payload={
+            "ok": True,
+            "command": "goal.outcome",
+            "event_log": append_result.path,
+            "outcome_class": outcome_class,
+            "ref": ref.strip(),
+            "message": "Outcome contact recorded; outcomes settle claims that receipts support.",
             **state.to_dict(),
         },
         exit_code=0,
@@ -478,6 +546,11 @@ def verify_goal(
             "evidence_id": evidence_run["evidence_id"],
             "evidence_plan": goal_evidence_plan,
             "evidence_plan_sha256": _file_sha256(evidence_plan_path),
+            "outcome_confirmed": _outcome_confirmed(
+                goal_id=goal_id,
+                goal_path=goal_path,
+                event_log=event_log,
+            ),
             "message": "Evidence run verified; goal state advanced to verified.",
             **state.to_dict(),
         },
@@ -503,10 +576,24 @@ def reconstruct_goal_state(
     state = "ready"
     lease: dict[str, Any] | None = None
     blocked: dict[str, Any] | None = None
+    receipts_since_outcome: int | None = None
+    last_outcome: dict[str, Any] | None = None
+    blocks_since_claim = 0
 
     for event in events:
         event_type = str(event.get("event", ""))
+        if event_type in RECEIPT_EVENTS and receipts_since_outcome is not None:
+            receipts_since_outcome += 1
+        if event_type == "outcome_contact":
+            receipts_since_outcome = 0
+            last_outcome = {
+                "class": event.get("class"),
+                "ref": event.get("ref"),
+                "timestamp": event.get("timestamp"),
+            }
+            continue
         if event_type == "claimed":
+            blocks_since_claim = 0
             expires_at = str(event.get("lease_expires_at", ""))
             stale = _parse_event_time(expires_at) <= effective_now
             lease = {
@@ -525,6 +612,7 @@ def reconstruct_goal_state(
             state = "pursuing"
         elif event_type == "blocked":
             state = "blocked"
+            blocks_since_claim += 1
             blocked = {
                 "reason": event.get("reason"),
                 "timestamp": event.get("timestamp"),
@@ -550,7 +638,80 @@ def reconstruct_goal_state(
         lease=lease,
         blocked=blocked,
         last_event=events[-1] if events else None,
+        receipts_since_last_outcome_contact=receipts_since_outcome,
+        last_outcome=last_outcome,
+        blocks_since_claim=blocks_since_claim,
     )
+
+
+def intent_reinjection(contract: dict[str, Any]) -> dict[str, Any] | None:
+    """Owner-word re-anchoring payload for claim, start, launch, and bootstrap surfaces.
+
+    Returns the goal's intent verbatim quotation, its source citation, and the
+    parent contribution claim exactly as authored — never a paraphrase.
+    """
+    intent = contract.get("intent")
+    if not isinstance(intent, dict):
+        return None
+    payload: dict[str, Any] = {}
+    verbatim = intent.get("verbatim")
+    if isinstance(verbatim, str) and verbatim.strip():
+        payload["verbatim"] = verbatim
+    source = intent.get("source")
+    if isinstance(source, dict):
+        payload["source"] = source
+    parent = intent.get("parent")
+    if isinstance(parent, dict):
+        contribution = parent.get("contribution")
+        if isinstance(contribution, str) and contribution.strip():
+            payload["parent_contribution"] = contribution
+    return payload or None
+
+
+def _apply_intent_reinjection(payload: dict[str, Any], goal_path: Path) -> None:
+    try:
+        contract = _read_json_object(goal_path)
+    except (OSError, ValueError, json.JSONDecodeError):
+        return
+    intent = intent_reinjection(contract)
+    if intent is not None:
+        payload["intent"] = intent
+
+
+def _apply_repeated_block_hint(payload: dict[str, Any], state: GoalState) -> None:
+    if state.blocks_since_claim < REPEATED_BLOCK_THRESHOLD:
+        return
+    hints = payload.setdefault("hints", [])
+    if isinstance(hints, list):
+        hints.append(hint_payload("DP-HINT-GOAL-REPEATED-BLOCKS"))
+
+
+def _outcome_confirmed(
+    *,
+    goal_id: str,
+    goal_path: Path,
+    event_log: Path,
+) -> bool:
+    """An outcome contact confirms only the goal content it was recorded against.
+
+    Latest wins, consistent with last_outcome: the most recent outcome_contact
+    event recorded against the current goal digest decides. A later not_useful
+    on the unchanged goal retracts an earlier confirmation.
+    """
+    try:
+        current_digest = _file_sha256(goal_path)
+    except OSError:
+        return False
+    confirmed = False
+    for event in read_jsonl_events(event_log):
+        if (
+            event.get("goal_id") == goal_id
+            and event.get("schema_version") == GOAL_EVENT_SCHEMA_VERSION
+            and event.get("event") == "outcome_contact"
+            and event.get("goal_sha256") == current_digest
+        ):
+            confirmed = event.get("class") in CONFIRMING_OUTCOME_CLASSES
+    return confirmed
 
 
 def parse_lease_duration(value: str) -> timedelta:

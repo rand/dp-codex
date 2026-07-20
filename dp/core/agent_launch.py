@@ -103,26 +103,25 @@ def launch_agent_goal(
             claim_payload=claim_result.payload,
         )
 
-    return AgentLaunchResult(
-        payload={
-            **base_payload,
-            "ok": True,
-            "goal_id": emit_result.payload.get("goal_id"),
-            "goal_path": goal_path.as_posix(),
-            "codex_goal": emit_result.payload.get("codex_goal"),
-            "read_first": emit_result.payload.get("read_first", []),
-            "allowed_paths": emit_result.payload.get("allowed_paths", []),
-            "evidence": emit_result.payload.get("evidence", {}),
-            "commands": emit_result.payload.get("commands", {}),
-            "emit": emit_result.payload,
-            "claim": claim_result.payload,
-            "start": start_result.payload,
-            "message": (
-                "Supervised agent launch package prepared; no process was spawned."
-            ),
-        },
-        exit_code=0,
-    )
+    payload: dict[str, Any] = {
+        **base_payload,
+        "ok": True,
+        "goal_id": emit_result.payload.get("goal_id"),
+        "goal_path": goal_path.as_posix(),
+        "codex_goal": emit_result.payload.get("codex_goal"),
+        "read_first": emit_result.payload.get("read_first", []),
+        "allowed_paths": emit_result.payload.get("allowed_paths", []),
+        "evidence": emit_result.payload.get("evidence", {}),
+        "commands": emit_result.payload.get("commands", {}),
+        "emit": emit_result.payload,
+        "claim": claim_result.payload,
+        "start": start_result.payload,
+        "message": "Supervised agent launch package prepared; no process was spawned.",
+    }
+    intent = claim_result.payload.get("intent")
+    if intent is not None:
+        payload["intent"] = intent
+    return AgentLaunchResult(payload=payload, exit_code=0)
 
 
 def _lifecycle_failure(
