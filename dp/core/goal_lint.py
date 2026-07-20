@@ -9,6 +9,9 @@ from typing import Any
 # @trace SPEC-80.01
 SUPPORTED_GOAL_SCHEMA_VERSION = "0.1"
 SUPPORTED_GOAL_LEVELS = frozenset({"campaign", "goal", "node", "milestone"})
+INTENT_GRAPH_MARKER = "docs/reference/intent-graph.md"
+INTENT_AUTHORSHIP_VALUES = frozenset({"owner", "agent_derived", "owner_ratified"})
+ROOT_INTENT_AUTHORSHIP_VALUES = frozenset({"owner", "owner_ratified"})
 KNOWN_BLOCKER_ROUTES = frozenset(
     {
         "needs_specification",
@@ -97,7 +100,13 @@ class GoalLintResult:
     exit_code: int
 
 
-def lint_goal_file(path: Path) -> GoalLintResult:
+def intent_enforcement_active(repo_root: Path | None = None) -> bool:
+    """The intent-graph adoption level is active when the repo carries its marker."""
+    root = repo_root or Path.cwd()
+    return (root / INTENT_GRAPH_MARKER).exists()
+
+
+def lint_goal_file(path: Path, *, repo_root: Path | None = None) -> GoalLintResult:
     try:
         raw = path.read_text(encoding="utf-8")
     except FileNotFoundError:
@@ -116,10 +125,10 @@ def lint_goal_file(path: Path) -> GoalLintResult:
             message=f"Goal contract is not valid JSON: line {exc.lineno} column {exc.colno}.",
         )
 
-    return lint_goal_payload(payload)
+    return lint_goal_payload(payload, repo_root=repo_root)
 
 
-def lint_goal_payload(payload: Any) -> GoalLintResult:
+def lint_goal_payload(payload: Any, *, repo_root: Path | None = None) -> GoalLintResult:
     if not isinstance(payload, dict):
         return _input_error(
             code="json_object_required",
@@ -194,6 +203,15 @@ def lint_goal_payload(payload: Any) -> GoalLintResult:
     _validate_terminal_states(payload.get("terminal_states"), errors)
     _validate_boundaries(level, payload.get("boundaries"), errors, warnings)
     _validate_blocked_routes(payload.get("blocked_routes"), errors)
+
+    root = (repo_root or Path.cwd()).resolve()
+    errors.extend(
+        collect_intent_findings(
+            payload,
+            repo_root=root,
+            required=intent_enforcement_active(root),
+        )
+    )
 
     if level == "campaign" and not _non_empty_list(payload.get("nodes")):
         errors.append(
@@ -474,6 +492,222 @@ def _validate_blocked_routes(blocked_routes: Any, errors: list[GoalLintFinding])
                     "unknown_blocker_action",
                     f"{route_path}.action",
                     "Blocked route action is not known.",
+                )
+            )
+
+
+def collect_intent_findings(
+    contract: dict[str, Any],
+    *,
+    repo_root: Path,
+    required: bool,
+) -> list[GoalLintFinding]:
+    """Validate a GoalContract intent block.
+
+    A present intent block is always validated; absence is an error only when
+    the intent-graph adoption level requires it (grandfathering below it).
+    """
+    intent = contract.get("intent")
+    if intent is None:
+        if required:
+            return [
+                _finding(
+                    "missing_intent",
+                    "$.intent",
+                    "Goals must declare an intent block at the intent-graph adoption level: "
+                    "work serves intent.",
+                )
+            ]
+        return []
+
+    if not isinstance(intent, dict):
+        return [
+            _finding(
+                "invalid_intent",
+                "$.intent",
+                "Intent must be an object when present.",
+            )
+        ]
+
+    errors: list[GoalLintFinding] = []
+    authorship = _non_empty_string(intent.get("authorship"))
+    if authorship is None or authorship not in INTENT_AUTHORSHIP_VALUES:
+        errors.append(
+            _finding(
+                "invalid_intent_authorship",
+                "$.intent.authorship",
+                "Intent authorship must be one of: owner, agent_derived, owner_ratified.",
+            )
+        )
+
+    _validate_intent_source(intent.get("source"), repo_root, errors)
+
+    if _non_empty_string(intent.get("verbatim")) is None:
+        errors.append(
+            _finding(
+                "missing_intent_verbatim",
+                "$.intent.verbatim",
+                "Intent must quote the exact owner words it serves, not a paraphrase.",
+            )
+        )
+
+    _validate_intent_parent(intent, authorship, errors)
+    _validate_intent_defeaters(intent.get("defeaters"), errors)
+    _validate_intent_outcome_contact(intent.get("outcome_contact"), errors)
+    return errors
+
+
+def _validate_intent_source(
+    source: Any,
+    repo_root: Path,
+    errors: list[GoalLintFinding],
+) -> None:
+    if not isinstance(source, dict):
+        errors.append(
+            _finding(
+                "missing_intent_source",
+                "$.intent.source",
+                "Intent must cite an owner-authored source document.",
+            )
+        )
+        return
+
+    source_path = _non_empty_string(source.get("path"))
+    if source_path is None or not _is_sane_relative_path(source_path):
+        errors.append(
+            _finding(
+                "invalid_intent_source_path",
+                "$.intent.source.path",
+                "Intent source path must be a sane repo-relative path.",
+            )
+        )
+    elif not (repo_root / source_path).exists():
+        errors.append(
+            _finding(
+                "intent_source_not_found",
+                "$.intent.source.path",
+                f"Intent source document does not exist in the repo: {source_path}",
+            )
+        )
+
+    anchor = source.get("anchor")
+    if anchor is not None and _non_empty_string(anchor) is None:
+        errors.append(
+            _finding(
+                "invalid_intent_source_anchor",
+                "$.intent.source.anchor",
+                "Intent source anchor must be a non-empty string when present.",
+            )
+        )
+
+
+def _validate_intent_parent(
+    intent: dict[str, Any],
+    authorship: str | None,
+    errors: list[GoalLintFinding],
+) -> None:
+    if "parent" not in intent:
+        errors.append(
+            _finding(
+                "missing_intent_parent",
+                "$.intent.parent",
+                "Intent must link a parent goal, or declare itself root with parent null.",
+            )
+        )
+        return
+
+    parent = intent.get("parent")
+    if parent is None:
+        if authorship is not None and authorship not in ROOT_INTENT_AUTHORSHIP_VALUES:
+            errors.append(
+                _finding(
+                    "intent_root_requires_owner_authorship",
+                    "$.intent.parent",
+                    "Root goals (parent null) require owner or owner_ratified authorship.",
+                )
+            )
+        return
+
+    if not isinstance(parent, dict):
+        errors.append(
+            _finding(
+                "invalid_intent_parent",
+                "$.intent.parent",
+                "Intent parent must be an object or null for root goals.",
+            )
+        )
+        return
+
+    for field, message in (
+        ("goal", "Intent parent must name the parent goal id."),
+        ("contribution", "Intent parent must state how this child serves the parent."),
+        ("residual", "Intent parent must state what of the parent this child does not capture."),
+    ):
+        if _non_empty_string(parent.get(field)) is None:
+            errors.append(
+                _finding(
+                    "invalid_intent_parent",
+                    f"$.intent.parent.{field}",
+                    message,
+                )
+            )
+
+    snapshot = parent.get("parent_snapshot")
+    if snapshot is not None and _non_empty_string(snapshot) is None:
+        errors.append(
+            _finding(
+                "invalid_intent_parent_snapshot",
+                "$.intent.parent.parent_snapshot",
+                "Intent parent_snapshot must be a non-empty digest string when present.",
+            )
+        )
+
+
+def _validate_intent_defeaters(defeaters: Any, errors: list[GoalLintFinding]) -> None:
+    if not isinstance(defeaters, list) or not defeaters:
+        errors.append(
+            _finding(
+                "missing_intent_defeaters",
+                "$.intent.defeaters",
+                "Intent must enumerate at least one way the goal could be unsatisfied "
+                "while its receipts stay green.",
+            )
+        )
+        return
+    for index, defeater in enumerate(defeaters):
+        if not isinstance(defeater, str) or not defeater.strip():
+            errors.append(
+                _finding(
+                    "invalid_intent_defeater",
+                    f"$.intent.defeaters[{index}]",
+                    "Intent defeaters must be non-empty strings.",
+                )
+            )
+
+
+def _validate_intent_outcome_contact(
+    outcome_contact: Any,
+    errors: list[GoalLintFinding],
+) -> None:
+    if not isinstance(outcome_contact, dict):
+        errors.append(
+            _finding(
+                "missing_intent_outcome_contact",
+                "$.intent.outcome_contact",
+                "Intent must bind an outcome signal and channel: outcomes settle claims.",
+            )
+        )
+        return
+    for field, message in (
+        ("signal", "Intent outcome_contact must name the real-world signal that settles the goal."),
+        ("channel", "Intent outcome_contact must name where the outcome signal gets recorded."),
+    ):
+        if _non_empty_string(outcome_contact.get(field)) is None:
+            errors.append(
+                _finding(
+                    "invalid_intent_outcome_contact",
+                    f"$.intent.outcome_contact.{field}",
+                    message,
                 )
             )
 

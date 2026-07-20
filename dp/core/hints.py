@@ -162,6 +162,25 @@ HINTS: dict[str, HintDefinition] = {
         ),
         docs=("docs/reference/goal-state-machine.md",),
     ),
+    "DP-HINT-GOAL-REPEATED-BLOCKS": HintDefinition(
+        code="DP-HINT-GOAL-REPEATED-BLOCKS",
+        severity="warning",
+        summary=(
+            "Repeated blocks: restate, in the owner's words, the outcome this goal serves "
+            "and why continuing serves it."
+        ),
+        why_it_matters=(
+            "Repair cycles beyond the first are where goal drift concentrates; "
+            "re-anchor on the owner-authored intent before continuing."
+        ),
+        next_actions=(
+            _action(
+                "dp goal status <goal.json> --json",
+                "Re-read the goal's intent verbatim and path-to-root before retrying.",
+            ),
+        ),
+        docs=("docs/reference/goal-state-machine.md",),
+    ),
     "DP-HINT-EVIDENCE-MISSING": HintDefinition(
         code="DP-HINT-EVIDENCE-MISSING",
         severity="error",

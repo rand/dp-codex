@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from dp.core.agent_response import next_action
+from dp.core.goal_lint import INTENT_GRAPH_MARKER
 from dp.core.hints import hint_payload
 from dp.core.instructions import audit_instructions, inspect_instructions
 from dp.core.skills import scaffold_skills
@@ -34,6 +35,7 @@ def inspect_adoption(repo_root: Path | None = None) -> AdoptionCommandResult:
         "classification": classification,
         "repo_root": root.as_posix(),
         "signals": signals,
+        "levels": _capability_levels(signals),
         "hints": hints,
         "next_actions": _adoption_next_actions(classification),
     }
@@ -319,13 +321,17 @@ def _adoption_signals(root: Path) -> dict[str, Any]:
             root / "docs/specs/SPEC-80-agent-campaign-control-plane-for-dp-codex.md"
         ).exists(),
         "has_spec81": _has_spec81_surface(root),
+        "has_spec83": _has_spec83_surface(root),
         "old_command_docs": md_with_old_commands,
         "missing_spec80_structures": _missing_spec80_structures(root),
         "missing_spec81_structures": _missing_spec81_structures(root),
+        "missing_spec83_structures": _missing_spec83_structures(root),
     }
 
 
 def _classify(signals: dict[str, Any]) -> str:
+    if signals["has_spec83"]:
+        return "current_spec83"
     if signals["has_spec81"]:
         return "current_spec81"
     if signals["has_spec80"] or signals["has_campaigns"]:
@@ -428,10 +434,16 @@ def _adoption_conflicts(instruction_findings: list[dict[str, Any]]) -> list[dict
 
 def _adoption_hints(classification: str, signals: dict[str, Any]) -> list[dict[str, str]]:
     hints: list[dict[str, str]] = []
-    if classification in {"not_adopted", "legacy_dp", "partial_spec80", "current_spec80"}:
+    if classification in {
+        "not_adopted",
+        "legacy_dp",
+        "partial_spec80",
+        "current_spec80",
+        "current_spec81",
+    }:
         hints.append(hint_payload("DP-HINT-ADOPTION-AVAILABLE"))
     if classification in {"legacy_dp", "partial_spec80"} or (
-        classification != "current_spec81" and signals["old_command_docs"]
+        classification not in {"current_spec81", "current_spec83"} and signals["old_command_docs"]
     ):
         hints.append(hint_payload("DP-HINT-MIGRATION-LEGACY-ARTIFACTS"))
     if not signals["has_agents_md"]:
@@ -439,8 +451,38 @@ def _adoption_hints(classification: str, signals: dict[str, Any]) -> list[dict[s
     return hints
 
 
+def _capability_levels(signals: dict[str, Any]) -> list[dict[str, Any]]:
+    return [
+        {
+            "id": "spec80",
+            "classification": "current_spec80",
+            "delta": "Campaign control plane: GoalContracts, evidence plans, loops, campaigns.",
+            "adopted": bool(signals["has_spec80"] or signals["has_campaigns"]),
+        },
+        {
+            "id": "spec81",
+            "classification": "current_spec81",
+            "delta": "Agent experience surface: response envelopes, toolcards, hint codes.",
+            "adopted": bool(signals["has_spec81"]),
+        },
+        {
+            "id": "spec83",
+            "classification": "current_spec83",
+            "delta": (
+                "Intent-graph enforcement: goals must carry an intent block "
+                "(owner verbatim, source, parent contribution and residual, defeaters, "
+                "outcome contact); outcome events settle verified claims; dp graph audit "
+                "reports drift. Work serves intent; verification disciplines claims; "
+                "outcomes settle them."
+            ),
+            "marker": INTENT_GRAPH_MARKER,
+            "adopted": bool(signals["has_spec83"]),
+        },
+    ]
+
+
 def _adoption_next_actions(classification: str) -> list[dict[str, str]]:
-    if classification == "current_spec81":
+    if classification in {"current_spec81", "current_spec83"}:
         return [
             next_action(
                 "audit_instructions",
@@ -466,6 +508,14 @@ def _has_spec81_surface(root: Path) -> bool:
             "docs/reference/hint-codes.md",
         )
     )
+
+
+def _has_spec83_surface(root: Path) -> bool:
+    return _has_spec81_surface(root) and (root / INTENT_GRAPH_MARKER).exists()
+
+
+def _missing_spec83_structures(root: Path) -> list[str]:
+    return [INTENT_GRAPH_MARKER] if not (root / INTENT_GRAPH_MARKER).exists() else []
 
 
 def _missing_spec80_structures(root: Path) -> list[str]:

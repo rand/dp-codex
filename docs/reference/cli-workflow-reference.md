@@ -48,9 +48,14 @@ Quick command reference by workflow.
 7. `dp goal release <goal.json> --reason "..." [--json]`
 8. `dp goal complete <goal.json> --evidence <run.json> [--json]`
 9. `dp goal verify <goal.json> --evidence <run.json> [--json]`
-10. `dp goal emit <goal.json> --format codex [--json]`
-11. `dp agent prompt --goal <goal.json> --format codex [--json]`
-12. `dp agent launch --goal <goal.json> --driver codex [--agent codex] [--lease 2h] --supervised [--json]`
+10. `dp goal outcome <goal.json> --class useful|mixed|not_useful --ref <governed-ref> [--json]`
+11. `dp goal emit <goal.json> --format codex [--json]`
+12. `dp agent prompt --goal <goal.json> --format codex [--json]`
+13. `dp agent launch --goal <goal.json> --driver codex [--agent codex] [--lease 2h] --supervised [--json]`
+
+## Intent Graph
+
+1. `dp graph audit [--json]` (reports intent drift across `docs/goals`; never gates, exit 0)
 
 ## Evidence Plans
 
