@@ -27,7 +27,7 @@ KNOWN_BLOCK_REASONS = frozenset(
 )
 KNOWN_OUTCOME_CLASSES = frozenset({"useful", "mixed", "not_useful"})
 CONFIRMING_OUTCOME_CLASSES = frozenset({"useful", "mixed"})
-RECEIPT_EVENTS = frozenset({"evidence_pending", "verified"})
+RECEIPT_EVENTS = frozenset({"verified"})
 REPEATED_BLOCK_THRESHOLD = 2
 
 
@@ -692,21 +692,26 @@ def _outcome_confirmed(
     goal_path: Path,
     event_log: Path,
 ) -> bool:
-    """An outcome contact confirms only the goal content it was recorded against."""
+    """An outcome contact confirms only the goal content it was recorded against.
+
+    Latest wins, consistent with last_outcome: the most recent outcome_contact
+    event recorded against the current goal digest decides. A later not_useful
+    on the unchanged goal retracts an earlier confirmation.
+    """
     try:
         current_digest = _file_sha256(goal_path)
     except OSError:
         return False
+    confirmed = False
     for event in read_jsonl_events(event_log):
         if (
             event.get("goal_id") == goal_id
             and event.get("schema_version") == GOAL_EVENT_SCHEMA_VERSION
             and event.get("event") == "outcome_contact"
-            and event.get("class") in CONFIRMING_OUTCOME_CLASSES
             and event.get("goal_sha256") == current_digest
         ):
-            return True
-    return False
+            confirmed = event.get("class") in CONFIRMING_OUTCOME_CLASSES
+    return confirmed
 
 
 def parse_lease_duration(value: str) -> timedelta:

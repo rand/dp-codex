@@ -10,6 +10,11 @@ from dp.cli.main import main
 
 BASE_GOAL = Path(__file__).parent / "fixtures/goals/valid_spec_70_01.json"
 INTENT_MARKER = "docs/reference/intent-graph.md"
+SPEC81_SURFACE = (
+    "docs/reference/agent-response-contract.md",
+    "docs/reference/toolcards.md",
+    "docs/reference/hint-codes.md",
+)
 ABSENT = object()
 
 
@@ -45,9 +50,17 @@ def _write_repo(
     *,
     intent: Any,
     marker: bool,
+    spec81_surface: bool | None = None,
 ) -> Path:
     (tmp_path / "docs").mkdir(exist_ok=True)
     (tmp_path / "docs/vision.md").write_text("# Vision\n", encoding="utf-8")
+    if spec81_surface is None:
+        spec81_surface = marker
+    if spec81_surface:
+        for surface in SPEC81_SURFACE:
+            surface_path = tmp_path / surface
+            surface_path.parent.mkdir(parents=True, exist_ok=True)
+            surface_path.write_text("# Reference\n", encoding="utf-8")
     if marker:
         marker_path = tmp_path / INTENT_MARKER
         marker_path.parent.mkdir(parents=True, exist_ok=True)
@@ -92,6 +105,21 @@ def test_absent_intent_is_rejected_at_the_intent_graph_level(
     assert exit_code == 1
     assert payload["valid"] is False
     assert "missing_intent" in {error["code"] for error in payload["errors"]}
+
+
+def test_marker_without_spec81_surface_does_not_enforce_intent(
+    tmp_path: Path,
+    monkeypatch,
+    capsys,
+) -> None:
+    """Lint enforcement uses the adoption predicate: marker AND spec81 surface."""
+    _write_repo(tmp_path, intent=ABSENT, marker=True, spec81_surface=False)
+    monkeypatch.chdir(tmp_path)
+
+    exit_code, payload = _lint(capsys)
+
+    assert exit_code == 0
+    assert payload["valid"] is True
 
 
 def test_valid_root_intent_passes_at_the_intent_graph_level(
@@ -144,6 +172,14 @@ def _intent_mutations() -> list[tuple[str, dict[str, Any], str]]:
     intent = _valid_root_intent()
     intent["source"] = {"path": "/etc/owner-notes.md"}
     cases.append(("absolute_source_path", intent, "invalid_intent_source_path"))
+
+    intent = _valid_root_intent()
+    intent["source"] = {"path": "docs"}
+    cases.append(("directory_source_path", intent, "intent_source_not_a_file"))
+
+    intent = _valid_root_intent()
+    intent["source"] = {"path": "goal.json"}
+    cases.append(("self_citing_source_path", intent, "intent_source_self_citation"))
 
     intent = _valid_root_intent()
     del intent["parent"]

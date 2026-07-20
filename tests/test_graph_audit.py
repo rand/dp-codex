@@ -199,6 +199,49 @@ def test_graph_audit_reports_receipts_since_last_outcome_contact(
     assert by_goal["GOAL-CHILD"]["parent"] == "GOAL-ROOT"
 
 
+def test_graph_audit_reports_malformed_parent_snapshot_distinctly_from_stale(
+    tmp_path: Path,
+    monkeypatch,
+    capsys,
+) -> None:
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "docs/vision.md").write_text("# Vision\n", encoding="utf-8")
+    _write_goal(
+        tmp_path,
+        "GOAL-ROOT.json",
+        {"schema_version": "0.1", "id": "GOAL-ROOT", "intent": _intent()},
+    )
+    _write_goal(
+        tmp_path,
+        "GOAL-BADSNAP.json",
+        {
+            "schema_version": "0.1",
+            "id": "GOAL-BADSNAP",
+            "intent": _intent(
+                authorship="agent_derived",
+                parent={
+                    "goal": "GOAL-ROOT",
+                    "contribution": "Serves the root outcome.",
+                    "residual": "Unknown residual.",
+                    "parent_snapshot": "sha256:not-a-digest",
+                },
+            ),
+        },
+    )
+    monkeypatch.chdir(tmp_path)
+
+    exit_code, payload = _audit(capsys)
+
+    assert exit_code == 0
+    codes_by_goal = {
+        goal["goal_id"]: set(goal["findings"]) for goal in payload["goals"]
+    }
+    assert codes_by_goal["GOAL-BADSNAP"] == {"invalid_parent_snapshot"}
+    assert "stale_parent_snapshot" not in {
+        finding["code"] for finding in payload["findings"]
+    }
+
+
 def test_graph_audit_flags_partial_intent_blocks(
     tmp_path: Path,
     monkeypatch,

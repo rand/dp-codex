@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from dataclasses import dataclass
 from hashlib import sha256
 from pathlib import Path
@@ -15,6 +16,7 @@ from dp.core.goal_state import (
 GRAPH_AUDIT_SCHEMA_VERSION = "dp.graph.audit.v1"
 GOALS_DIRECTORY = Path("docs/goals")
 DEFEATER_FINDING_CODES = frozenset({"missing_intent_defeaters", "invalid_intent_defeater"})
+PARENT_SNAPSHOT_PATTERN = re.compile(r"^sha256:[0-9a-f]{64}$")
 
 
 @dataclass(frozen=True)
@@ -39,6 +41,7 @@ def audit_graph(repo_root: Path | None = None) -> GraphAuditResult:
     for path in goal_paths:
         contracts.append((path, _read_goal_contract(path)))
 
+    # Duplicate goal ids resolve first-path-wins in sorted path order (SPEC-83).
     digest_by_goal_id: dict[str, str] = {}
     for path, contract in contracts:
         if contract is None:
@@ -126,7 +129,12 @@ def _audit_goal(
             )
         )
     else:
-        lint_findings = collect_intent_findings(contract, repo_root=root, required=True)
+        lint_findings = collect_intent_findings(
+            contract,
+            repo_root=root,
+            required=True,
+            goal_path=path,
+        )
         defeater_codes = sorted(
             {item.code for item in lint_findings if item.code in DEFEATER_FINDING_CODES}
         )
@@ -198,6 +206,21 @@ def _audit_parent_link(
         return []
 
     findings: list[dict[str, Any]] = []
+    snapshot = _text(parent.get("parent_snapshot"))
+    if snapshot is not None and PARENT_SNAPSHOT_PATTERN.fullmatch(snapshot) is None:
+        findings.append(
+            _finding(
+                "invalid_parent_snapshot",
+                goal_id=goal_id,
+                path=rel_path,
+                message=(
+                    "Intent parent_snapshot is not a sha256:<64-hex> digest; "
+                    "compute it with goal_file_digest over the parent goal file."
+                ),
+            )
+        )
+        snapshot = None
+
     parent_digest = digest_by_goal_id.get(parent_goal)
     if parent_digest is None:
         findings.append(
@@ -210,7 +233,6 @@ def _audit_parent_link(
         )
         return findings
 
-    snapshot = _text(parent.get("parent_snapshot"))
     if snapshot is not None and snapshot != parent_digest:
         findings.append(
             _finding(

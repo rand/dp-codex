@@ -10,6 +10,11 @@ from typing import Any
 SUPPORTED_GOAL_SCHEMA_VERSION = "0.1"
 SUPPORTED_GOAL_LEVELS = frozenset({"campaign", "goal", "node", "milestone"})
 INTENT_GRAPH_MARKER = "docs/reference/intent-graph.md"
+SPEC81_SURFACE_PATHS = (
+    "docs/reference/agent-response-contract.md",
+    "docs/reference/toolcards.md",
+    "docs/reference/hint-codes.md",
+)
 INTENT_AUTHORSHIP_VALUES = frozenset({"owner", "agent_derived", "owner_ratified"})
 ROOT_INTENT_AUTHORSHIP_VALUES = frozenset({"owner", "owner_ratified"})
 KNOWN_BLOCKER_ROUTES = frozenset(
@@ -100,10 +105,20 @@ class GoalLintResult:
     exit_code: int
 
 
+def spec81_surface_present(root: Path) -> bool:
+    """The agent-experience reference surface that the intent-graph level builds on."""
+    return all((root / path).exists() for path in SPEC81_SURFACE_PATHS)
+
+
 def intent_enforcement_active(repo_root: Path | None = None) -> bool:
-    """The intent-graph adoption level is active when the repo carries its marker."""
+    """The intent-graph adoption level is active when the repo carries its marker.
+
+    Uses the same predicate as adoption classification (_has_spec83_surface):
+    the marker alone does not enforce without the spec81 reference surface, so
+    lint enforcement and `dp adopt inspect` classification always agree.
+    """
     root = repo_root or Path.cwd()
-    return (root / INTENT_GRAPH_MARKER).exists()
+    return spec81_surface_present(root) and (root / INTENT_GRAPH_MARKER).exists()
 
 
 def lint_goal_file(path: Path, *, repo_root: Path | None = None) -> GoalLintResult:
@@ -125,10 +140,15 @@ def lint_goal_file(path: Path, *, repo_root: Path | None = None) -> GoalLintResu
             message=f"Goal contract is not valid JSON: line {exc.lineno} column {exc.colno}.",
         )
 
-    return lint_goal_payload(payload, repo_root=repo_root)
+    return lint_goal_payload(payload, repo_root=repo_root, goal_path=path)
 
 
-def lint_goal_payload(payload: Any, *, repo_root: Path | None = None) -> GoalLintResult:
+def lint_goal_payload(
+    payload: Any,
+    *,
+    repo_root: Path | None = None,
+    goal_path: Path | None = None,
+) -> GoalLintResult:
     if not isinstance(payload, dict):
         return _input_error(
             code="json_object_required",
@@ -210,6 +230,7 @@ def lint_goal_payload(payload: Any, *, repo_root: Path | None = None) -> GoalLin
             payload,
             repo_root=root,
             required=intent_enforcement_active(root),
+            goal_path=goal_path,
         )
     )
 
@@ -501,11 +522,13 @@ def collect_intent_findings(
     *,
     repo_root: Path,
     required: bool,
+    goal_path: Path | None = None,
 ) -> list[GoalLintFinding]:
     """Validate a GoalContract intent block.
 
     A present intent block is always validated; absence is an error only when
     the intent-graph adoption level requires it (grandfathering below it).
+    When goal_path is known, the source citation must not be the goal file itself.
     """
     intent = contract.get("intent")
     if intent is None:
@@ -540,7 +563,7 @@ def collect_intent_findings(
             )
         )
 
-    _validate_intent_source(intent.get("source"), repo_root, errors)
+    _validate_intent_source(intent.get("source"), repo_root, goal_path, errors)
 
     if _non_empty_string(intent.get("verbatim")) is None:
         errors.append(
@@ -560,6 +583,7 @@ def collect_intent_findings(
 def _validate_intent_source(
     source: Any,
     repo_root: Path,
+    goal_path: Path | None,
     errors: list[GoalLintFinding],
 ) -> None:
     if not isinstance(source, dict):
@@ -567,7 +591,8 @@ def _validate_intent_source(
             _finding(
                 "missing_intent_source",
                 "$.intent.source",
-                "Intent must cite an owner-authored source document.",
+                "Intent must cite an existing source document; "
+                "authorship is declared, not verified.",
             )
         )
         return
@@ -587,6 +612,22 @@ def _validate_intent_source(
                 "intent_source_not_found",
                 "$.intent.source.path",
                 f"Intent source document does not exist in the repo: {source_path}",
+            )
+        )
+    elif not (repo_root / source_path).is_file():
+        errors.append(
+            _finding(
+                "intent_source_not_a_file",
+                "$.intent.source.path",
+                f"Intent source must be a document file, not a directory: {source_path}",
+            )
+        )
+    elif goal_path is not None and _is_same_file(repo_root / source_path, goal_path):
+        errors.append(
+            _finding(
+                "intent_source_self_citation",
+                "$.intent.source.path",
+                "Intent source must cite a document other than the goal contract itself.",
             )
         )
 
@@ -767,6 +808,13 @@ def _is_sane_relative_path(value: str) -> bool:
     if any(part in {"", ".", ".."} for part in path.parts):
         return False
     return True
+
+
+def _is_same_file(candidate: Path, goal_path: Path) -> bool:
+    try:
+        return candidate.resolve() == goal_path.resolve()
+    except OSError:
+        return False
 
 
 def _non_empty_string(value: Any) -> str | None:

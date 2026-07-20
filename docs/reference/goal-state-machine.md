@@ -17,6 +17,7 @@ dp goal block <goal.json> --reason needs_decision --write-artifact --json
 dp goal release <goal.json> --reason "context reset" --json
 dp goal complete <goal.json> --evidence <run.json> --json
 dp goal verify <goal.json> --evidence <run.json> --json
+dp goal outcome <goal.json> --class useful|mixed|not_useful --ref <governed-ref> --json
 dp verify --goal <goal.json> --evidence <run.json> --json
 dp verify --goal <goal.json> --evidence-output docs/evidence-runs/RUN-<goal-id>.json --json
 ```
@@ -33,6 +34,24 @@ Implemented event states:
 6. `evidence_pending`: evidence path recorded, but not yet verified.
 7. `verified`: a matching successful `dp evidence run` artifact has been checked against the
    GoalContract and current EvidencePlan.
+
+The `outcome_contact` event is orthogonal to lifecycle state: it does not change the state, it
+records real-world contact. Each event carries the outcome class, the governed ref, and
+`goal_sha256`, the goal file digest at recording time:
+
+1. `dp goal outcome` deliberately requires no active claim; the owner records contact without
+   a lease.
+2. `dp goal verify` reports `outcome_confirmed` separately from `verified`. Confirmation is
+   latest-wins, consistent with `last_outcome`: true iff the most recent `outcome_contact`
+   whose `goal_sha256` matches the current goal digest has class `useful` or `mixed`. A later
+   `not_useful` on the unchanged goal retracts an earlier confirmation.
+3. Editing the goal file expires confirmation; contact confirms only the content it was
+   recorded against.
+4. `receipts_since_last_outcome_contact` counts only `verified` events — one receipt per
+   verify cycle, `evidence_pending` is not a receipt. It is null before the first contact and
+   resets to 0 on each contact.
+5. The event log is plain JSONL without signatures; outcome events are auditable, not
+   tamper-proof. See `docs/specs/SPEC-83-intent-graph-substrate.md` for trust limits.
 
 Rules:
 

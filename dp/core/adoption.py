@@ -7,7 +7,12 @@ from pathlib import Path
 from typing import Any
 
 from dp.core.agent_response import next_action
-from dp.core.goal_lint import INTENT_GRAPH_MARKER
+from dp.core.goal_lint import (
+    INTENT_GRAPH_MARKER,
+    SPEC81_SURFACE_PATHS,
+    intent_enforcement_active,
+    spec81_surface_present,
+)
 from dp.core.hints import hint_payload
 from dp.core.instructions import audit_instructions, inspect_instructions
 from dp.core.skills import scaffold_skills
@@ -500,18 +505,12 @@ def _adoption_next_actions(classification: str) -> list[dict[str, str]]:
 
 
 def _has_spec81_surface(root: Path) -> bool:
-    return all(
-        (root / path).exists()
-        for path in (
-            "docs/reference/agent-response-contract.md",
-            "docs/reference/toolcards.md",
-            "docs/reference/hint-codes.md",
-        )
-    )
+    return spec81_surface_present(root)
 
 
 def _has_spec83_surface(root: Path) -> bool:
-    return _has_spec81_surface(root) and (root / INTENT_GRAPH_MARKER).exists()
+    # Same predicate as goal lint enforcement: classification and enforcement agree.
+    return intent_enforcement_active(root)
 
 
 def _missing_spec83_structures(root: Path) -> list[str]:
@@ -529,12 +528,7 @@ def _missing_spec80_structures(root: Path) -> list[str]:
 def _missing_spec81_structures(root: Path) -> list[str]:
     return [
         path
-        for path in (
-            "docs/reference/agent-response-contract.md",
-            "docs/reference/toolcards.md",
-            "docs/reference/hint-codes.md",
-            ".agents/skills",
-        )
+        for path in (*SPEC81_SURFACE_PATHS, ".agents/skills")
         if not (root / path).exists()
     ]
 

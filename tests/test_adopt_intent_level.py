@@ -4,6 +4,7 @@ from pathlib import Path
 from typing import Any
 
 from dp.core.adoption import inspect_adoption
+from dp.core.goal_lint import intent_enforcement_active
 
 SPEC81_SURFACE = (
     "docs/reference/agent-response-contract.md",
@@ -69,3 +70,22 @@ def test_marker_without_spec81_surface_does_not_claim_spec83(tmp_path: Path) -> 
 
     assert payload["classification"] != "current_spec83"
     assert payload["signals"]["has_spec83"] is False
+
+
+def test_lint_enforcement_agrees_with_spec83_classification(tmp_path: Path) -> None:
+    """intent_enforcement_active and has_spec83 use the same predicate."""
+    marker_only = tmp_path / "marker-only"
+    (marker_only / "docs/reference").mkdir(parents=True)
+    (marker_only / INTENT_MARKER).write_text("# Intent Graph\n", encoding="utf-8")
+
+    full = tmp_path / "full"
+    full.mkdir()
+    _write_spec81_repo(full)
+    (full / INTENT_MARKER).write_text("# Intent Graph\n", encoding="utf-8")
+
+    for repo in (marker_only, full):
+        signals = inspect_adoption(repo).payload["signals"]
+        assert intent_enforcement_active(repo) is signals["has_spec83"]
+
+    assert intent_enforcement_active(marker_only) is False
+    assert intent_enforcement_active(full) is True

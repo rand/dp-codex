@@ -184,6 +184,52 @@ def test_goal_verify_reports_outcome_confirmed_separately_from_verified(
     assert payload["outcome_confirmed"] is True
 
 
+def test_goal_outcome_retraction_flips_confirmation_latest_wins(
+    tmp_path: Path,
+    monkeypatch,
+    capsys,
+) -> None:
+    """A later not_useful on the unchanged goal retracts an earlier confirmation."""
+    _write_verifiable_goal_and_plan(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    run_path = _write_successful_evidence_run(capsys)
+
+    _verify(run_path, capsys)
+    _outcome("useful", capsys)
+    assert _verify(run_path, capsys)["outcome_confirmed"] is True
+
+    _outcome("not_useful", capsys, ref="docs/outcomes/doctor.md#2")
+    payload = _verify(run_path, capsys)
+    assert payload["outcome_confirmed"] is False
+
+    status = _status(capsys)
+    assert status["last_outcome"]["class"] == "not_useful"
+
+
+def test_receipts_counter_counts_one_per_verify_cycle(
+    tmp_path: Path,
+    monkeypatch,
+    capsys,
+) -> None:
+    """Only verified events are receipts; evidence_pending is not counted."""
+    _write_verifiable_goal_and_plan(tmp_path)
+    monkeypatch.chdir(tmp_path)
+    run_path = _write_successful_evidence_run(capsys)
+
+    _outcome("useful", capsys)
+    assert _status(capsys)["receipts_since_last_outcome_contact"] == 0
+
+    exit_code = main(
+        ["goal", "complete", "goal.json", "--evidence", run_path.as_posix(), "--json"]
+    )
+    assert exit_code == 0
+    capsys.readouterr()
+    assert _status(capsys)["receipts_since_last_outcome_contact"] == 0
+
+    _verify(run_path, capsys)
+    assert _status(capsys)["receipts_since_last_outcome_contact"] == 1
+
+
 def test_goal_verify_outcome_confirmation_expires_when_the_goal_changes(
     tmp_path: Path,
     monkeypatch,
