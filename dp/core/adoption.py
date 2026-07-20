@@ -475,10 +475,10 @@ def _capability_levels(signals: dict[str, Any]) -> list[dict[str, Any]]:
             "classification": "current_spec83",
             "delta": (
                 "Intent-graph enforcement: goals must carry an intent block "
-                "(owner verbatim, source, parent contribution and residual, defeaters, "
-                "outcome contact); outcome events settle verified claims; dp graph audit "
-                "reports drift. Work serves intent; verification disciplines claims; "
-                "outcomes settle them."
+                "(owner verbatim, source, parent contribution, outcome contact; "
+                "residual and defeaters are audit-only when absent); outcome events "
+                "settle verified claims; dp graph audit reports drift. Work serves "
+                "intent; verification disciplines claims; outcomes settle them."
             ),
             "marker": INTENT_GRAPH_MARKER,
             "adopted": bool(signals["has_spec83"]),

@@ -7,6 +7,12 @@ claims; outcomes settle them. Every goal must show whose intent it serves in the
 how it contributes to its parent, how it could fail while receipts stay green, and where
 real-world outcome contact gets recorded.
 
+Authority over claims is scoped. Outcome signals settle value claims — whether the goal
+satisfied the intent it serves — and can always revoke done-as-verified: a `not_useful`
+contact unsettles the value claim even when every receipt is green. They never override
+correctness or safety verification in the other direction: a useful outcome cannot bless
+failing verification. Each authority rules its own claim type.
+
 ## Scope
 
 This spec covers the intent-graph capability level of dp-codex:
@@ -64,15 +70,38 @@ Lint rules (`dp goal lint`):
    `missing_intent_source`: intent must cite an existing source document; authorship is
    declared, not verified.
 3. `verbatim` must be a non-empty quotation (`missing_intent_verbatim`).
-4. The `parent` key is required (`missing_intent_parent`). Root goals declare `parent: null`
-   and require `owner` or `owner_ratified` authorship
-   (`intent_root_requires_owner_authorship`). Non-root parents must name `goal`,
-   `contribution`, and `residual` (`invalid_intent_parent`); `parent_snapshot` is an optional
-   non-empty digest string (`invalid_intent_parent_snapshot`).
-5. `defeaters` must be a non-empty list of non-empty strings (`missing_intent_defeaters`,
-   `invalid_intent_defeater`). An evidence-only goal tree is an advocacy document.
-6. `outcome_contact` must bind `signal` and `channel` (`missing_intent_outcome_contact`,
+4. The `parent` key is required (`missing_intent_parent`). Root goals declare `parent: null`;
+   `parent: null` with `agent_derived` authorship is lint-legal as a proposed root (see
+   Agent-Proposed Roots). Non-root parents must name `goal` and `contribution`
+   (`invalid_intent_parent`); `parent_snapshot` is an optional non-empty digest string
+   (`invalid_intent_parent_snapshot`).
+5. `parent.residual` is audit-only when absent: an absent (or null) residual passes lint and
+   surfaces as a `missing_residual` graph-audit warning. A present residual is validated in
+   full — a hollow (empty or whitespace) residual fails lint (`invalid_intent_parent`).
+6. `defeaters` is audit-only when absent: an absent (or null) `defeaters` field passes lint
+   and surfaces as a `missing_defeaters` graph-audit warning. A present `defeaters` field is
+   validated in full — a non-list or empty list fails lint (`invalid_intent_defeaters`) and
+   hollow entries fail lint (`invalid_intent_defeater`). An evidence-only goal tree is an
+   advocacy document; the audit keeps that gap visible without gating.
+7. `outcome_contact` must bind `signal` and `channel` (`missing_intent_outcome_contact`,
    `invalid_intent_outcome_contact`).
+
+Mandatory at the intent-graph level: `authorship`, `source`, `verbatim`, `parent` (with
+`goal` and `contribution` unless root), and `outcome_contact`. Demoted to audit-only when
+absent: `parent.residual` and `defeaters`. Present fields are always validated; absence is
+the tolerated state.
+
+## Agent-Proposed Roots
+
+`parent: null` with `authorship: agent_derived` is a lint-legal proposed root: an agent may
+draft a root goal without inventing owner authorship. It cannot be pursued until the owner
+ratifies it:
+
+1. `dp goal claim` and `dp goal start` refuse such goals with the envelope error
+   `unratified_root_goal`: "Agent-proposed root goal awaits owner ratification: set
+   authorship to owner_ratified." Claim and start proceed once authorship is `owner` or
+   `owner_ratified`.
+2. `dp graph audit` lists them as `unratified_root` findings (reporting only; exit 0).
 
 ## Outcome Contact
 
@@ -90,7 +119,9 @@ file at recording time.
    cycle; `evidence_pending` is not a receipt. It is null before the first outcome contact and
    resets to 0 on each contact.
 4. `outcome_confirmed` never gates or substitutes for `verified`; verification disciplines
-   claims, outcomes settle them.
+   claims, outcomes settle them. The supremacy is scoped: outcome signals settle value
+   claims and can always revoke done-as-verified, but a useful outcome cannot bless failing
+   verification. Each authority rules its own claim type.
 
 ## Re-Injection Points
 
@@ -109,17 +140,23 @@ is a nudge in the response envelope, not a gate.
 `dp graph audit --json` walks `docs/goals/*.json` and reports per goal: intent status
 (`ok`, `partial`, `missing`, `unreadable`), findings, `receipts_since_last_outcome_contact`,
 `last_outcome_class`, and the parent goal id. Finding codes: `malformed_goal`,
-`missing_intent`, `partial_intent`, `empty_defeaters`, `unknown_parent_goal`,
-`invalid_parent_snapshot`, `stale_parent_snapshot`.
+`missing_intent`, `partial_intent`, `missing_residual`, `missing_defeaters`,
+`unratified_root`, `unknown_parent_goal`, `invalid_parent_snapshot`,
+`stale_parent_snapshot`.
 
-1. `parent_snapshot`, when present, must match `sha256:[0-9a-f]{64}`; a malformed value is a
+1. `missing_residual` and `missing_defeaters` are warning findings for the audit-only fields
+   the lint tolerates as absent; a goal carrying either reports intent status `partial`.
+   Hollow present fields are lint failures and surface through `partial_intent` instead.
+2. `unratified_root` marks agent-proposed roots (`parent: null`, `agent_derived`) awaiting
+   owner ratification. It does not change intent status; claim and start refuse such goals.
+3. `parent_snapshot`, when present, must match `sha256:[0-9a-f]{64}`; a malformed value is a
    distinct `invalid_parent_snapshot` finding, never reported as stale. Compute snapshots with
    `goal_file_digest` (`dp.core.intent_graph`) over the parent goal file.
-2. Staleness compares a well-formed snapshot against the parent goal file's current digest.
-3. Duplicate goal ids resolve first-path-wins: the first file in sorted path order under
+4. Staleness compares a well-formed snapshot against the parent goal file's current digest.
+5. Duplicate goal ids resolve first-path-wins: the first file in sorted path order under
    `docs/goals` defines the digest for that goal id; later duplicates are audited as goals but
    do not redefine the id.
-4. The audit reports drift; it does not gate. Exit code is always 0.
+6. The audit reports drift; it does not gate. Exit code is always 0.
 
 ## Trust Limits
 
@@ -137,23 +174,34 @@ The substrate makes intent visible and auditable; it is not tamper-proof.
 ## Invariants
 
 1. A present intent block is always validated; absence fails lint only at the intent-graph
-   level.
+   level. Within a present block, absent `parent.residual` and `defeaters` are audit-only;
+   every present field is validated in full.
 2. Lint enforcement and adoption classification use the same predicate (marker plus spec81
    surface).
 3. `outcome_confirmed` follows the most recent outcome contact recorded against the current
    goal digest.
-4. Goal lint, outcome recording, re-injection, and graph audit never call an LLM and never
+4. Outcome authority is scoped: outcomes settle value claims and can revoke done-as-verified;
+   they never bless failing verification.
+5. An unratified agent-proposed root can exist and lint clean but cannot be claimed or
+   started.
+6. Goal lint, outcome recording, re-injection, and graph audit never call an LLM and never
    execute goal content.
 
 ## Proof Obligations
 
 1. Tests cover grandfathering below the level, enforcement at the level, and every intent lint
    finding code, including directory and self-citing source paths.
-2. Tests cover confirmation, retraction (useful then not_useful on the unchanged goal), and
+2. Tests cover the residual/defeaters split in both directions: absence passes lint and
+   surfaces as `missing_residual`/`missing_defeaters` audit warnings; hollow present fields
+   fail lint.
+3. Tests cover agent-proposed roots: lint accepts `parent: null` with `agent_derived`
+   authorship, claim and start refuse with `unratified_root_goal`, a ratified claim proceeds,
+   and the audit reports `unratified_root`.
+4. Tests cover confirmation, retraction (useful then not_useful on the unchanged goal), and
    digest expiry of outcome contact.
-3. Tests cover receipts counting one per verify cycle and ignoring `evidence_pending`.
-4. Tests cover the marker-only repo neither enforcing intent nor classifying `current_spec83`.
-5. Tests cover graph audit findings, including `invalid_parent_snapshot` as distinct from
+5. Tests cover receipts counting one per verify cycle and ignoring `evidence_pending`.
+6. Tests cover the marker-only repo neither enforcing intent nor classifying `current_spec83`.
+7. Tests cover graph audit findings, including `invalid_parent_snapshot` as distinct from
    `stale_parent_snapshot`, without gating.
 
 ## Non-Goals

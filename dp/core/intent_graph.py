@@ -7,7 +7,11 @@ from hashlib import sha256
 from pathlib import Path
 from typing import Any
 
-from dp.core.goal_lint import collect_intent_findings
+from dp.core.goal_lint import (
+    collect_intent_findings,
+    intent_field_absent,
+    is_unratified_agent_root,
+)
 from dp.core.goal_state import (
     DEFAULT_GOAL_EVENT_LOG,
     reconstruct_goal_state,
@@ -15,7 +19,6 @@ from dp.core.goal_state import (
 
 GRAPH_AUDIT_SCHEMA_VERSION = "dp.graph.audit.v1"
 GOALS_DIRECTORY = Path("docs/goals")
-DEFEATER_FINDING_CODES = frozenset({"missing_intent_defeaters", "invalid_intent_defeater"})
 PARENT_SNAPSHOT_PATTERN = re.compile(r"^sha256:[0-9a-f]{64}$")
 
 
@@ -28,9 +31,10 @@ class GraphAuditResult:
 def audit_graph(repo_root: Path | None = None) -> GraphAuditResult:
     """Walk docs/goals/*.json and report intent-graph drift without gating.
 
-    The audit reports missing or partial intent blocks, empty defeaters,
-    parent links to nonexistent goals, stale parent snapshots, and
-    receipts-since-last-outcome-contact per goal. It always exits 0.
+    The audit reports missing or partial intent blocks, absent residuals and
+    defeaters, unratified agent-proposed roots, parent links to nonexistent
+    goals, stale parent snapshots, and receipts-since-last-outcome-contact
+    per goal. It always exits 0.
     """
     root = (repo_root or Path.cwd()).resolve()
     goals_dir = root / GOALS_DIRECTORY
@@ -135,17 +139,25 @@ def _audit_goal(
             required=True,
             goal_path=path,
         )
-        defeater_codes = sorted(
-            {item.code for item in lint_findings if item.code in DEFEATER_FINDING_CODES}
-        )
-        other_codes = sorted(
-            {item.code for item in lint_findings if item.code not in DEFEATER_FINDING_CODES}
-        )
-        if defeater_codes:
+        lint_codes = sorted({item.code for item in lint_findings})
+        if lint_codes:
             intent_status = "partial"
             findings.append(
                 _finding(
-                    "empty_defeaters",
+                    "partial_intent",
+                    goal_id=goal_id,
+                    path=rel_path,
+                    message="Intent block is present but incomplete.",
+                    detail=lint_codes,
+                )
+            )
+        # Absent residual and defeaters pass lint; the audit still names the
+        # gaps as warnings so the drift stays visible without gating.
+        if intent_field_absent(intent, "defeaters"):
+            intent_status = "partial"
+            findings.append(
+                _finding(
+                    "missing_defeaters",
                     goal_id=goal_id,
                     path=rel_path,
                     message=(
@@ -154,15 +166,30 @@ def _audit_goal(
                     ),
                 )
             )
-        if other_codes:
+        parent = intent.get("parent")
+        if isinstance(parent, dict) and intent_field_absent(parent, "residual"):
             intent_status = "partial"
             findings.append(
                 _finding(
-                    "partial_intent",
+                    "missing_residual",
                     goal_id=goal_id,
                     path=rel_path,
-                    message="Intent block is present but incomplete.",
-                    detail=other_codes,
+                    message=(
+                        "Goal declares no residual; state what of the parent "
+                        "this child does not capture."
+                    ),
+                )
+            )
+        if is_unratified_agent_root(contract):
+            findings.append(
+                _finding(
+                    "unratified_root",
+                    goal_id=goal_id,
+                    path=rel_path,
+                    message=(
+                        "Agent-proposed root goal awaits owner ratification: "
+                        "set authorship to owner_ratified."
+                    ),
                 )
             )
         findings.extend(

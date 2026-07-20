@@ -327,4 +327,23 @@ ERROR_ALIASES: dict[str, HintDefinition] = {
     "campaign_not_ready": HINTS["DP-HINT-CAMPAIGN-DRAFT"],
     "no_ready_goal": HINTS["DP-HINT-LOOP-NO-READY-NODES"],
     "goal_already_claimed": HINTS["DP-HINT-GOAL-NOT-STARTED"],
+    "unratified_root_goal": HintDefinition(
+        code="unratified_root_goal",
+        severity="error",
+        summary=(
+            "Agent-proposed root goal awaits owner ratification: "
+            "set authorship to owner_ratified."
+        ),
+        why_it_matters=(
+            "A root goal declares whose intent all descendants serve; an agent must "
+            "not pursue a root intent no owner has ratified."
+        ),
+        next_actions=(
+            _action(
+                "dp graph audit --json",
+                "List unratified roots awaiting owner review.",
+            ),
+        ),
+        docs=("docs/specs/SPEC-83-intent-graph-substrate.md",),
+    ),
 }
