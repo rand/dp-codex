@@ -10,7 +10,7 @@ from typing import Any
 from dp.core.blocker_routing import route_blocker_artifact
 from dp.core.events import append_jsonl_event, read_jsonl_events
 from dp.core.evidence_lint import lint_evidence_file
-from dp.core.goal_lint import GoalLintReport, lint_goal_file
+from dp.core.goal_lint import GoalLintReport, is_unratified_agent_root, lint_goal_file
 from dp.core.hints import hint_payload
 
 # @trace SPEC-80.02
@@ -108,6 +108,9 @@ def claim_goal(
         event_log=event_log,
         now=now,
     )
+    refusal = _refuse_unratified_root("goal.claim", goal_path=goal_path, state=state)
+    if refusal is not None:
+        return refusal
     active_holder = _active_lease_holder(state)
     if active_holder is not None and active_holder != agent:
         payload = {
@@ -166,6 +169,9 @@ def start_goal(
         event_log=event_log,
         now=now,
     )
+    refusal = _refuse_unratified_root("goal.start", goal_path=goal_path, state=state)
+    if refusal is not None:
+        return refusal
     active_holder = _active_lease_holder(state)
     if active_holder is not None and active_holder != agent:
         return GoalCommandResult(
@@ -404,7 +410,10 @@ def outcome_goal(
             "event_log": append_result.path,
             "outcome_class": outcome_class,
             "ref": ref.strip(),
-            "message": "Outcome contact recorded; outcomes settle claims that receipts support.",
+            "message": (
+                "Outcome contact recorded; outcomes settle value claims and can revoke "
+                "done-as-verified, never bless failing verification."
+            ),
             **state.to_dict(),
         },
         exit_code=0,
@@ -747,6 +756,42 @@ def _lint_failure_payload(
             "lint": report.to_dict(),
         },
         exit_code=exit_code,
+    )
+
+
+def _refuse_unratified_root(
+    command: str,
+    *,
+    goal_path: Path,
+    state: GoalState,
+) -> GoalCommandResult | None:
+    """Refuse advancing an agent-proposed root goal until the owner ratifies it.
+
+    parent null with agent_derived authorship is lint-legal as a proposed root,
+    but claim and start refuse it: an agent must not pursue a root intent no
+    owner has ratified.
+    """
+    try:
+        contract = _read_json_object(goal_path)
+    except (OSError, ValueError, json.JSONDecodeError):
+        return None
+    if not is_unratified_agent_root(contract):
+        return None
+    return GoalCommandResult(
+        payload={
+            "ok": False,
+            "command": command,
+            "error": {
+                "code": "unratified_root_goal",
+                "path": "$.intent.authorship",
+                "message": (
+                    "Agent-proposed root goal awaits owner ratification: "
+                    "set authorship to owner_ratified."
+                ),
+            },
+            **state.to_dict(),
+        },
+        exit_code=1,
     )
 
 

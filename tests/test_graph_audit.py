@@ -106,13 +106,40 @@ def _write_fixture_tree(tmp_path: Path) -> None:
         "GOAL-NOINTENT.json",
         {"schema_version": "0.1", "id": "GOAL-NOINTENT"},
     )
+    absent_defeaters = _intent()
+    del absent_defeaters["defeaters"]
     _write_goal(
         tmp_path,
-        "GOAL-EMPTYDEF.json",
+        "GOAL-NODEF.json",
         {
             "schema_version": "0.1",
-            "id": "GOAL-EMPTYDEF",
-            "intent": _intent(defeaters=[]),
+            "id": "GOAL-NODEF",
+            "intent": absent_defeaters,
+        },
+    )
+    absent_residual = _intent(
+        authorship="agent_derived",
+        parent={
+            "goal": "GOAL-ROOT",
+            "contribution": "Serves the root outcome.",
+        },
+    )
+    _write_goal(
+        tmp_path,
+        "GOAL-NORES.json",
+        {
+            "schema_version": "0.1",
+            "id": "GOAL-NORES",
+            "intent": absent_residual,
+        },
+    )
+    _write_goal(
+        tmp_path,
+        "GOAL-UNRAT.json",
+        {
+            "schema_version": "0.1",
+            "id": "GOAL-UNRAT",
+            "intent": _intent(authorship="agent_derived"),
         },
     )
 
@@ -160,7 +187,7 @@ def test_graph_audit_reports_findings_without_gating(
     assert exit_code == 0
     assert payload["ok"] is True
     assert payload["command"] == "graph.audit"
-    assert payload["summary"]["goals"] == 6
+    assert payload["summary"]["goals"] == 8
 
     codes_by_goal = {
         goal["goal_id"]: set(goal["findings"]) for goal in payload["goals"]
@@ -168,14 +195,25 @@ def test_graph_audit_reports_findings_without_gating(
     assert codes_by_goal["GOAL-ROOT"] == set()
     assert codes_by_goal["GOAL-CHILD"] == set()
     assert codes_by_goal["GOAL-NOINTENT"] == {"missing_intent"}
-    assert codes_by_goal["GOAL-EMPTYDEF"] == {"empty_defeaters"}
+    assert codes_by_goal["GOAL-NODEF"] == {"missing_defeaters"}
+    assert codes_by_goal["GOAL-NORES"] == {"missing_residual"}
+    assert codes_by_goal["GOAL-UNRAT"] == {"unratified_root"}
     assert codes_by_goal["GOAL-ORPHAN"] == {"unknown_parent_goal"}
     assert codes_by_goal["GOAL-STALE"] == {"stale_parent_snapshot"}
+
+    status_by_goal = {
+        goal["goal_id"]: goal["intent_status"] for goal in payload["goals"]
+    }
+    assert status_by_goal["GOAL-NODEF"] == "partial"
+    assert status_by_goal["GOAL-NORES"] == "partial"
+    assert status_by_goal["GOAL-UNRAT"] == "ok"
 
     flat_codes = {finding["code"] for finding in payload["findings"]}
     assert flat_codes == {
         "missing_intent",
-        "empty_defeaters",
+        "missing_defeaters",
+        "missing_residual",
+        "unratified_root",
         "unknown_parent_goal",
         "stale_parent_snapshot",
     }
@@ -264,6 +302,34 @@ def test_graph_audit_flags_partial_intent_blocks(
     finding = next(f for f in payload["findings"] if f["code"] == "partial_intent")
     assert finding["goal_id"] == "GOAL-PARTIAL"
     assert "missing_intent_verbatim" in finding["detail"]
+
+
+def test_graph_audit_reports_hollow_defeaters_as_partial_intent_not_missing(
+    tmp_path: Path,
+    monkeypatch,
+    capsys,
+) -> None:
+    """Present-but-hollow defeaters are a lint failure, not the tolerated absence."""
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "docs/vision.md").write_text("# Vision\n", encoding="utf-8")
+    _write_goal(
+        tmp_path,
+        "GOAL-HOLLOW.json",
+        {
+            "schema_version": "0.1",
+            "id": "GOAL-HOLLOW",
+            "intent": _intent(defeaters=[]),
+        },
+    )
+    monkeypatch.chdir(tmp_path)
+
+    exit_code, payload = _audit(capsys)
+
+    assert exit_code == 0
+    codes = {finding["code"] for finding in payload["findings"]}
+    assert codes == {"partial_intent"}
+    finding = payload["findings"][0]
+    assert "invalid_intent_defeaters" in finding["detail"]
 
 
 def test_graph_audit_handles_malformed_and_missing_goals(

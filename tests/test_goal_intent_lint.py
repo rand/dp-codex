@@ -150,6 +150,62 @@ def test_valid_child_intent_passes_at_the_intent_graph_level(
     assert payload["valid"] is True
 
 
+@pytest.mark.parametrize("marker", [False, True], ids=["below_level", "at_level"])
+def test_absent_residual_and_defeaters_are_audit_only_not_lint_failures(
+    marker: bool,
+    tmp_path: Path,
+    monkeypatch,
+    capsys,
+) -> None:
+    """Ratified split: residual and defeaters may be absent; the audit names the gap."""
+    intent = _valid_child_intent()
+    del intent["parent"]["residual"]
+    del intent["defeaters"]
+    _write_repo(tmp_path, intent=intent, marker=marker)
+    monkeypatch.chdir(tmp_path)
+
+    exit_code, payload = _lint(capsys)
+
+    assert exit_code == 0
+    assert payload["valid"] is True
+
+
+def test_null_residual_and_defeaters_count_as_absent(
+    tmp_path: Path,
+    monkeypatch,
+    capsys,
+) -> None:
+    intent = _valid_child_intent()
+    intent["parent"]["residual"] = None
+    intent["defeaters"] = None
+    _write_repo(tmp_path, intent=intent, marker=True)
+    monkeypatch.chdir(tmp_path)
+
+    exit_code, payload = _lint(capsys)
+
+    assert exit_code == 0
+    assert payload["valid"] is True
+
+
+@pytest.mark.parametrize("marker", [False, True], ids=["below_level", "at_level"])
+def test_agent_derived_root_is_lint_legal_as_a_proposed_root(
+    marker: bool,
+    tmp_path: Path,
+    monkeypatch,
+    capsys,
+) -> None:
+    """Flagged agent roots: parent null with agent_derived authorship lints clean."""
+    intent = _valid_root_intent()
+    intent["authorship"] = "agent_derived"
+    _write_repo(tmp_path, intent=intent, marker=marker)
+    monkeypatch.chdir(tmp_path)
+
+    exit_code, payload = _lint(capsys)
+
+    assert exit_code == 0
+    assert payload["valid"] is True
+
+
 def _intent_mutations() -> list[tuple[str, dict[str, Any], str]]:
     cases: list[tuple[str, dict[str, Any], str]] = []
 
@@ -185,21 +241,25 @@ def _intent_mutations() -> list[tuple[str, dict[str, Any], str]]:
     del intent["parent"]
     cases.append(("missing_parent_key", intent, "missing_intent_parent"))
 
-    intent = _valid_root_intent()
-    intent["authorship"] = "agent_derived"
-    cases.append(("agent_derived_root", intent, "intent_root_requires_owner_authorship"))
-
     intent = _valid_child_intent()
     del intent["parent"]["contribution"]
     cases.append(("parent_without_contribution", intent, "invalid_intent_parent"))
 
     intent = _valid_child_intent()
-    del intent["parent"]["residual"]
-    cases.append(("parent_without_residual", intent, "invalid_intent_parent"))
+    intent["parent"]["residual"] = "   "
+    cases.append(("hollow_residual", intent, "invalid_intent_parent"))
+
+    intent = _valid_child_intent()
+    intent["parent"]["residual"] = 7
+    cases.append(("non_string_residual", intent, "invalid_intent_parent"))
 
     intent = _valid_root_intent()
     intent["defeaters"] = []
-    cases.append(("empty_defeaters", intent, "missing_intent_defeaters"))
+    cases.append(("empty_defeaters", intent, "invalid_intent_defeaters"))
+
+    intent = _valid_root_intent()
+    intent["defeaters"] = "receipts can lie"
+    cases.append(("non_list_defeaters", intent, "invalid_intent_defeaters"))
 
     intent = _valid_root_intent()
     intent["defeaters"] = [""]

@@ -72,12 +72,17 @@ Rules:
    lint cannot machine-verify who authored the source document.
 2. `source.path` must be an existing repo-relative file (not a directory, not the goal file
    itself). `verbatim` is not checked against the source content.
-3. Root goals set `parent: null` and require `owner` or `owner_ratified` authorship. Non-root
-   parents name `goal`, `contribution`, and `residual`.
-4. `parent_snapshot` is optional; compute it with `goal_file_digest` in
+3. Root goals set `parent: null`. A root with `agent_derived` authorship lints clean as a
+   proposed root, but `dp goal claim` and `dp goal start` refuse it (`unratified_root_goal`)
+   until the owner sets authorship to `owner` or `owner_ratified`. Non-root parents name
+   `goal` and `contribution`.
+4. `parent.residual` and `defeaters` are audit-only when absent: omitting them (or setting
+   them null) passes lint, and `dp graph audit` reports `missing_residual` /
+   `missing_defeaters` warnings. A present residual must be a non-empty string; a present
+   `defeaters` must be a non-empty list of non-empty strings.
+5. `parent_snapshot` is optional; compute it with `goal_file_digest` in
    `dp.core.intent_graph` (sha256 over the parent goal file). `dp graph audit` flags malformed
    digests as `invalid_parent_snapshot` and mismatches as `stale_parent_snapshot`.
-5. `defeaters` must list at least one non-empty string.
 6. `outcome_contact` must bind `signal` and `channel`.
 
 Validation command:

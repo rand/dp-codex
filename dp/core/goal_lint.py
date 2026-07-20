@@ -16,7 +16,6 @@ SPEC81_SURFACE_PATHS = (
     "docs/reference/hint-codes.md",
 )
 INTENT_AUTHORSHIP_VALUES = frozenset({"owner", "agent_derived", "owner_ratified"})
-ROOT_INTENT_AUTHORSHIP_VALUES = frozenset({"owner", "owner_ratified"})
 KNOWN_BLOCKER_ROUTES = frozenset(
     {
         "needs_specification",
@@ -574,10 +573,35 @@ def collect_intent_findings(
             )
         )
 
-    _validate_intent_parent(intent, authorship, errors)
-    _validate_intent_defeaters(intent.get("defeaters"), errors)
+    _validate_intent_parent(intent, errors)
+    _validate_intent_defeaters(intent, errors)
     _validate_intent_outcome_contact(intent.get("outcome_contact"), errors)
     return errors
+
+
+def is_unratified_agent_root(contract: dict[str, Any]) -> bool:
+    """A lint-legal agent-proposed root goal that still awaits owner ratification.
+
+    parent null with agent_derived authorship lints clean as a proposed root,
+    but dp goal claim and dp goal start refuse it until the owner sets
+    authorship to owner or owner_ratified. dp graph audit reports it as an
+    unratified_root finding.
+    """
+    intent = contract.get("intent")
+    if not isinstance(intent, dict):
+        return False
+    if "parent" not in intent or intent.get("parent") is not None:
+        return False
+    return _non_empty_string(intent.get("authorship")) == "agent_derived"
+
+
+def intent_field_absent(container: dict[str, Any], field: str) -> bool:
+    """Absent (or explicit null) is the tolerated state for audit-only intent fields.
+
+    Applies to intent.defeaters and intent.parent.residual: absence passes lint
+    and surfaces as a dp graph audit warning; a present field is validated in full.
+    """
+    return field not in container or container.get(field) is None
 
 
 def _validate_intent_source(
@@ -644,7 +668,6 @@ def _validate_intent_source(
 
 def _validate_intent_parent(
     intent: dict[str, Any],
-    authorship: str | None,
     errors: list[GoalLintFinding],
 ) -> None:
     if "parent" not in intent:
@@ -659,14 +682,8 @@ def _validate_intent_parent(
 
     parent = intent.get("parent")
     if parent is None:
-        if authorship is not None and authorship not in ROOT_INTENT_AUTHORSHIP_VALUES:
-            errors.append(
-                _finding(
-                    "intent_root_requires_owner_authorship",
-                    "$.intent.parent",
-                    "Root goals (parent null) require owner or owner_ratified authorship.",
-                )
-            )
+        # parent null with agent_derived authorship is a lint-legal proposed
+        # root; dp goal claim/start refuse it until the owner ratifies it.
         return
 
     if not isinstance(parent, dict):
@@ -682,7 +699,6 @@ def _validate_intent_parent(
     for field, message in (
         ("goal", "Intent parent must name the parent goal id."),
         ("contribution", "Intent parent must state how this child serves the parent."),
-        ("residual", "Intent parent must state what of the parent this child does not capture."),
     ):
         if _non_empty_string(parent.get(field)) is None:
             errors.append(
@@ -692,6 +708,20 @@ def _validate_intent_parent(
                     message,
                 )
             )
+
+    # residual is audit-only when absent (dp graph audit reports
+    # missing_residual); a present residual is validated in full.
+    if not intent_field_absent(parent, "residual") and (
+        _non_empty_string(parent.get("residual")) is None
+    ):
+        errors.append(
+            _finding(
+                "invalid_intent_parent",
+                "$.intent.parent.residual",
+                "Intent parent residual must be a non-empty string when present; "
+                "omit the field until the residual is known.",
+            )
+        )
 
     snapshot = parent.get("parent_snapshot")
     if snapshot is not None and _non_empty_string(snapshot) is None:
@@ -704,14 +734,19 @@ def _validate_intent_parent(
         )
 
 
-def _validate_intent_defeaters(defeaters: Any, errors: list[GoalLintFinding]) -> None:
+def _validate_intent_defeaters(intent: dict[str, Any], errors: list[GoalLintFinding]) -> None:
+    # defeaters are audit-only when absent (dp graph audit reports
+    # missing_defeaters); a present defeaters field is validated in full.
+    if intent_field_absent(intent, "defeaters"):
+        return
+    defeaters = intent.get("defeaters")
     if not isinstance(defeaters, list) or not defeaters:
         errors.append(
             _finding(
-                "missing_intent_defeaters",
+                "invalid_intent_defeaters",
                 "$.intent.defeaters",
-                "Intent must enumerate at least one way the goal could be unsatisfied "
-                "while its receipts stay green.",
+                "Intent defeaters must be a non-empty list of non-empty strings when "
+                "present; omit the field until defeaters are known.",
             )
         )
         return

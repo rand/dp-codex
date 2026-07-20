@@ -32,5 +32,6 @@ Initial SPEC-81 hints:
 - `DP-HINT-SKILL-TRIGGER-AMBIGUOUS`
 - `DP-HINT-TOKEN-BUDGET-TRUNCATED`
 
-Common SPEC-80 error codes such as `missing_evidence_path`, `stale_evidence_plan`, and
-`no_ready_goal` are explained through the same command.
+Common error codes such as `missing_evidence_path`, `stale_evidence_plan`, `no_ready_goal`,
+and `unratified_root_goal` (SPEC-83: `dp goal claim`/`start` refuse an agent-proposed root
+until the owner ratifies it) are explained through the same command.
