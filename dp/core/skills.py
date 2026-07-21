@@ -13,6 +13,7 @@ SKILL_NAMES = (
     "dp-campaign-control",
     "dp-goal-lifecycle",
     "dp-evidence-repair",
+    "dp-failure-recovery",
     "dp-adoption-migration",
     "dp-instruction-governance",
     "dp-session-handoff",
@@ -121,6 +122,10 @@ def eval_skills() -> SkillsCommandResult:
         ("I just opened this repo, what should I do first?", "dp-agent-bootstrap"),
         ("Use the next campaign goal.", "dp-campaign-control"),
         ("Evidence failed, repair it.", "dp-evidence-repair"),
+        ("Retry this failed evidence check.", "dp-evidence-repair"),
+        ("Recover this failing gate.", "dp-failure-recovery"),
+        ("Recover this failed gate.", "dp-failure-recovery"),
+        ("Rescue this blocked or stranded goal.", "dp-failure-recovery"),
         ("Upgrade this old dp project.", "dp-adoption-migration"),
         ("Do not overwrite our AGENTS.md.", "dp-instruction-governance"),
         ("Hook failed.", "dp-hook-triage"),
@@ -182,6 +187,7 @@ def skill_templates() -> dict[str, str]:
             "Run `dp explain DP-HINT-EVIDENCE-FAILED --json` and inspect full evidence detail.",
             "Use when deterministic evidence blocks completion.",
         ),
+        "dp-failure-recovery": _failure_recovery_skill(),
         "dp-adoption-migration": _skill(
             "dp-adoption-migration",
             "Adopt or migrate old dp projects; trigger on upgrade, legacy dp, migration.",
@@ -221,6 +227,57 @@ def _skill(name: str, description: str, first_command: str, when: str) -> str:
         "When not to use: unrelated repositories that have not opted into dp-codex.\n\n"
         f"First command: {first_command}\n\n"
         "Keep work scoped, prefer compact JSON detail first, and expand only when needed.\n"
+    )
+
+
+# @trace SPEC-81.02
+def _failure_recovery_skill() -> str:
+    return (
+        "---\n"
+        "name: dp-failure-recovery\n"
+        "description: Diagnose and recover a failing gate, blocked or stranded dp goal, broken "
+        "workflow, rescue request, repeated non-evidence retry, or uncertain stop condition.\n"
+        "---\n\n"
+        "# DP Failure Recovery\n\n"
+        "Respect `AGENTS.md`, nested instructions, the active GoalContract, and existing claims "
+        "before acting. A red gate blocks completion, not diagnosis or authorized repair. "
+        "Proportional verification decides done; verification volume does not.\n\n"
+        "## Capture\n\n"
+        "Record the exact command, exit code, failed check, branch/HEAD, worktree state, "
+        "applicable allowed paths, attempt budget, and failed receipt. Preserve prior evidence.\n\n"
+        "## Classify in order\n\n"
+        "1. `invalid_execution`: invocation, environment, cache, lease, worktree, or tool state "
+        "produced no trustworthy verdict. Repair only non-semantic execution state and rerun the "
+        "same command.\n"
+        "2. `repairable_failure`: a smallest safe repair is authorized by local law and the "
+        "active contract.\n"
+        "3. `independent_repair`: the defect is non-semantic but outside the active contract, and "
+        "another owner or repair goal can fix it without a human semantic or authority decision.\n"
+        "4. `true_blocker`: a new public behavior, schema, exit code, DoD, authority, external "
+        "dependency, validator, unsafe scope, or exhausted attempt budget is required.\n\n"
+        "## Repair\n\n"
+        "For `repairable_failure`, state the hypothesis, make the smallest coherent reversible "
+        "repair inside allowed paths, rerun the exact failed check, then run required gates. Do "
+        "not weaken a test, validator, contract, fixture, or evidence assertion. Do not repeat an "
+        "unchanged action unless relevant state or the hypothesis changed.\n\n"
+        "For `independent_repair`, preserve the failure and route a bounded follow-up without "
+        "expanding the active goal. For `true_blocker`, use a supported GoalContract blocker route "
+        "and keep dp, Beads, reports, and Git state truthful.\n\n"
+        "## Consult\n\n"
+        "Use read-only investigator, specialist, or adversarial agents for independent diagnostic "
+        "threads, domain risk, context pressure, or a failed hypothesis when orchestration is "
+        "available and allowed. Give each helper a question, read/write scope, forbidden actions, "
+        "expected output, and stop condition.\n\n"
+        "One writer owns one worktree. Writing helpers require isolated worktrees and disjoint "
+        "paths. The primary agent owns lifecycle changes, tracker truth, adopted edits, and "
+        "verification. External agent output is advisory, cannot establish completion, and must "
+        "not receive repository material without applicable authorization. Unavailable "
+        "consultation is not a blocker for otherwise ready work.\n\n"
+        "## Stop\n\n"
+        "Stop the affected goal only when no safe discriminating repair remains, required "
+        "authority is missing, the contract requires an independent repair, or its attempt budget "
+        "is exhausted. Record the exact reason and next action. Never turn a consultation result "
+        "or narration into evidence.\n"
     )
 
 
@@ -300,12 +357,25 @@ def _match_skill(prompt: str) -> str | None:
     lowered = prompt.lower()
     if any(term in lowered for term in ("opened", "first", "what should i do", "bootstrap")):
         return "dp-agent-bootstrap"
+    if any(term in lowered for term in ("evidence", "validator", "failed check")):
+        return "dp-evidence-repair"
     if any(term in lowered for term in ("campaign", "next goal", "loop")):
         return "dp-campaign-control"
     if "hook" in lowered:
         return "dp-hook-triage"
-    if any(term in lowered for term in ("evidence", "validator", "failed")):
-        return "dp-evidence-repair"
+    if any(
+        term in lowered
+        for term in (
+            "blocked",
+            "stranded",
+            "rescue",
+            "unblock",
+            "retry",
+            "failed",
+            "failing",
+        )
+    ):
+        return "dp-failure-recovery"
     if any(term in lowered for term in ("upgrade", "old dp", "migrate", "adopt")):
         return "dp-adoption-migration"
     if any(term in lowered for term in ("agents.md", "overwrite", "instructions")):

@@ -1,0 +1,4 @@
+interface:
+  display_name: "DP Failure Recovery"
+  short_description: "Recover failing dp goals without weakening gates"
+  default_prompt: "Use $dp-failure-recovery to diagnose and recover this blocked or failing goal."

@@ -221,6 +221,7 @@ def lint_goal_payload(
 
     _validate_terminal_states(payload.get("terminal_states"), errors)
     _validate_boundaries(level, payload.get("boundaries"), errors, warnings)
+    _validate_iteration_policy(payload.get("iteration_policy"), errors)
     _validate_blocked_routes(payload.get("blocked_routes"), errors)
 
     root = (repo_root or Path.cwd()).resolve()
@@ -514,6 +515,61 @@ def _validate_blocked_routes(blocked_routes: Any, errors: list[GoalLintFinding])
                     "Blocked route action is not known.",
                 )
             )
+
+
+def _validate_iteration_policy(
+    iteration_policy: Any,
+    errors: list[GoalLintFinding],
+) -> None:
+    if iteration_policy is None:
+        return
+    if not isinstance(iteration_policy, dict):
+        errors.append(
+            _finding(
+                "invalid_iteration_policy",
+                "$.iteration_policy",
+                "Iteration policy must be an object when present.",
+            )
+        )
+        return
+
+    mode = iteration_policy.get("mode")
+    if mode is not None and _non_empty_string(mode) is None:
+        errors.append(
+            _finding(
+                "invalid_iteration_mode",
+                "$.iteration_policy.mode",
+                "Iteration policy mode must be a non-empty string when present.",
+            )
+        )
+
+    max_attempts = iteration_policy.get("max_attempts")
+    if max_attempts is not None and (
+        isinstance(max_attempts, bool)
+        or not isinstance(max_attempts, int)
+        or max_attempts <= 0
+    ):
+        errors.append(
+            _finding(
+                "invalid_max_attempts",
+                "$.iteration_policy.max_attempts",
+                "Iteration max_attempts must be a positive integer when present.",
+            )
+        )
+
+    after_each_attempt = iteration_policy.get("after_each_attempt")
+    if after_each_attempt is not None and (
+        not isinstance(after_each_attempt, list)
+        or not after_each_attempt
+        or any(_non_empty_string(item) is None for item in after_each_attempt)
+    ):
+        errors.append(
+            _finding(
+                "invalid_after_each_attempt",
+                "$.iteration_policy.after_each_attempt",
+                "Iteration after_each_attempt must be a non-empty list of strings when present.",
+            )
+        )
 
 
 def collect_intent_findings(

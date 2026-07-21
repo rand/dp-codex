@@ -87,7 +87,29 @@ def test_e2e_agent_bootstrap_capability_and_repair_flow(
 
     explained = _run_json(["explain", "DP-HINT-EVIDENCE-FAILED", "--json"], capsys)
     assert explained["code"] == "DP-HINT-EVIDENCE-FAILED"
-    assert explained["next_actions"]
+    assert explained["next_actions"][0]["command"].endswith("--detail full")
+    assert "blocks completion, not diagnosis or authorized repair" in explained["why_it_matters"]
+
+    plan_path = Path("docs/evidence/failure.json")
+    original_plan = plan_path.read_bytes()
+    policy_path = Path("dp-policy.json")
+    policy = json.loads(policy_path.read_text(encoding="utf-8"))
+    policy["mode"] = "guided"
+    policy_path.write_text(json.dumps(policy, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    repaired = _run_json(
+        ["evidence", "run", "docs/evidence/failure.json", "--json", "--detail", "normal"],
+        capsys,
+    )
+    assert repaired["status"] == "ok"
+    assert repaired["result"]["summary"]["passed"] == 1
+    assert plan_path.read_bytes() == original_plan
+    events_path = Path(".dp/goals/events.jsonl")
+    if events_path.exists():
+        assert all(
+            json.loads(line).get("event") != "blocked"
+            for line in events_path.read_text(encoding="utf-8").splitlines()
+        )
 
 
 def test_e2e_adoption_preserves_instructions_and_requires_reviewable_plan(

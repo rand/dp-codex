@@ -61,6 +61,45 @@ def test_dp_campaign_control_skill_is_safe_cli_scaffold() -> None:
         assert invariant in skill
 
 
+# @trace SPEC-81.02
+def test_dp_failure_recovery_skill_preserves_authority_and_verification() -> None:
+    skill = _read(".agents/skills/dp-failure-recovery/SKILL.md")
+    metadata = _frontmatter(skill)
+
+    assert metadata["name"] == "dp-failure-recovery"
+    for trigger in ("failing gate", "blocked", "rescue", "stranded"):
+        assert trigger in metadata["description"]
+
+    for required in (
+        "invalid_execution",
+        "repairable_failure",
+        "independent_repair",
+        "true_blocker",
+        "One writer owns one worktree",
+        "advisory",
+        "Proportional verification decides done",
+    ):
+        assert required in skill
+
+
+# @trace SPEC-81.02
+def test_tracked_global_guidance_contains_recovery_and_collaboration_contract() -> None:
+    guidance = _read("docs/examples/codex/global-dp-guidance.md")
+
+    for required in (
+        "The objective is a useful outcome in the real system.",
+        "Use the smallest proportional proof",
+        "stop verifying and ship",
+        "A failed gate blocks completion, not diagnosis or authorized repair.",
+        "Do not repeat an unchanged action",
+        "specialist or adversarial agents",
+        "External agent output is advisory",
+        "Proportional verification decides done",
+        "<!-- dp-agent-discipline:v1 -->",
+    ):
+        assert required in guidance
+
+
 def _read(path: str) -> str:
     return (REPO_ROOT / path).read_text(encoding="utf-8")
 

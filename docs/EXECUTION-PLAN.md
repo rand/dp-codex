@@ -292,6 +292,9 @@ Separate stable process logic from agent-platform integration.
    M7 modernization is closed, primary-spec intake UX is closed, semantic compiler hardening has
    bounded signal cues against realistic Waveguide/Supastructure-style specs, and the remaining
    runner work is explicitly future follow-up rather than a hidden completion dependency.
+4. SPEC-81.02 makes repair-before-blocking and purposeful advisory collaboration part of emitted
+   goals, instruction governance, focused skills, and deterministic agent evals without weakening
+   any verification or lifecycle gate.
 
 ### Exit Criteria
 

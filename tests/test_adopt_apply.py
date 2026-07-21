@@ -34,7 +34,7 @@ def test_adopt_apply_explicit_apply_scaffolds_repo_skills(tmp_path: Path) -> Non
     assert (tmp_path / ".agents/skills/dp-agent-bootstrap/SKILL.md").is_file()
     scaffold = next(item for item in result.payload["applied"] if item["id"] == "scaffold-skills")
     assert scaffold["status"] == "applied"
-    assert scaffold["written_count"] == 8
+    assert scaffold["written_count"] == 9
 
 
 def test_adopt_apply_explicit_apply_creates_minimal_policy(tmp_path: Path) -> None:

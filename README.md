@@ -198,6 +198,7 @@ Reference and contributor standards:
 - `docs/reference/hook-governance.md`
 - `docs/reference/agent-usability-evals.md`
 - `docs/reference/e2e-flow-matrix.md`
+- `docs/reference/agent-recovery-and-collaboration.md`
 - `docs/developer/contributor-handbook.md`
 - `docs/developer/documentation-style.md`
 
@@ -213,7 +214,8 @@ complete from agent narration.
 
 SPEC-81 agent-experience is implemented for compact response envelopes, ToolCards, stable hints,
 bootstrap/capabilities, instruction governance, conservative adoption, focused skills, hook
-governance, token budgets, and deterministic usability evals.
+governance, token budgets, deterministic usability evals, bounded failure recovery, and advisory
+specialist or adversarial collaboration.
 
 SPEC-82.01 records the whole-system release-readiness contract: the public CLI command surface must
 stay documented, package-version claims must be explicit, outside-repository smoke checks must run,

@@ -19,6 +19,19 @@ def test_instructions_inspect_discovers_nested_agents() -> None:
     assert root["precedence"] < nested["precedence"]
 
 
+def test_instructions_inspect_ignores_temporary_plugin_cache(tmp_path: Path) -> None:
+    (tmp_path / "AGENTS.md").write_text("# Root\n", encoding="utf-8")
+    cached = tmp_path / ".tmp/plugins/example/AGENTS.md"
+    cached.parent.mkdir(parents=True)
+    cached.write_text("# Cached plugin instructions\n", encoding="utf-8")
+
+    result = inspect_instructions(tmp_path, detail="full")
+    paths = {item["path"] for item in result.payload["files"]}
+
+    assert "AGENTS.md" in paths
+    assert ".tmp/plugins/example/AGENTS.md" not in paths
+
+
 def test_instructions_audit_flags_old_dp_guidance() -> None:
     result = audit_instructions(FIXTURES / "repo_with_old_dp_guidance")
 
@@ -37,6 +50,106 @@ def test_instructions_plan_update_does_not_mutate_agents() -> None:
     assert before == after
     assert result.payload["would_mutate"] is False
     assert result.payload["changes"][0]["mode"] == "propose"
+    preview = result.payload["changes"][0]["patch_preview"]
+    assert "## Outcome and Verification Budget" in preview
+    assert "## Recovery and Escalation" in preview
+    assert "## Agent Collaboration" in preview
+
+
+def test_instructions_audit_flags_missing_recovery_and_collaboration_discipline() -> None:
+    result = audit_instructions(FIXTURES / "repo_with_root_agents")
+
+    codes = {finding["code"] for finding in result.payload["findings"]}
+    assert "instruction_missing_recovery_discipline" in codes
+    assert "instruction_missing_collaboration_discipline" in codes
+    assert "instruction_missing_outcome_discipline" in codes
+    assert any(
+        hint["code"] == "DP-HINT-INSTRUCTIONS-DISCIPLINE-MISSING"
+        for hint in result.payload["hints"]
+    )
+
+
+def test_instructions_audit_rejects_empty_discipline_headings(tmp_path: Path) -> None:
+    (tmp_path / "AGENTS.md").write_text(
+        "# Agent Instructions\n\n"
+        "Run `dp agent bootstrap --json --detail brief`.\n\n"
+        "## Recovery and Escalation\n\n"
+        "Investigate failures.\n\n"
+        "## Agent Collaboration\n\n"
+        "Ask for help.\n",
+        encoding="utf-8",
+    )
+
+    result = audit_instructions(tmp_path)
+    codes = {finding["code"] for finding in result.payload["findings"]}
+
+    assert "instruction_missing_recovery_discipline" in codes
+    assert "instruction_missing_collaboration_discipline" in codes
+
+
+def test_nested_discipline_does_not_satisfy_effective_root_scope(tmp_path: Path) -> None:
+    (tmp_path / "AGENTS.md").write_text("# Root\n", encoding="utf-8")
+    nested = tmp_path / "service/AGENTS.md"
+    nested.parent.mkdir()
+    nested.write_text(
+        "# Nested\n\n<!-- dp-agent-discipline:v1 -->\n\n"
+        "Run `dp agent bootstrap --json --detail brief`.\n",
+        encoding="utf-8",
+    )
+
+    result = audit_instructions(tmp_path)
+    codes = {finding["code"] for finding in result.payload["findings"]}
+
+    assert "instruction_missing_bootstrap" in codes
+    assert "instruction_missing_recovery_discipline" in codes
+    assert "instruction_missing_collaboration_discipline" in codes
+
+
+def test_root_override_is_the_effective_instruction_scope(tmp_path: Path) -> None:
+    (tmp_path / "AGENTS.md").write_text(
+        "# Root\n\n<!-- dp-agent-discipline:v1 -->\n\n"
+        "Run `dp agent bootstrap --json --detail brief`.\n",
+        encoding="utf-8",
+    )
+    (tmp_path / "AGENTS.override.md").write_text("# Effective override\n", encoding="utf-8")
+
+    audit = audit_instructions(tmp_path)
+    plan = plan_instruction_update(tmp_path)
+    codes = {finding["code"] for finding in audit.payload["findings"]}
+
+    assert "instruction_missing_bootstrap" in codes
+    assert "instruction_missing_recovery_discipline" in codes
+    assert "instruction_missing_collaboration_discipline" in codes
+    assert plan.payload["target"] == "AGENTS.override.md"
+
+
+def test_discipline_marker_without_managed_body_is_rejected(tmp_path: Path) -> None:
+    (tmp_path / "AGENTS.md").write_text(
+        "# Root\n\n<!-- dp-agent-discipline:v1 -->\n\n"
+        "Run `dp agent bootstrap --json --detail brief`.\n",
+        encoding="utf-8",
+    )
+
+    result = audit_instructions(tmp_path)
+    codes = {finding["code"] for finding in result.payload["findings"]}
+
+    assert "instruction_missing_recovery_discipline" in codes
+    assert "instruction_missing_collaboration_discipline" in codes
+
+
+def test_complete_managed_discipline_prevents_duplicate_sections(tmp_path: Path) -> None:
+    agents_path = tmp_path / "AGENTS.md"
+    agents_path.write_text(
+        "# Root\n\nRun `dp agent bootstrap --json --detail brief`.\n",
+        encoding="utf-8",
+    )
+    initial = plan_instruction_update(tmp_path)
+    preview = initial.payload["changes"][0]["patch_preview"]
+    agents_path.write_text(agents_path.read_text(encoding="utf-8") + preview, encoding="utf-8")
+
+    result = plan_instruction_update(tmp_path)
+
+    assert result.payload["changes"] == []
 
 
 def test_instructions_audit_flags_conflicting_skill_and_hook() -> None:

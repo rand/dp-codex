@@ -30,6 +30,7 @@ If you are operating an agent goal contract:
 9. Keep `/docs/reference/agent-launch.md` nearby when starting one known GoalContract
 10. Keep `/docs/runbooks/codex-packaging.md` nearby when deciding whether to use CLI-only,
     repo-local skill, MCP, or plugin packaging
+11. Use `/docs/reference/agent-recovery-and-collaboration.md` when a goal or gate fails.
 
 If you are maintaining policy, quality gates, or release readiness:
 

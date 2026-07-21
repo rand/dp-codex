@@ -12,6 +12,29 @@ INSPECT_SCHEMA_VERSION = "dp.instructions.inspect.v1"
 AUDIT_SCHEMA_VERSION = "dp.instructions.audit.v1"
 PLAN_SCHEMA_VERSION = "dp.instructions.plan_update.v1"
 OVERSIZED_INSTRUCTION_BYTES = 12_000
+DP_AGENT_DISCIPLINE_MARKER = "<!-- dp-agent-discipline:v1 -->"
+OUTCOME_DISCIPLINE_ANCHORS = (
+    "## outcome and verification budget",
+    "useful outcome in the real system",
+    "support machinery",
+    "smallest proportional proof",
+    "stop verifying and ship",
+)
+RECOVERY_DISCIPLINE_ANCHORS = (
+    "## recovery and escalation",
+    "failed gate blocks completion",
+    "invalid execution",
+    "repairable in-scope failure",
+    "independent repair",
+    "true decision/authority/scope blocker",
+    "repeat an unchanged action",
+)
+COLLABORATION_DISCIPLINE_ANCHORS = (
+    "## agent collaboration",
+    "one writer owns one worktree",
+    "primary agent owns",
+    "external agent output is advisory",
+)
 
 IGNORED_PARTS = frozenset(
     {
@@ -19,6 +42,7 @@ IGNORED_PARTS = frozenset(
         ".mypy_cache",
         ".pytest_cache",
         ".ruff_cache",
+        ".tmp",
         ".uv-cache",
         ".venv",
         "__pycache__",
@@ -116,26 +140,43 @@ def audit_instructions(repo_root: Path | None = None) -> InstructionCommandResul
     return InstructionCommandResult(payload=payload, exit_code=0)
 
 
+# @trace SPEC-81.02
 def plan_instruction_update(repo_root: Path | None = None) -> InstructionCommandResult:
     root = (repo_root or Path.cwd()).resolve()
     inspect_result = inspect_instructions(root, detail="full")
     audit_result = audit_instructions(root)
     files = inspect_result.payload["files"]
-    agents_files = [item for item in files if item["kind"] == "agents" and item["scope"] == "repo"]
-    target = agents_files[0]["path"] if agents_files else "AGENTS.md"
-    contains_bootstrap = any(
-        _file_text(root / item["path"]).find("dp agent bootstrap") >= 0 for item in files
-    )
+    effective_root = _effective_root_instruction(files)
+    target = str(effective_root["path"]) if effective_root is not None else "AGENTS.md"
+    agents_text = _file_text(root / target).lower() if effective_root is not None else ""
+    contains_bootstrap = "dp agent bootstrap" in agents_text
+    contains_outcome = _contains_discipline(agents_text, OUTCOME_DISCIPLINE_ANCHORS)
+    contains_recovery = _contains_discipline(agents_text, RECOVERY_DISCIPLINE_ANCHORS)
+    contains_collaboration = _contains_discipline(agents_text, COLLABORATION_DISCIPLINE_ANCHORS)
     changes: list[dict[str, Any]] = []
-    if not contains_bootstrap:
+    if not (
+        contains_bootstrap
+        and contains_outcome
+        and contains_recovery
+        and contains_collaboration
+    ):
         changes.append(
             {
-                "id": "add-dp-agent-workflow",
+                "id": "add-dp-agent-discipline",
                 "kind": "patch",
                 "path": target,
                 "mode": "propose",
-                "reason": "Add compact bootstrap guidance while preserving existing instructions.",
-                "patch_preview": _dp_section_patch(target_exists=bool(agents_files)),
+                "reason": (
+                    "Add missing compact bootstrap, outcome, recovery, or collaboration guidance "
+                    "while preserving existing instructions."
+                ),
+                "patch_preview": _dp_section_patch(
+                    target_exists=effective_root is not None,
+                    include_workflow=not contains_bootstrap,
+                    include_outcome=not contains_outcome,
+                    include_recovery=not contains_recovery,
+                    include_collaboration=not contains_collaboration,
+                ),
             }
         )
 
@@ -158,7 +199,7 @@ def plan_instruction_update(repo_root: Path | None = None) -> InstructionCommand
         "changes": changes,
         "conflicts": conflicts,
         "preserve": {
-            "existing_agents_md": bool(agents_files),
+            "existing_agents_md": effective_root is not None,
             "stricter_rules": True,
             "create_agents_override": False,
         },
@@ -227,8 +268,14 @@ def _instruction_findings(root: Path, files: list[dict[str, Any]]) -> list[dict[
         if path.endswith("AGENTS.md") or path.endswith("AGENTS.override.md")
     }
     combined_agents = "\n".join(agents_texts.values()).lower()
+    effective_root = _effective_root_instruction(files)
+    effective_root_text = (
+        texts.get(str(effective_root["path"]), "").lower()
+        if effective_root is not None
+        else ""
+    )
 
-    if "dp agent bootstrap" not in combined_agents:
+    if "dp agent bootstrap" not in effective_root_text:
         findings.append(
             _finding(
                 "instruction_missing_bootstrap",
@@ -236,6 +283,39 @@ def _instruction_findings(root: Path, files: list[dict[str, Any]]) -> list[dict[
                 "AGENTS.md",
                 "No dp agent bootstrap guidance found.",
                 "DP-HINT-ADOPTION-AVAILABLE",
+            )
+        )
+
+    if not _contains_discipline(effective_root_text, RECOVERY_DISCIPLINE_ANCHORS):
+        findings.append(
+            _finding(
+                "instruction_missing_recovery_discipline",
+                "warning",
+                "AGENTS.md",
+                "No bounded repair-before-blocking guidance found.",
+                "DP-HINT-INSTRUCTIONS-DISCIPLINE-MISSING",
+            )
+        )
+
+    if not _contains_discipline(effective_root_text, OUTCOME_DISCIPLINE_ANCHORS):
+        findings.append(
+            _finding(
+                "instruction_missing_outcome_discipline",
+                "warning",
+                "AGENTS.md",
+                "No outcome-first proportional-verification guidance found.",
+                "DP-HINT-INSTRUCTIONS-DISCIPLINE-MISSING",
+            )
+        )
+
+    if not _contains_discipline(effective_root_text, COLLABORATION_DISCIPLINE_ANCHORS):
+        findings.append(
+            _finding(
+                "instruction_missing_collaboration_discipline",
+                "warning",
+                "AGENTS.md",
+                "No purposeful specialist or adversarial agent guidance found.",
+                "DP-HINT-INSTRUCTIONS-DISCIPLINE-MISSING",
             )
         )
 
@@ -384,17 +464,90 @@ def _hints_for_findings(findings: list[dict[str, Any]]) -> list[dict[str, str]]:
     return hints
 
 
-def _dp_section_patch(*, target_exists: bool) -> str:
+def _dp_section_patch(
+    *,
+    target_exists: bool,
+    include_workflow: bool,
+    include_outcome: bool,
+    include_recovery: bool,
+    include_collaboration: bool,
+) -> str:
     prefix = "\n" if target_exists else ""
-    return (
-        f"{prefix}## dp Agent Workflow\n\n"
-        "- Start with `dp agent bootstrap --json --detail brief`.\n"
-        "- For campaign work, use `dp loop next ... --claim --emit codex --json`.\n"
-        "- Start, block, release, and complete goals through dp lifecycle commands.\n"
-        "- Respect this file and any nested AGENTS.md files before dp hints.\n"
-        "- Treat dp hints as workflow affordances, not permission to ignore project rules.\n"
-        "- Do not mark work complete without evidence.\n"
-    )
+    sections: list[str] = []
+    if include_recovery or include_collaboration:
+        sections.append(DP_AGENT_DISCIPLINE_MARKER + "\n")
+    if include_workflow:
+        sections.append(
+            "## dp Agent Workflow\n\n"
+            "- Start with `dp agent bootstrap --json --detail brief`.\n"
+            "- For campaign work, use `dp loop next ... --claim --emit codex --json`.\n"
+            "- Start, block, release, and complete goals through dp lifecycle commands.\n"
+            "- Respect this file and any nested AGENTS.md files before dp hints.\n"
+            "- Treat dp hints as workflow affordances, not permission to ignore project rules.\n"
+            "- Do not mark work complete without evidence.\n"
+        )
+    if include_outcome:
+        sections.append(
+            "## Outcome and Verification Budget\n\n"
+            "- The objective is a useful outcome in the real system. Plans, trackers, receipts, "
+            "reviews, and verification are support machinery, never substitutes for that outcome.\n"
+            "- Before adding process work, name the concrete decision or failure risk it changes. "
+            "If it changes neither, do not do it.\n"
+            "- Use the smallest proportional proof: normally the focused check, any required gate, "
+            "and one live observation for a live change. Add checks only for an identified risk.\n"
+            "- Once the outcome works and the named risks are answered, stop verifying and ship.\n"
+            "- Safety and versioning exist to enable fast, powerful, inspectable work with clean "
+            "branch and revert semantics; do not turn them into the product.\n"
+        )
+    if include_recovery:
+        sections.append(
+            "## Recovery and Escalation\n\n"
+            "- A failed gate blocks completion, not diagnosis or authorized repair.\n"
+            "- Classify the exact failure before declaring a blocker: invalid execution, "
+            "repairable in-scope failure, independent repair, or true "
+            "decision/authority/scope blocker.\n"
+            "- Make the smallest reversible in-scope repair, then rerun focused and required "
+            "gates.\n"
+            "- Do not weaken evidence or repeat an unchanged action without new information.\n"
+            "- Respect the GoalContract attempt budget when one is declared.\n"
+            "- Block only when no safe in-scope repair remains or new authority is required.\n"
+        )
+    if include_collaboration:
+        sections.append(
+            "## Agent Collaboration\n\n"
+            "- Use bounded read-only specialist or adversarial agents for separable work when "
+            "available and allowed.\n"
+            "- Give each helper explicit scope, forbidden actions, expected output, and a stop "
+            "condition.\n"
+            "- One writer owns one worktree; the primary agent owns integration and verification.\n"
+            "- External agent output is advisory and never establishes completion.\n"
+        )
+    return prefix + "\n".join(sections)
+
+
+def _contains_all(text: str, anchors: tuple[str, ...]) -> bool:
+    return all(anchor in text for anchor in anchors)
+
+
+def _contains_discipline(text: str, anchors: tuple[str, ...]) -> bool:
+    # The managed marker identifies the block version, but never substitutes for its content.
+    return _contains_all(text, anchors)
+
+
+def _effective_root_instruction(files: list[dict[str, Any]]) -> dict[str, Any] | None:
+    root_overrides = [
+        item
+        for item in files
+        if item["kind"] == "agents_override" and item["scope"] == "repo"
+    ]
+    if root_overrides:
+        return min(root_overrides, key=lambda item: (int(item["precedence"]), str(item["path"])))
+    root_agents = [
+        item for item in files if item["kind"] == "agents" and item["scope"] == "repo"
+    ]
+    if root_agents:
+        return min(root_agents, key=lambda item: (int(item["precedence"]), str(item["path"])))
+    return None
 
 
 def _kind_for_path(path: str) -> str:
