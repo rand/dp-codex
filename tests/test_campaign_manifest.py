@@ -7,6 +7,7 @@ import pytest
 from jsonschema import validate
 
 from dp.cli.main import main
+from dp.core.intent_graph import goal_file_digest
 
 FIXTURE_DIR = Path("tests/fixtures/campaigns")
 GOAL_FIXTURE_DIR = Path("tests/fixtures/goals")
@@ -81,6 +82,132 @@ def test_campaign_status_reports_incomplete_campaign(
     assert payload["summary"]["ready_goals"] == 1
     assert payload["summary"]["waiting_goals"] == 1
     assert payload["loop"]["ready_node_ids"] == ["first"]
+
+
+@pytest.mark.parametrize(
+    ("outcome_class", "expected_status", "expected_action", "expected_count"),
+    [
+        ("useful", "verified", "campaign_verified", 0),
+        ("mixed", "verified", "campaign_verified", 0),
+        ("not_useful", "active", "address_not_useful_outcome", 1),
+    ],
+)
+def test_campaign_status_routes_current_outcome_without_rewriting_verification(
+    outcome_class: str,
+    expected_status: str,
+    expected_action: str,
+    expected_count: int,
+    tmp_path: Path,
+    monkeypatch,
+    capsys,
+) -> None:
+    campaign_path = _write_campaign_project(tmp_path)
+    _write_verified_campaign_events(tmp_path)
+    goal_path = tmp_path / "goals/one.json"
+    _write_goal_event(
+        tmp_path,
+        {
+            "schema_version": "0.1",
+            "event": "outcome_contact",
+            "goal_id": "GOAL-SPEC-70.01",
+            "goal_path": "goals/one.json",
+            "timestamp": "2026-01-01T00:00:02Z",
+            "class": outcome_class,
+            "ref": "docs/outcomes/live.md#1",
+            "goal_sha256": goal_file_digest(goal_path),
+        },
+    )
+    monkeypatch.chdir(tmp_path)
+
+    exit_code = main(["campaign", "status", campaign_path.as_posix(), "--json"])
+
+    assert exit_code == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["derived_status"] == expected_status
+    assert payload["resume"]["action"] == expected_action
+    assert payload["summary"]["verified_goals"] == 2
+    assert payload["summary"]["not_useful_outcome_goals"] == expected_count
+    assert all(node["state"] == "verified" for node in payload["loop"]["nodes"])
+    if outcome_class == "not_useful":
+        assert payload["resume"]["outcome"]["ref"] == "docs/outcomes/live.md#1"
+
+
+def test_changed_goal_expires_not_useful_campaign_routing(
+    tmp_path: Path,
+    monkeypatch,
+    capsys,
+) -> None:
+    campaign_path = _write_campaign_project(tmp_path)
+    _write_verified_campaign_events(tmp_path)
+    goal_path = tmp_path / "goals/one.json"
+    _write_goal_event(
+        tmp_path,
+        {
+            "schema_version": "0.1",
+            "event": "outcome_contact",
+            "goal_id": "GOAL-SPEC-70.01",
+            "goal_path": "goals/one.json",
+            "timestamp": "2026-01-01T00:00:02Z",
+            "class": "not_useful",
+            "ref": "docs/outcomes/live.md#1",
+            "goal_sha256": goal_file_digest(goal_path),
+        },
+    )
+    goal = json.loads(goal_path.read_text(encoding="utf-8"))
+    goal["title"] = "Corrected goal after negative outcome contact"
+    goal_path.write_text(json.dumps(goal), encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+
+    exit_code = main(["campaign", "status", campaign_path.as_posix(), "--json"])
+
+    assert exit_code == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["derived_status"] == "verified"
+    assert payload["resume"]["action"] == "campaign_verified"
+    assert payload["summary"]["not_useful_outcome_goals"] == 0
+
+
+def test_bootstrap_keeps_verified_campaign_with_not_useful_outcome_actionable(
+    tmp_path: Path,
+    monkeypatch,
+    capsys,
+) -> None:
+    campaign_path = _write_campaign_project(tmp_path)
+    _write_verified_campaign_events(tmp_path)
+    goal_path = tmp_path / "goals/one.json"
+    _write_goal_event(
+        tmp_path,
+        {
+            "schema_version": "0.1",
+            "event": "outcome_contact",
+            "goal_id": "GOAL-SPEC-70.01",
+            "goal_path": "goals/one.json",
+            "timestamp": "2026-01-01T00:00:02Z",
+            "class": "not_useful",
+            "ref": "docs/outcomes/live.md#1",
+            "goal_sha256": goal_file_digest(goal_path),
+        },
+    )
+    campaign_dir = tmp_path / "docs/campaigns"
+    campaign_dir.mkdir()
+    routed_campaign_path = campaign_dir / "CAMPAIGN-TMP.json"
+    (tmp_path / campaign_path).rename(routed_campaign_path)
+    (tmp_path / "AGENTS.md").write_text("# Agent Instructions\n", encoding="utf-8")
+    (tmp_path / "dp-policy.json").write_text('{"mode": "guided"}\n', encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+
+    exit_code = main(["agent", "bootstrap", "--json", "--detail", "normal"])
+
+    assert exit_code == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["result"]["campaigns"]["active"] == [
+        "docs/campaigns/CAMPAIGN-TMP.json"
+    ]
+    assert payload["result"]["campaigns"]["blocked"] == []
+    assert any(
+        artifact["path"] == "docs/campaigns/CAMPAIGN-TMP.json"
+        for artifact in payload["artifacts"]
+    )
 
 
 def test_campaign_recover_reports_blocked_campaign(
@@ -246,3 +373,20 @@ def _write_goal_event(tmp_path: Path, event: dict[str, object]) -> None:
     with event_log.open("a", encoding="utf-8") as stream:
         stream.write(json.dumps(event, sort_keys=True))
         stream.write("\n")
+
+
+def _write_verified_campaign_events(tmp_path: Path) -> None:
+    for timestamp, goal_id, goal_path in (
+        ("2026-01-01T00:00:00Z", "GOAL-SPEC-70.01", "goals/one.json"),
+        ("2026-01-01T00:00:01Z", "GOAL-SPEC-80.01-LINT", "goals/two.json"),
+    ):
+        _write_goal_event(
+            tmp_path,
+            {
+                "schema_version": "0.1",
+                "event": "verified",
+                "goal_id": goal_id,
+                "goal_path": goal_path,
+                "timestamp": timestamp,
+            },
+        )

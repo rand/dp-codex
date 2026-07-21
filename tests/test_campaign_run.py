@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 from dp.cli.main import main
+from dp.core.intent_graph import goal_file_digest
 
 GOAL_FIXTURE_DIR = Path("tests/fixtures/goals")
 
@@ -135,6 +136,63 @@ def test_campaign_run_reports_no_ready_work_without_launching(
     assert payload["ok"] is False
     assert payload["launched"] is False
     assert payload["next"]["error"]["code"] == "no_ready_goal"
+
+
+def test_campaign_run_stops_explicitly_for_not_useful_outcome(
+    tmp_path: Path,
+    monkeypatch,
+    capsys,
+) -> None:
+    campaign_path = _write_campaign_project(tmp_path)
+    for timestamp, goal_id, goal_path in (
+        ("2026-01-01T00:00:00Z", "GOAL-SPEC-70.01", "goals/one.json"),
+        ("2026-01-01T00:00:01Z", "GOAL-SPEC-80.01-LINT", "goals/two.json"),
+    ):
+        _write_goal_event(
+            tmp_path,
+            {
+                "schema_version": "0.1",
+                "event": "verified",
+                "goal_id": goal_id,
+                "goal_path": goal_path,
+                "timestamp": timestamp,
+            },
+        )
+    goal_path = tmp_path / "goals/one.json"
+    _write_goal_event(
+        tmp_path,
+        {
+            "schema_version": "0.1",
+            "event": "outcome_contact",
+            "goal_id": "GOAL-SPEC-70.01",
+            "goal_path": "goals/one.json",
+            "timestamp": "2026-01-01T00:00:02Z",
+            "class": "not_useful",
+            "ref": "docs/outcomes/live.md#1",
+            "goal_sha256": goal_file_digest(goal_path),
+        },
+    )
+    monkeypatch.chdir(tmp_path)
+
+    exit_code = main(
+        [
+            "campaign",
+            "run",
+            campaign_path.as_posix(),
+            "--driver",
+            "codex",
+            "--supervised",
+            "--json",
+        ]
+    )
+
+    assert exit_code == 1
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["stop_reason"] == "outcome_not_useful"
+    assert payload["next"]["action"] == "address_not_useful_outcome"
+    assert payload["next"]["outcome"]["ref"] == "docs/outcomes/live.md#1"
+    assert payload["next"]["goal_id"] == "GOAL-SPEC-70.01"
+    assert "no_ready_goal" not in json.dumps(payload)
 
 
 def _write_campaign_project(tmp_path: Path) -> Path:

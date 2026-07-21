@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 from dp.cli.main import main
+from dp.core.intent_graph import goal_file_digest
 
 GOAL_FIXTURE_DIR = Path("tests/fixtures/goals")
 
@@ -239,6 +240,60 @@ def test_campaign_managed_run_reports_verified_loop(
     assert payload["stop_reason"] == "campaign_verified"
     assert payload["next"]["action"] == "campaign_verified"
     assert payload["ok"] is True
+
+
+def test_campaign_managed_run_stops_explicitly_for_not_useful_outcome(
+    tmp_path: Path,
+    monkeypatch,
+    capsys,
+) -> None:
+    campaign_path = _write_campaign_project(tmp_path)
+    goal_path = tmp_path / "goals/one.json"
+    _write_goal_event(
+        tmp_path,
+        {
+            "schema_version": "0.1",
+            "event": "verified",
+            "goal_id": "GOAL-SPEC-70.01",
+            "goal_path": "goals/one.json",
+            "timestamp": "2026-01-01T00:00:00Z",
+        },
+    )
+    _write_goal_event(
+        tmp_path,
+        {
+            "schema_version": "0.1",
+            "event": "outcome_contact",
+            "goal_id": "GOAL-SPEC-70.01",
+            "goal_path": "goals/one.json",
+            "timestamp": "2026-01-01T00:00:01Z",
+            "class": "not_useful",
+            "ref": "docs/outcomes/live.md#1",
+            "goal_sha256": goal_file_digest(goal_path),
+        },
+    )
+    monkeypatch.chdir(tmp_path)
+
+    exit_code = main(
+        [
+            "campaign",
+            "run",
+            campaign_path.as_posix(),
+            "--driver",
+            "codex",
+            "--supervised",
+            "--managed",
+            "--json",
+        ]
+    )
+
+    assert exit_code == 1
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["stop_reason"] == "outcome_not_useful"
+    assert payload["next"]["action"] == "address_not_useful_outcome"
+    assert payload["next"]["outcome"]["ref"] == "docs/outcomes/live.md#1"
+    assert payload["iterations"][0]["action"] == "address_not_useful_outcome"
+    assert payload["launched"] is False
 
 
 def test_campaign_managed_run_rejects_draft_campaign(

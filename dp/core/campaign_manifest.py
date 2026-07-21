@@ -635,6 +635,9 @@ def _campaign_summary(
         ),
         "evidence_pending_goals": state_counts.get("evidence_pending", 0),
         "verified_goals": state_counts.get("verified", 0),
+        "not_useful_outcome_goals": sum(
+            1 for node in nodes if _node_has_current_not_useful_outcome(node)
+        ),
     }
 
 
@@ -644,6 +647,8 @@ def _derive_campaign_status(loop_payload: dict[str, Any]) -> str:
         return "draft"
     states = [_node_state(node) for node in nodes]
     if states and all(state == "verified" for state in states):
+        if any(_node_has_current_not_useful_outcome(node) for node in nodes):
+            return "active"
         return "verified"
     if any(state == "blocked" for state in states):
         return "blocked"
@@ -723,6 +728,31 @@ def _resume_handoff(
             )
 
     if nodes and all(_node_state(node) == "verified" for node in nodes):
+        not_useful_node = next(
+            (node for node in nodes if _node_has_current_not_useful_outcome(node)),
+            None,
+        )
+        if not_useful_node is not None:
+            return {
+                "command": "campaign.resume",
+                "action": "address_not_useful_outcome",
+                "reason": (
+                    "All current-loop goals are verified, but current outcome contact marks "
+                    "at least one goal not useful. Preserve the verification record and add or "
+                    "revise corrective work before treating the campaign as complete."
+                ),
+                "campaign_id": contract.campaign_id,
+                "loop_id": loop_id,
+                "node_id": _node_text(not_useful_node, "node_id"),
+                "goal_id": _node_text(not_useful_node, "goal_id"),
+                "goal_path": _node_text(not_useful_node, "goal_path"),
+                "outcome": not_useful_node.get("current_outcome"),
+                "stale_claims": stale_claims,
+                "commands": {
+                    "status": f"dp campaign status {campaign_path.as_posix()} --json",
+                    "audit": "dp graph audit --json",
+                },
+            }
         return {
             "command": "campaign.resume",
             "action": "campaign_verified",
@@ -866,6 +896,11 @@ def _state_counts(nodes: list[dict[str, Any]]) -> dict[str, int]:
 def _node_state(node: dict[str, Any]) -> str:
     value = node.get("state")
     return value if isinstance(value, str) else "unknown"
+
+
+def _node_has_current_not_useful_outcome(node: dict[str, Any]) -> bool:
+    outcome = node.get("current_outcome")
+    return isinstance(outcome, dict) and outcome.get("class") == "not_useful"
 
 
 def _missing_artifacts(report: CampaignLintReport) -> list[str]:

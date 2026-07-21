@@ -48,6 +48,7 @@ class GoalState:
     last_event: dict[str, Any] | None
     receipts_since_last_outcome_contact: int | None = None
     last_outcome: dict[str, Any] | None = None
+    current_outcome: dict[str, Any] | None = None
     blocks_since_claim: int = 0
 
     def to_dict(self) -> dict[str, Any]:
@@ -61,6 +62,7 @@ class GoalState:
             "last_event": self.last_event,
             "receipts_since_last_outcome_contact": self.receipts_since_last_outcome_contact,
             "last_outcome": self.last_outcome,
+            "current_outcome": self.current_outcome,
             "blocks_since_claim": self.blocks_since_claim,
         }
 
@@ -677,7 +679,9 @@ def reconstruct_goal_state(
     blocked: dict[str, Any] | None = None
     receipts_since_outcome: int | None = None
     last_outcome: dict[str, Any] | None = None
+    current_outcome: dict[str, Any] | None = None
     blocks_since_claim = 0
+    current_goal_sha256 = _file_sha256(goal_path)
 
     for event in events:
         event_type = str(event.get("event", ""))
@@ -690,6 +694,12 @@ def reconstruct_goal_state(
                 "ref": event.get("ref"),
                 "timestamp": event.get("timestamp"),
             }
+            if event.get("goal_sha256") == current_goal_sha256:
+                current_outcome = {
+                    "class": event.get("class"),
+                    "ref": event.get("ref"),
+                    "timestamp": event.get("timestamp"),
+                }
             continue
         if event_type == "claimed":
             blocks_since_claim = 0
@@ -739,6 +749,7 @@ def reconstruct_goal_state(
         last_event=events[-1] if events else None,
         receipts_since_last_outcome_contact=receipts_since_outcome,
         last_outcome=last_outcome,
+        current_outcome=current_outcome,
         blocks_since_claim=blocks_since_claim,
     )
 

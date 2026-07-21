@@ -134,6 +134,10 @@ file at recording time.
    carrying a non-empty `id`; nothing else. Full goal lint is deliberately not run, so
    outcomes stay zero-friction on historical goals — including intent-less ones — that would
    fail the current lint level.
+6. A current `not_useful` contact does not rewrite or erase verified evidence. If every goal in
+   a campaign loop is verified, it keeps the campaign actionable and changes the resume action
+   to `address_not_useful_outcome` until the goal changes or later current contact supersedes it.
+   This routes corrective work without pretending that correctness verification failed.
 
 ## Re-Injection Points
 
@@ -216,12 +220,14 @@ The substrate makes intent visible and auditable; it is not tamper-proof.
    goal digest.
 4. Outcome authority is scoped: outcomes settle value claims and can revoke done-as-verified;
    they never bless failing verification.
-5. An unratified agent-proposed root can exist and lint clean but cannot be claimed or
+5. A verified campaign with current `not_useful` outcome contact remains actionable without
+   rewriting the verified goal lifecycle state.
+6. An unratified agent-proposed root can exist and lint clean but cannot be claimed or
    started; `dp goal ratify` is the governed transition out of that state and applies to
    nothing else.
-6. Goal lint, outcome recording, ratification, re-injection, and graph audit never call an
+7. Goal lint, outcome recording, ratification, re-injection, and graph audit never call an
    LLM and never execute goal content.
-7. Ratification mutates exactly one goal field (`intent.authorship`) and binds the
+8. Ratification mutates exactly one goal field (`intent.authorship`) and binds the
    `ratified` event to the post-edit file digest.
 
 ## Proof Obligations
@@ -247,6 +253,9 @@ The substrate makes intent visible and auditable; it is not tamper-proof.
     lint.
 11. Tests cover ratify: authorship flips, the `ratified` event binds the post-edit digest,
     claim proceeds afterwards, and non-root or already-ratified goals are refused.
+12. Tests cover verified-campaign routing for current `useful`, `mixed`, and `not_useful`
+    contacts, digest expiry, corrective resume guidance, bootstrap actionability, and explicit
+    `outcome_not_useful` stops in ordinary and managed campaign runs.
 
 ## Non-Goals
 
