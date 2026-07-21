@@ -40,6 +40,7 @@ from dp.core.goal_state import (
     goal_status,
     heartbeat_goal,
     outcome_goal,
+    ratify_goal,
     release_goal,
     start_goal,
     verify_goal,
@@ -296,6 +297,14 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     goal_outcome_parser.add_argument("--json", action="store_true")
     goal_outcome_parser.set_defaults(handler=_run_goal_outcome)
+
+    goal_ratify_parser = goal_subparsers.add_parser(
+        "ratify",
+        help="Ratify an agent-proposed root goal: flip authorship to owner_ratified.",
+    )
+    goal_ratify_parser.add_argument("goal")
+    goal_ratify_parser.add_argument("--json", action="store_true")
+    goal_ratify_parser.set_defaults(handler=_run_goal_ratify)
 
     goal_emit_parser = goal_subparsers.add_parser(
         "emit",
@@ -1101,6 +1110,10 @@ def _run_goal_outcome(args: argparse.Namespace) -> int:
         outcome_goal(Path(args.goal), outcome_class=args.outcome_class, ref=args.ref),
         args.json,
     )
+
+
+def _run_goal_ratify(args: argparse.Namespace) -> int:
+    return _emit_goal_command_result(ratify_goal(Path(args.goal)), args.json)
 
 
 def _run_goal_emit(args: argparse.Namespace) -> int:

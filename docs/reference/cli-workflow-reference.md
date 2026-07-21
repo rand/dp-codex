@@ -56,11 +56,16 @@ Quick command reference by workflow.
 ## Intent Graph
 
 1. `dp graph audit [--json]` (reports intent drift across `docs/goals`, including
-   `missing_residual`, `missing_defeaters`, and `unratified_root`; never gates, exit 0)
+   `missing_residual`, `missing_defeaters`, `unratified_root`, `verbatim_not_in_source`,
+   and `duplicate_goal_id`; never gates, exit 0)
+2. `dp goal ratify <goal.json> [--json]` (owner ratifies an agent-proposed root: flips
+   `intent.authorship` to `owner_ratified` — the only field dp mutates — and appends a
+   `ratified` event binding the post-edit goal digest; refuses non-root or already-ratified
+   goals)
 
 `dp goal claim` and `dp goal start` refuse agent-proposed root goals (`intent.parent: null`
-with `authorship: agent_derived`) with the `unratified_root_goal` error until the owner sets
-authorship to `owner` or `owner_ratified`.
+with `authorship: agent_derived`) with the `unratified_root_goal` error until the owner
+ratifies the root via `dp goal ratify` or sets authorship to `owner` or `owner_ratified`.
 
 ## Evidence Plans
 

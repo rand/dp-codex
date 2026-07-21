@@ -33,7 +33,8 @@ def audit_graph(repo_root: Path | None = None) -> GraphAuditResult:
 
     The audit reports missing or partial intent blocks, absent residuals and
     defeaters, unratified agent-proposed roots, parent links to nonexistent
-    goals, stale parent snapshots, and receipts-since-last-outcome-contact
+    goals, stale parent snapshots, verbatim quotations not found in their
+    cited source, duplicate goal ids, and receipts-since-last-outcome-contact
     per goal. It always exits 0.
     """
     root = (repo_root or Path.cwd()).resolve()
@@ -45,14 +46,19 @@ def audit_graph(repo_root: Path | None = None) -> GraphAuditResult:
     for path in goal_paths:
         contracts.append((path, _read_goal_contract(path)))
 
-    # Duplicate goal ids resolve first-path-wins in sorted path order (SPEC-83).
-    digest_by_goal_id: dict[str, str] = {}
+    # Duplicate goal ids resolve first-path-wins in sorted path order for the
+    # digest, and every file involved is reported as duplicate_goal_id (SPEC-83).
+    paths_by_goal_id: dict[str, list[Path]] = {}
     for path, contract in contracts:
         if contract is None:
             continue
         goal_id = _text(contract.get("id"))
-        if goal_id is not None and goal_id not in digest_by_goal_id:
-            digest_by_goal_id[goal_id] = _file_sha256(path)
+        if goal_id is not None:
+            paths_by_goal_id.setdefault(goal_id, []).append(path)
+    digest_by_goal_id = {
+        goal_id: _file_sha256(paths[0]) for goal_id, paths in paths_by_goal_id.items()
+    }
+    duplicate_goal_ids = {goal_id for goal_id, paths in paths_by_goal_id.items() if len(paths) > 1}
 
     goals: list[dict[str, Any]] = []
     findings: list[dict[str, Any]] = []
@@ -63,6 +69,7 @@ def audit_graph(repo_root: Path | None = None) -> GraphAuditResult:
             root=root,
             event_log=event_log,
             digest_by_goal_id=digest_by_goal_id,
+            duplicate_goal_ids=duplicate_goal_ids,
         )
         goals.append(entry)
         findings.extend(entry_findings)
@@ -97,6 +104,7 @@ def _audit_goal(
     root: Path,
     event_log: Path,
     digest_by_goal_id: dict[str, str],
+    duplicate_goal_ids: set[str],
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     rel_path = _relative_path(path, root)
     if contract is None:
@@ -200,6 +208,30 @@ def _audit_goal(
                 digest_by_goal_id=digest_by_goal_id,
             )
         )
+        verbatim_findings = _audit_verbatim_source(
+            intent=intent,
+            goal_id=goal_id,
+            rel_path=rel_path,
+            root=root,
+        )
+        if verbatim_findings:
+            intent_status = "partial"
+            findings.extend(verbatim_findings)
+
+    if goal_id is not None and goal_id in duplicate_goal_ids:
+        if intent_status == "ok":
+            intent_status = "partial"
+        findings.append(
+            _finding(
+                "duplicate_goal_id",
+                goal_id=goal_id,
+                path=rel_path,
+                message=(
+                    f"Goal id {goal_id} is defined by multiple files under docs/goals; "
+                    "the digest resolves first-path-wins in sorted path order."
+                ),
+            )
+        )
 
     receipts, last_outcome_class = _outcome_counters(
         goal_id=goal_id,
@@ -273,6 +305,63 @@ def _audit_parent_link(
             )
         )
     return findings
+
+
+def _audit_verbatim_source(
+    *,
+    intent: dict[str, Any],
+    goal_id: str | None,
+    rel_path: str,
+    root: Path,
+) -> list[dict[str, Any]]:
+    """Deterministic whitespace-normalized substring check of verbatim against source.
+
+    Audit-level only: a miss is a warning finding (verbatim_not_in_source) and
+    intent status partial, never a lint failure. Missing or non-file source
+    paths are lint's concern and surface through partial_intent; an existing
+    but unreadable source is a distinct unreadable_intent_source finding.
+    """
+    verbatim = _text(intent.get("verbatim"))
+    source = intent.get("source")
+    if verbatim is None or not isinstance(source, dict):
+        return []
+    source_path = _text(source.get("path"))
+    if source_path is None:
+        return []
+    candidate = root / source_path
+    if not candidate.is_file():
+        return []
+    try:
+        content = candidate.read_text(encoding="utf-8")
+    except (OSError, UnicodeDecodeError):
+        return [
+            _finding(
+                "unreadable_intent_source",
+                goal_id=goal_id,
+                path=rel_path,
+                message=(
+                    f"Intent source document could not be read as UTF-8 text; "
+                    f"the verbatim quotation cannot be checked: {source_path}"
+                ),
+            )
+        ]
+    if _normalize_whitespace(verbatim) not in _normalize_whitespace(content):
+        return [
+            _finding(
+                "verbatim_not_in_source",
+                goal_id=goal_id,
+                path=rel_path,
+                message=(
+                    "Intent verbatim quotation was not found in the cited source "
+                    f"document (whitespace-normalized): {source_path}"
+                ),
+            )
+        ]
+    return []
+
+
+def _normalize_whitespace(text: str) -> str:
+    return " ".join(text.split())
 
 
 def _outcome_counters(

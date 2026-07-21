@@ -34,4 +34,5 @@ Initial SPEC-81 hints:
 
 Common error codes such as `missing_evidence_path`, `stale_evidence_plan`, `no_ready_goal`,
 and `unratified_root_goal` (SPEC-83: `dp goal claim`/`start` refuse an agent-proposed root
-until the owner ratifies it) are explained through the same command.
+until the owner ratifies it, e.g. via `dp goal ratify`) are explained through the same
+command.

@@ -71,11 +71,14 @@ Rules:
 1. `authorship` is one of `owner`, `agent_derived`, `owner_ratified`. It is a declaration;
    lint cannot machine-verify who authored the source document.
 2. `source.path` must be an existing repo-relative file (not a directory, not the goal file
-   itself). `verbatim` is not checked against the source content.
+   itself). `verbatim` is not checked against the source content by lint; `dp graph audit`
+   substring-matches the whitespace-normalized quotation against the source and reports a
+   miss as `verbatim_not_in_source` (warning, never a lint failure).
 3. Root goals set `parent: null`. A root with `agent_derived` authorship lints clean as a
    proposed root, but `dp goal claim` and `dp goal start` refuse it (`unratified_root_goal`)
-   until the owner sets authorship to `owner` or `owner_ratified`. Non-root parents name
-   `goal` and `contribution`.
+   until the owner ratifies it — `dp goal ratify <goal.json> --json` flips authorship to
+   `owner_ratified` and appends a `ratified` event — or sets authorship to `owner` or
+   `owner_ratified` directly. Non-root parents name `goal` and `contribution`.
 4. `parent.residual` and `defeaters` are audit-only when absent: omitting them (or setting
    them null) passes lint, and `dp graph audit` reports `missing_residual` /
    `missing_defeaters` warnings. A present residual must be a non-empty string; a present

@@ -8,6 +8,13 @@ from dp.cli.main import main
 from dp.core.intent_graph import goal_file_digest
 
 STALE_DIGEST = "sha256:" + "0" * 64
+VERBATIM = "Local-first agents should serve stated owner outcomes."
+VISION_WITH_VERBATIM = f"# Vision\n\n{VERBATIM}\n"
+
+
+def _write_vision(tmp_path: Path, content: str = VISION_WITH_VERBATIM) -> None:
+    (tmp_path / "docs").mkdir(exist_ok=True)
+    (tmp_path / "docs/vision.md").write_text(content, encoding="utf-8")
 
 
 def _intent(
@@ -19,7 +26,7 @@ def _intent(
     return {
         "authorship": authorship,
         "source": {"path": "docs/vision.md"},
-        "verbatim": "Local-first agents should serve stated owner outcomes.",
+        "verbatim": VERBATIM,
         "parent": parent,
         "defeaters": (
             defeaters
@@ -41,8 +48,7 @@ def _write_goal(tmp_path: Path, name: str, payload: dict[str, Any]) -> Path:
 
 
 def _write_fixture_tree(tmp_path: Path) -> None:
-    (tmp_path / "docs").mkdir(exist_ok=True)
-    (tmp_path / "docs/vision.md").write_text("# Vision\n", encoding="utf-8")
+    _write_vision(tmp_path)
 
     root_path = _write_goal(
         tmp_path,
@@ -242,8 +248,7 @@ def test_graph_audit_reports_malformed_parent_snapshot_distinctly_from_stale(
     monkeypatch,
     capsys,
 ) -> None:
-    (tmp_path / "docs").mkdir()
-    (tmp_path / "docs/vision.md").write_text("# Vision\n", encoding="utf-8")
+    _write_vision(tmp_path)
     _write_goal(
         tmp_path,
         "GOAL-ROOT.json",
@@ -285,8 +290,7 @@ def test_graph_audit_flags_partial_intent_blocks(
     monkeypatch,
     capsys,
 ) -> None:
-    (tmp_path / "docs").mkdir()
-    (tmp_path / "docs/vision.md").write_text("# Vision\n", encoding="utf-8")
+    _write_vision(tmp_path)
     broken_intent = _intent()
     broken_intent["verbatim"] = ""
     _write_goal(
@@ -310,8 +314,7 @@ def test_graph_audit_reports_hollow_defeaters_as_partial_intent_not_missing(
     capsys,
 ) -> None:
     """Present-but-hollow defeaters are a lint failure, not the tolerated absence."""
-    (tmp_path / "docs").mkdir()
-    (tmp_path / "docs/vision.md").write_text("# Vision\n", encoding="utf-8")
+    _write_vision(tmp_path)
     _write_goal(
         tmp_path,
         "GOAL-HOLLOW.json",
@@ -359,3 +362,138 @@ def test_graph_audit_on_empty_repo_reports_no_goals(
 
     assert exit_code == 0
     assert payload["summary"] == {"goals": 0, "findings": 0, "with_intent": 0}
+
+
+def test_graph_audit_accepts_verbatim_found_in_source(
+    tmp_path: Path,
+    monkeypatch,
+    capsys,
+) -> None:
+    _write_vision(tmp_path)
+    _write_goal(
+        tmp_path,
+        "GOAL-QUOTED.json",
+        {"schema_version": "0.1", "id": "GOAL-QUOTED", "intent": _intent()},
+    )
+    monkeypatch.chdir(tmp_path)
+
+    exit_code, payload = _audit(capsys)
+
+    assert exit_code == 0
+    assert payload["goals"][0]["findings"] == []
+    assert payload["goals"][0]["intent_status"] == "ok"
+
+
+def test_graph_audit_reports_verbatim_not_in_source(
+    tmp_path: Path,
+    monkeypatch,
+    capsys,
+) -> None:
+    """A quotation the cited source does not contain is an audit warning, not a gate."""
+    _write_vision(tmp_path, "# Vision\n\nEntirely different owner words.\n")
+    _write_goal(
+        tmp_path,
+        "GOAL-MISQUOTE.json",
+        {"schema_version": "0.1", "id": "GOAL-MISQUOTE", "intent": _intent()},
+    )
+    monkeypatch.chdir(tmp_path)
+
+    exit_code, payload = _audit(capsys)
+
+    assert exit_code == 0
+    assert payload["goals"][0]["findings"] == ["verbatim_not_in_source"]
+    assert payload["goals"][0]["intent_status"] == "partial"
+    finding = payload["findings"][0]
+    assert finding["code"] == "verbatim_not_in_source"
+    assert finding["goal_id"] == "GOAL-MISQUOTE"
+    assert "docs/vision.md" in finding["message"]
+
+
+def test_graph_audit_matches_verbatim_across_whitespace_differences(
+    tmp_path: Path,
+    monkeypatch,
+    capsys,
+) -> None:
+    """Runs of whitespace collapse on both sides before the substring match."""
+    _write_vision(
+        tmp_path,
+        "# Vision\n\nLocal-first agents\n  should   serve\nstated owner outcomes.\n",
+    )
+    intent = _intent()
+    intent["verbatim"] = "Local-first   agents should serve\nstated owner outcomes."
+    _write_goal(
+        tmp_path,
+        "GOAL-WRAPPED.json",
+        {"schema_version": "0.1", "id": "GOAL-WRAPPED", "intent": intent},
+    )
+    monkeypatch.chdir(tmp_path)
+
+    exit_code, payload = _audit(capsys)
+
+    assert exit_code == 0
+    assert payload["goals"][0]["findings"] == []
+    assert payload["goals"][0]["intent_status"] == "ok"
+
+
+def test_graph_audit_reports_unreadable_source_distinctly(
+    tmp_path: Path,
+    monkeypatch,
+    capsys,
+) -> None:
+    """An existing but non-UTF-8 source cannot corroborate the quotation."""
+    (tmp_path / "docs").mkdir()
+    (tmp_path / "docs/vision.md").write_bytes(b"\xff\xfe\x00\x00binary")
+    _write_goal(
+        tmp_path,
+        "GOAL-BINARY.json",
+        {"schema_version": "0.1", "id": "GOAL-BINARY", "intent": _intent()},
+    )
+    monkeypatch.chdir(tmp_path)
+
+    exit_code, payload = _audit(capsys)
+
+    assert exit_code == 0
+    assert payload["goals"][0]["findings"] == ["unreadable_intent_source"]
+    assert payload["goals"][0]["intent_status"] == "partial"
+    assert "verbatim_not_in_source" not in {
+        finding["code"] for finding in payload["findings"]
+    }
+
+
+def test_graph_audit_reports_duplicate_goal_ids_on_all_files_involved(
+    tmp_path: Path,
+    monkeypatch,
+    capsys,
+) -> None:
+    """The digest stays first-path-wins, but every file sharing the id is flagged."""
+    _write_vision(tmp_path)
+    _write_goal(
+        tmp_path,
+        "GOAL-A.json",
+        {"schema_version": "0.1", "id": "GOAL-DUP", "intent": _intent()},
+    )
+    _write_goal(
+        tmp_path,
+        "GOAL-B.json",
+        {"schema_version": "0.1", "id": "GOAL-DUP", "intent": _intent()},
+    )
+    monkeypatch.chdir(tmp_path)
+
+    exit_code, payload = _audit(capsys)
+
+    assert exit_code == 0
+    assert [goal["findings"] for goal in payload["goals"]] == [
+        ["duplicate_goal_id"],
+        ["duplicate_goal_id"],
+    ]
+    assert [goal["intent_status"] for goal in payload["goals"]] == ["partial", "partial"]
+    duplicate_findings = [
+        finding
+        for finding in payload["findings"]
+        if finding["code"] == "duplicate_goal_id"
+    ]
+    assert {finding["path"] for finding in duplicate_findings} == {
+        "docs/goals/GOAL-A.json",
+        "docs/goals/GOAL-B.json",
+    }
+    assert all(finding["goal_id"] == "GOAL-DUP" for finding in duplicate_findings)

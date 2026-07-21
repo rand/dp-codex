@@ -332,13 +332,17 @@ ERROR_ALIASES: dict[str, HintDefinition] = {
         severity="error",
         summary=(
             "Agent-proposed root goal awaits owner ratification: "
-            "set authorship to owner_ratified."
+            "run dp goal ratify to set authorship to owner_ratified."
         ),
         why_it_matters=(
             "A root goal declares whose intent all descendants serve; an agent must "
             "not pursue a root intent no owner has ratified."
         ),
         next_actions=(
+            _action(
+                "dp goal ratify <goal.json> --json",
+                "Owner ratifies the root: flips authorship and records the event.",
+            ),
             _action(
                 "dp graph audit --json",
                 "List unratified roots awaiting owner review.",
