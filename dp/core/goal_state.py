@@ -367,9 +367,17 @@ def outcome_goal(
     ref: str,
     event_log: Path = DEFAULT_GOAL_EVENT_LOG,
 ) -> GoalCommandResult:
-    lint_result = lint_goal_file(goal_path)
-    if lint_result.exit_code != 0:
-        return _lint_failure_payload("goal.outcome", lint_result.report, lint_result.exit_code)
+    """Record real-world outcome contact with minimal goal validation.
+
+    Deliberately does not run full goal lint: outcome recording is the
+    zero-friction path and must work on historical goals that predate current
+    lint levels (for example intent-less goals). The goal file only has to
+    parse as a JSON object carrying a non-empty id.
+    """
+    goal_identity = _minimal_goal_identity("goal.outcome", goal_path)
+    if isinstance(goal_identity, GoalCommandResult):
+        return goal_identity
+    goal_id = goal_identity
     if outcome_class not in KNOWN_OUTCOME_CLASSES:
         return _usage_error(
             "goal.outcome",
@@ -386,7 +394,6 @@ def outcome_goal(
         )
 
     now = _utc_now()
-    goal_id = _require_goal_id(lint_result.report)
     event = _base_event(
         "outcome_contact",
         goal_id=goal_id,
@@ -413,6 +420,89 @@ def outcome_goal(
             "message": (
                 "Outcome contact recorded; outcomes settle value claims and can revoke "
                 "done-as-verified, never bless failing verification."
+            ),
+            **state.to_dict(),
+        },
+        exit_code=0,
+    )
+
+
+def ratify_goal(
+    goal_path: Path,
+    *,
+    event_log: Path = DEFAULT_GOAL_EVENT_LOG,
+) -> GoalCommandResult:
+    """Ratify an agent-proposed root goal as an explicit, durable event.
+
+    Applies only to a proposed root: intent.parent null with authorship
+    agent_derived. The command performs exactly one goal-file mutation —
+    flipping intent.authorship to owner_ratified, written with the repo's
+    goal-file convention (json.dumps indent=2, sorted keys, trailing
+    newline) — and appends a ratified event carrying goal_sha256, the digest
+    of the post-edit goal file.
+    """
+    lint_result = lint_goal_file(goal_path)
+    if lint_result.exit_code != 0:
+        return _lint_failure_payload("goal.ratify", lint_result.report, lint_result.exit_code)
+
+    goal_id = _require_goal_id(lint_result.report)
+    contract = _read_json_object(goal_path)
+    if not is_unratified_agent_root(contract):
+        state = reconstruct_goal_state(
+            goal_id=goal_id,
+            goal_path=goal_path,
+            event_log=event_log,
+            now=_utc_now(),
+        )
+        return GoalCommandResult(
+            payload={
+                "ok": False,
+                "command": "goal.ratify",
+                "error": {
+                    "code": "not_agent_proposed_root",
+                    "path": "$.intent.authorship",
+                    "message": (
+                        "Ratification applies only to agent-proposed root goals: "
+                        "intent.parent null with authorship agent_derived."
+                    ),
+                },
+                **state.to_dict(),
+            },
+            exit_code=1,
+        )
+
+    # is_unratified_agent_root guarantees intent is a dict.
+    contract["intent"]["authorship"] = "owner_ratified"
+    goal_path.write_text(
+        json.dumps(contract, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    now = _utc_now()
+    goal_sha256 = _file_sha256(goal_path)
+    event = _base_event(
+        "ratified",
+        goal_id=goal_id,
+        goal_path=goal_path,
+        timestamp=now,
+        goal_sha256=goal_sha256,
+    )
+    append_result = append_jsonl_event(event_log, event)
+    state = reconstruct_goal_state(
+        goal_id=goal_id,
+        goal_path=goal_path,
+        event_log=event_log,
+        now=now,
+    )
+    return GoalCommandResult(
+        payload={
+            "ok": True,
+            "command": "goal.ratify",
+            "event_log": append_result.path,
+            "authorship": "owner_ratified",
+            "goal_sha256": goal_sha256,
+            "message": (
+                "Root goal ratified: authorship set to owner_ratified; claim and start now proceed."
             ),
             **state.to_dict(),
         },
@@ -793,6 +883,48 @@ def _refuse_unratified_root(
         },
         exit_code=1,
     )
+
+
+def _minimal_goal_identity(command: str, goal_path: Path) -> str | GoalCommandResult:
+    """Minimal goal validation: the file parses as a JSON object with a non-empty id.
+
+    Used by outcome recording, which must stay zero-friction on historical
+    goals that would fail full lint.
+    """
+    try:
+        raw = goal_path.read_text(encoding="utf-8")
+    except OSError:
+        return _usage_error(
+            command,
+            "missing_file",
+            "$",
+            f"Goal contract file not found: {goal_path.as_posix()}",
+        )
+    try:
+        payload = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        return _usage_error(
+            command,
+            "malformed_json",
+            "$",
+            f"Goal contract is not valid JSON: line {exc.lineno} column {exc.colno}.",
+        )
+    if not isinstance(payload, dict):
+        return _usage_error(
+            command,
+            "json_object_required",
+            "$",
+            "Goal contract must be a JSON object.",
+        )
+    goal_id = _non_empty_string(payload.get("id"))
+    if goal_id is None:
+        return _usage_error(
+            command,
+            "missing_id",
+            "$.id",
+            "Goal must define a non-empty id.",
+        )
+    return goal_id
 
 
 def _usage_error(command: str, code: str, path: str, message: str) -> GoalCommandResult:

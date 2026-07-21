@@ -128,6 +128,87 @@ def test_goal_outcome_appends_event_and_resets_receipts_counter(
     assert status["last_outcome"]["class"] == "useful"
 
 
+def test_goal_outcome_records_on_intent_less_minimal_goal(
+    tmp_path: Path,
+    monkeypatch,
+    capsys,
+) -> None:
+    """Outcome recording is the zero-friction path: no full lint, only a parseable id.
+
+    Historical goals that predate current lint levels (intent-less, no
+    schema_version) must still accept outcome contact.
+    """
+    (tmp_path / "goal.json").write_text(
+        json.dumps({"id": "GOAL-HISTORICAL"}), encoding="utf-8"
+    )
+    monkeypatch.chdir(tmp_path)
+
+    exit_code = main(
+        [
+            "goal",
+            "outcome",
+            "goal.json",
+            "--class",
+            "not_useful",
+            "--ref",
+            "docs/outcomes/log.md#7",
+            "--json",
+        ]
+    )
+    payload = json.loads(capsys.readouterr().out)
+
+    assert exit_code == 0
+    assert payload["ok"] is True
+    assert payload["goal_id"] == "GOAL-HISTORICAL"
+    assert payload["last_outcome"]["class"] == "not_useful"
+
+    events = [
+        json.loads(line)
+        for line in (tmp_path / ".dp/goals/events.jsonl")
+        .read_text(encoding="utf-8")
+        .splitlines()
+    ]
+    assert [event["event"] for event in events] == ["outcome_contact"]
+    assert events[0]["goal_id"] == "GOAL-HISTORICAL"
+    assert events[0]["goal_sha256"].startswith("sha256:")
+
+
+def test_goal_outcome_still_requires_a_parseable_goal_object(
+    tmp_path: Path,
+    monkeypatch,
+    capsys,
+) -> None:
+    (tmp_path / "goal.json").write_text("not json", encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+
+    exit_code = main(
+        ["goal", "outcome", "goal.json", "--class", "useful", "--ref", "x", "--json"]
+    )
+
+    assert exit_code == 2
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["error"]["code"] == "malformed_json"
+    assert not (tmp_path / ".dp/goals/events.jsonl").exists()
+
+
+def test_goal_outcome_still_requires_a_goal_id(
+    tmp_path: Path,
+    monkeypatch,
+    capsys,
+) -> None:
+    (tmp_path / "goal.json").write_text(json.dumps({"title": "no id"}), encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+
+    exit_code = main(
+        ["goal", "outcome", "goal.json", "--class", "useful", "--ref", "x", "--json"]
+    )
+
+    assert exit_code == 2
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["error"]["code"] == "missing_id"
+    assert not (tmp_path / ".dp/goals/events.jsonl").exists()
+
+
 def test_goal_outcome_rejects_unknown_class(tmp_path: Path, monkeypatch, capsys) -> None:
     _write_verifiable_goal_and_plan(tmp_path)
     monkeypatch.chdir(tmp_path)

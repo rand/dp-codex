@@ -8,6 +8,7 @@ import pytest
 
 from dp.cli.main import main
 from dp.core.hints import explain_code
+from dp.core.intent_graph import goal_file_digest
 
 BASE_GOAL = Path(__file__).parent / "fixtures/goals/valid_spec_70_01.json"
 
@@ -117,3 +118,89 @@ def test_unratified_root_goal_error_code_is_explained() -> None:
     assert exit_code == 0
     assert payload["code"] == "unratified_root_goal"
     assert "owner_ratified" in payload["summary"]
+    assert any("dp goal ratify" in action["command"] for action in payload["next_actions"])
+
+
+def _read_events(tmp_path: Path) -> list[dict[str, Any]]:
+    return [
+        json.loads(line)
+        for line in (tmp_path / ".dp/goals/events.jsonl").read_text(encoding="utf-8").splitlines()
+    ]
+
+
+def test_ratify_flips_authorship_appends_event_and_unblocks_claim(
+    tmp_path: Path,
+    monkeypatch,
+    capsys,
+) -> None:
+    goal_path = _write_goal(tmp_path, authorship="agent_derived")
+    before = json.loads(goal_path.read_text(encoding="utf-8"))
+    monkeypatch.chdir(tmp_path)
+
+    exit_code = main(["goal", "ratify", "goal.json", "--json"])
+    payload = json.loads(capsys.readouterr().out)
+
+    assert exit_code == 0
+    assert payload["ok"] is True
+    assert payload["command"] == "goal.ratify"
+    assert payload["authorship"] == "owner_ratified"
+
+    after = json.loads(goal_path.read_text(encoding="utf-8"))
+    assert after["intent"]["authorship"] == "owner_ratified"
+    # The exact single-field mutation: everything else is untouched.
+    before["intent"]["authorship"] = "owner_ratified"
+    assert after == before
+
+    ratified_events = [event for event in _read_events(tmp_path) if event["event"] == "ratified"]
+    assert len(ratified_events) == 1
+    assert ratified_events[0]["goal_id"] == after["id"]
+    assert ratified_events[0]["goal_sha256"] == payload["goal_sha256"]
+    assert ratified_events[0]["goal_sha256"] == goal_file_digest(goal_path)
+
+    claim_exit = main(["goal", "claim", "goal.json", "--agent", "codex", "--json"])
+    claim_payload = json.loads(capsys.readouterr().out)
+    assert claim_exit == 0
+    assert claim_payload["state"] == "claimed"
+
+
+def test_ratify_refuses_an_already_ratified_root(
+    tmp_path: Path,
+    monkeypatch,
+    capsys,
+) -> None:
+    goal_path = _write_goal(tmp_path, authorship="owner_ratified")
+    original = goal_path.read_text(encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+
+    exit_code = main(["goal", "ratify", "goal.json", "--json"])
+    payload = json.loads(capsys.readouterr().out)
+
+    assert exit_code == 1
+    assert payload["ok"] is False
+    assert payload["error"]["code"] == "not_agent_proposed_root"
+    assert goal_path.read_text(encoding="utf-8") == original
+    assert not (tmp_path / ".dp/goals/events.jsonl").exists()
+
+
+def test_ratify_refuses_a_non_root_goal(
+    tmp_path: Path,
+    monkeypatch,
+    capsys,
+) -> None:
+    goal_path = _write_goal(tmp_path, authorship="agent_derived")
+    goal = json.loads(goal_path.read_text(encoding="utf-8"))
+    goal["intent"]["parent"] = {
+        "goal": "GOAL-ROOT",
+        "contribution": "Serves the root outcome.",
+    }
+    goal_path.write_text(json.dumps(goal), encoding="utf-8")
+    original = goal_path.read_text(encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+
+    exit_code = main(["goal", "ratify", "goal.json", "--json"])
+    payload = json.loads(capsys.readouterr().out)
+
+    assert exit_code == 1
+    assert payload["error"]["code"] == "not_agent_proposed_root"
+    assert goal_path.read_text(encoding="utf-8") == original
+    assert not (tmp_path / ".dp/goals/events.jsonl").exists()

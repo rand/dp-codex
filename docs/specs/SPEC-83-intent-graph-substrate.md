@@ -22,7 +22,8 @@ This spec covers the intent-graph capability level of dp-codex:
 3. Intent re-injection at claim, start, agent launch, and agent bootstrap.
 4. The repeated-block hint.
 5. `dp graph audit` drift reporting.
-6. Adoption gating behind the `docs/reference/intent-graph.md` marker.
+6. Root ratification as a durable event (`dp goal ratify`).
+7. Adoption gating behind the `docs/reference/intent-graph.md` marker.
 
 ## Adoption Level
 
@@ -102,6 +103,13 @@ ratifies it:
    authorship to owner_ratified." Claim and start proceed once authorship is `owner` or
    `owner_ratified`.
 2. `dp graph audit` lists them as `unratified_root` findings (reporting only; exit 0).
+3. `dp goal ratify <goal.json> --json` records ratification as an event. It refuses any goal
+   that is not an unratified agent-proposed root (`not_agent_proposed_root`, exit 1) —
+   including non-root goals and already-ratified roots. On success it performs exactly one
+   goal-file mutation, flipping `intent.authorship` to `owner_ratified` (rewritten with the
+   repo goal-file convention: `json.dumps` indent 2, sorted keys, trailing newline), and
+   appends a `ratified` event carrying `goal_sha256`, the digest of the post-edit goal file.
+   The `ratified` event is orthogonal to lifecycle state, like `outcome_contact`.
 
 ## Outcome Contact
 
@@ -122,6 +130,10 @@ file at recording time.
    claims, outcomes settle them. The supremacy is scoped: outcome signals settle value
    claims and can always revoke done-as-verified, but a useful outcome cannot bless failing
    verification. Each authority rules its own claim type.
+5. Outcome recording runs minimal validation only: the goal file must parse as a JSON object
+   carrying a non-empty `id`; nothing else. Full goal lint is deliberately not run, so
+   outcomes stay zero-friction on historical goals — including intent-less ones — that would
+   fail the current lint level.
 
 ## Re-Injection Points
 
@@ -142,7 +154,8 @@ is a nudge in the response envelope, not a gate.
 `last_outcome_class`, and the parent goal id. Finding codes: `malformed_goal`,
 `missing_intent`, `partial_intent`, `missing_residual`, `missing_defeaters`,
 `unratified_root`, `unknown_parent_goal`, `invalid_parent_snapshot`,
-`stale_parent_snapshot`.
+`stale_parent_snapshot`, `verbatim_not_in_source`, `unreadable_intent_source`,
+`duplicate_goal_id`.
 
 1. `missing_residual` and `missing_defeaters` are warning findings for the audit-only fields
    the lint tolerates as absent; a goal carrying either reports intent status `partial`.
@@ -153,10 +166,20 @@ is a nudge in the response envelope, not a gate.
    distinct `invalid_parent_snapshot` finding, never reported as stale. Compute snapshots with
    `goal_file_digest` (`dp.core.intent_graph`) over the parent goal file.
 4. Staleness compares a well-formed snapshot against the parent goal file's current digest.
-5. Duplicate goal ids resolve first-path-wins: the first file in sorted path order under
-   `docs/goals` defines the digest for that goal id; later duplicates are audited as goals but
-   do not redefine the id.
-6. The audit reports drift; it does not gate. Exit code is always 0.
+5. Duplicate goal ids resolve first-path-wins for the digest: the first file in sorted path
+   order under `docs/goals` defines the digest for that goal id; later duplicates do not
+   redefine it. Every file involved in a duplicate id is reported with a `duplicate_goal_id`
+   finding, and an otherwise-`ok` intent status drops to `partial`.
+6. When an intent block carries both a `verbatim` quotation and a `source.path` that resolves
+   to an existing file, the audit checks the quotation against the source content:
+   whitespace is normalized on both sides (runs of whitespace collapse to single spaces,
+   ends stripped) and the quotation must appear as a substring. A miss is a
+   `verbatim_not_in_source` warning finding and intent status `partial` — an audit signal,
+   never a lint failure. The check is deterministic and calls no LLM. A source file that
+   exists but cannot be read as UTF-8 text is the distinct `unreadable_intent_source`
+   finding; missing or non-file source paths remain lint findings surfaced via
+   `partial_intent`.
+7. The audit reports drift; it does not gate. Exit code is always 0.
 
 ## Trust Limits
 
@@ -164,12 +187,23 @@ The substrate makes intent visible and auditable; it is not tamper-proof.
 
 1. `source.path` validation is existence plus file-only. Owner-authorship of the cited
    document cannot be machine-verified; it is self-declared via `authorship`.
-2. `verbatim` is not checked against the source document content; a quotation can be wrong or
-   fabricated and still lint clean.
-3. All lifecycle events, including `outcome_contact`, are forgeable in the local-first trust
-   model: the event log is plain JSONL with no signatures.
-4. `dp goal outcome` deliberately requires no active claim: the owner records contact without
-   a lease.
+2. `verbatim` is not checked against the source document by lint; `dp graph audit` performs a
+   whitespace-normalized substring check (`verbatim_not_in_source`), which proves only that
+   the words appear in the cited document — not their provenance or context. A quotation
+   pasted into the source still passes, and a lint-clean goal can carry a fabricated quote
+   until the audit runs.
+3. All lifecycle events, including `outcome_contact` and `ratified`, are forgeable in the
+   local-first trust model: the event log is plain JSONL with no signatures.
+4. `dp goal outcome` deliberately requires no active claim and no full lint: the owner
+   records contact without a lease, and the goal file only has to parse as a JSON object
+   with an id.
+5. Ratification gates only roots: once a root is ratified, an agent may author
+   `agent_derived` children under it and work them freely — child intent is constrained by
+   lint and audit, not by per-child ratification. This is a deliberate tradeoff.
+6. Outcome confirmation binds to file content digests: reverting a goal file to a
+   previously-confirmed content resurrects the old `useful` confirmation even if a
+   `not_useful` was recorded against the intervening edit. Confirmation is
+   content-addressed, not history-addressed.
 
 ## Invariants
 
@@ -183,9 +217,12 @@ The substrate makes intent visible and auditable; it is not tamper-proof.
 4. Outcome authority is scoped: outcomes settle value claims and can revoke done-as-verified;
    they never bless failing verification.
 5. An unratified agent-proposed root can exist and lint clean but cannot be claimed or
-   started.
-6. Goal lint, outcome recording, re-injection, and graph audit never call an LLM and never
-   execute goal content.
+   started; `dp goal ratify` is the governed transition out of that state and applies to
+   nothing else.
+6. Goal lint, outcome recording, ratification, re-injection, and graph audit never call an
+   LLM and never execute goal content.
+7. Ratification mutates exactly one goal field (`intent.authorship`) and binds the
+   `ratified` event to the post-edit file digest.
 
 ## Proof Obligations
 
@@ -203,9 +240,17 @@ The substrate makes intent visible and auditable; it is not tamper-proof.
 6. Tests cover the marker-only repo neither enforcing intent nor classifying `current_spec83`.
 7. Tests cover graph audit findings, including `invalid_parent_snapshot` as distinct from
    `stale_parent_snapshot`, without gating.
+8. Tests cover the audit verbatim check: an exact match, a miss, a whitespace-differing
+   match, and an unreadable (non-UTF-8) source file.
+9. Tests cover `duplicate_goal_id` reported on every file sharing an id.
+10. Tests cover outcome recording succeeding on an intent-less minimal goal without full
+    lint.
+11. Tests cover ratify: authorship flips, the `ratified` event binds the post-edit digest,
+    claim proceeds afterwards, and non-root or already-ratified goals are refused.
 
 ## Non-Goals
 
-SPEC-83.01 does not verify authorship or quotation fidelity, does not sign or protect the
-event log against tampering, does not gate on outcome contact, and does not add remote or
-hosted intent services.
+SPEC-83.01 does not verify authorship, checks quotation fidelity only as whitespace-normalized
+substring presence (audit warning, never a gate), does not sign or protect the event log
+against tampering, does not gate on outcome contact, and does not add remote or hosted intent
+services.
