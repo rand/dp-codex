@@ -10,7 +10,8 @@ It reports, cheaply:
 - Beads/doctor health
 - instruction files
 - adoption state
-- campaign artifacts
+- derived active and blocked campaign artifacts (verified/draft history and
+  invalid sidecars are excluded from routing; full detail reports them separately)
 - active or stale goal lease, when discoverable
 - next safe actions
 - relevant hints and expansion commands

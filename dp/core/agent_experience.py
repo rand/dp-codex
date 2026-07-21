@@ -22,6 +22,7 @@ from dp.core.agent_response import (
     expansion,
     next_action,
 )
+from dp.core.campaign_manifest import campaign_status
 from dp.core.evidence_lint import lint_evidence_file
 from dp.core.evidence_run import run_evidence_file
 from dp.core.goal_lint import lint_goal_file
@@ -785,7 +786,7 @@ def _bootstrap_summary(
     lease: dict[str, Any] | None,
 ) -> str:
     health = "dp workflow health is ok" if doctor_ok else "dp workflow health needs attention"
-    campaign_count = len(campaigns.get("active", []))
+    campaign_count = len(campaigns.get("active", [])) + len(campaigns.get("blocked", []))
     lease_text = "an active goal lease exists" if lease else "no active goal lease found"
     return f"{health}. Adoption is {adoption_state}. {campaign_count} campaign(s); {lease_text}."
 
@@ -807,15 +808,15 @@ def _bootstrap_next_actions(
             "Inspect command affordances and side effects.",
         ),
     ]
-    active = campaigns.get("active", [])
-    if active:
-        first_campaign = str(active[0])
+    actionable = campaigns.get("active", []) or campaigns.get("blocked", [])
+    if actionable:
+        first_campaign = str(actionable[0])
         actions.insert(
             0,
             next_action(
                 "recover_campaign",
                 f"dp campaign status {first_campaign} --json --detail brief",
-                "Recover campaign state before claiming work.",
+                "Recover active or blocked campaign state before claiming work.",
             ),
         )
     elif adoption_state not in {"current_spec81", "current_spec83"}:
@@ -842,7 +843,11 @@ def _bootstrap_artifacts(root: Path, campaigns: dict[str, Any]) -> list[dict[str
     artifacts = []
     if (root / "dp-policy.json").exists():
         artifacts.append(artifact("policy", "dp-policy.json"))
-    for campaign in campaigns.get("active", [])[:2]:
+    actionable = [
+        *campaigns.get("active", []),
+        *campaigns.get("blocked", []),
+    ]
+    for campaign in actionable[:2]:
         artifacts.append(artifact("campaign", str(campaign)))
     return artifacts
 
@@ -850,17 +855,51 @@ def _bootstrap_artifacts(root: Path, campaigns: dict[str, Any]) -> list[dict[str
 def _campaigns(root: Path, *, detail: str) -> dict[str, Any]:
     campaign_dir = root / "docs/campaigns"
     if not campaign_dir.exists():
-        return {"active": []}
-    active = []
-    details = []
-    for path in sorted(campaign_dir.glob("*.json"))[:20]:
-        rel = path.relative_to(root).as_posix()
-        active.append(rel)
-        if detail == "full":
-            details.append(_read_json_summary(path, rel))
-    payload: dict[str, Any] = {"active": active}
-    if details:
-        payload["details"] = details
+        return {"active": [], "blocked": []}
+    active: list[str] = []
+    blocked: list[str] = []
+    historical: list[str] = []
+    invalid: list[str] = []
+    details: list[dict[str, Any]] = []
+    with _pushd(root):
+        for path in sorted(campaign_dir.glob("*.json")):
+            rel = path.relative_to(root).as_posix()
+            result = campaign_status(path)
+            if result.exit_code != 0:
+                invalid.append(rel)
+                if detail == "full":
+                    error = result.payload.get("error", {})
+                    details.append({
+                        "path": rel,
+                        "classification": "invalid",
+                        "error_code": (
+                            error.get("code") if isinstance(error, dict) else None
+                        ),
+                    })
+                continue
+            derived_status = str(result.payload.get("derived_status") or "draft")
+            if derived_status == "active":
+                active.append(rel)
+                classification = "active"
+            elif derived_status == "blocked":
+                blocked.append(rel)
+                classification = "blocked"
+            else:
+                historical.append(rel)
+                classification = "historical"
+            if detail == "full":
+                details.append({
+                    "path": rel,
+                    "campaign_id": result.payload.get("campaign_id"),
+                    "derived_status": derived_status,
+                    "classification": classification,
+                })
+    payload: dict[str, Any] = {"active": active, "blocked": blocked}
+    if detail == "full":
+        payload["historical"] = historical
+        payload["invalid"] = invalid
+        payload["details"] = details[:40]
+        payload["omitted_detail_count"] = max(0, len(details) - 40)
     return payload
 
 
