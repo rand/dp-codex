@@ -188,6 +188,28 @@ def run_campaign_once(
             exit_code=0,
         )
 
+    if resume is not None and resume.get("action") == "address_not_useful_outcome":
+        return CampaignRunResult(
+            payload={
+                **_base_payload(
+                    driver=driver,
+                    supervised=supervised,
+                    campaign_id=campaign_id,
+                    mode=mode,
+                ),
+                "ok": False,
+                "status": status_result.payload,
+                "next": resume,
+                "resume": resume,
+                "stop_reason": "outcome_not_useful",
+                "stop_conditions": _stop_conditions(),
+                "message": (
+                    "Current not-useful outcome contact requires corrective campaign work."
+                ),
+            },
+            exit_code=1,
+        )
+
     loop_path_result = _current_loop_path(campaign_path)
     if loop_path_result.exit_code != 0:
         return CampaignRunResult(
@@ -320,6 +342,12 @@ def _run_managed_campaign_step(
             "A blocked goal must be routed or resolved before dependent work advances.",
         ),
         "campaign_verified": ("campaign_verified", True, 0, "Campaign current loop is verified."),
+        "address_not_useful_outcome": (
+            "outcome_not_useful",
+            False,
+            1,
+            "Current not-useful outcome contact requires corrective campaign work.",
+        ),
         "no_ready_work": ("no_ready_work", False, 1, "No ready campaign work is available."),
     }
     if action in stop_map:

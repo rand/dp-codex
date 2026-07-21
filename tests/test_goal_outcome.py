@@ -110,6 +110,7 @@ def test_goal_outcome_appends_event_and_resets_receipts_counter(
     assert payload["receipts_since_last_outcome_contact"] == 0
     assert payload["last_outcome"]["class"] == "useful"
     assert payload["last_outcome"]["ref"] == "docs/outcomes/doctor.md#1"
+    assert payload["current_outcome"]["class"] == "useful"
 
     events = [
         json.loads(line)
@@ -329,3 +330,4 @@ def test_goal_verify_outcome_confirmation_expires_when_the_goal_changes(
     (tmp_path / "goal.json").write_text(json.dumps(goal_payload), encoding="utf-8")
 
     assert _verify(run_path, capsys)["outcome_confirmed"] is False
+    assert _status(capsys)["current_outcome"] is None

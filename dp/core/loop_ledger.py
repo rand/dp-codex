@@ -262,6 +262,7 @@ class LoopNodeStatus:
             "lease": self.goal_state.lease,
             "blocked": self.goal_state.blocked,
             "last_event": self.goal_state.last_event,
+            "current_outcome": self.goal_state.current_outcome,
             "evidence_plan": self.node.evidence_plan,
         }
 

@@ -55,6 +55,9 @@ records real-world contact. Each event carries the outcome class, the governed r
    resets to 0 on each contact.
 5. The event log is plain JSONL without signatures; outcome events are auditable, not
    tamper-proof. See `docs/specs/SPEC-83-intent-graph-substrate.md` for trust limits.
+6. Goal status reports `current_outcome` only for the latest outcome contact bound to the current
+   goal digest. An otherwise-verified campaign with a current `not_useful` outcome is derived as
+   active and resumes with `address_not_useful_outcome`; verified evidence remains intact.
 
 The `ratified` event is likewise orthogonal to lifecycle state. `dp goal ratify` applies only
 to an unratified agent-proposed root (`intent.parent: null` with `authorship: agent_derived`;

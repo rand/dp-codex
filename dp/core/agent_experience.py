@@ -1061,6 +1061,7 @@ def _normal_result(command: str, payload: dict[str, Any]) -> dict[str, Any]:
                 "blocked",
                 "receipts_since_last_outcome_contact",
                 "last_outcome",
+                "current_outcome",
             )
             if key in payload
         }
