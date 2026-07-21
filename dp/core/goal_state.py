@@ -10,7 +10,8 @@ from typing import Any
 from dp.core.blocker_routing import route_blocker_artifact
 from dp.core.events import append_jsonl_event, read_jsonl_events
 from dp.core.evidence_lint import lint_evidence_file
-from dp.core.goal_lint import GoalLintReport, lint_goal_file
+from dp.core.goal_lint import GoalLintReport, is_unratified_agent_root, lint_goal_file
+from dp.core.hints import hint_payload
 
 # @trace SPEC-80.02
 GOAL_EVENT_SCHEMA_VERSION = "0.1"
@@ -24,6 +25,10 @@ KNOWN_BLOCK_REASONS = frozenset(
         "budget_exhausted",
     }
 )
+KNOWN_OUTCOME_CLASSES = frozenset({"useful", "mixed", "not_useful"})
+CONFIRMING_OUTCOME_CLASSES = frozenset({"useful", "mixed"})
+RECEIPT_EVENTS = frozenset({"verified"})
+REPEATED_BLOCK_THRESHOLD = 2
 
 
 @dataclass(frozen=True)
@@ -41,6 +46,9 @@ class GoalState:
     lease: dict[str, Any] | None
     blocked: dict[str, Any] | None
     last_event: dict[str, Any] | None
+    receipts_since_last_outcome_contact: int | None = None
+    last_outcome: dict[str, Any] | None = None
+    blocks_since_claim: int = 0
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -51,6 +59,9 @@ class GoalState:
             "lease": self.lease,
             "blocked": self.blocked,
             "last_event": self.last_event,
+            "receipts_since_last_outcome_contact": self.receipts_since_last_outcome_contact,
+            "last_outcome": self.last_outcome,
+            "blocks_since_claim": self.blocks_since_claim,
         }
 
 
@@ -67,6 +78,7 @@ def goal_status(goal_path: Path, *, event_log: Path = DEFAULT_GOAL_EVENT_LOG) ->
         now=_utc_now(),
     )
     payload = {"ok": True, "command": "goal.status", **state.to_dict()}
+    _apply_repeated_block_hint(payload, state)
     return GoalCommandResult(payload=payload, exit_code=0)
 
 
@@ -96,6 +108,9 @@ def claim_goal(
         event_log=event_log,
         now=now,
     )
+    refusal = _refuse_unratified_root("goal.claim", goal_path=goal_path, state=state)
+    if refusal is not None:
+        return refusal
     active_holder = _active_lease_holder(state)
     if active_holder is not None and active_holder != agent:
         payload = {
@@ -124,15 +139,14 @@ def claim_goal(
         event_log=event_log,
         now=now,
     )
-    return GoalCommandResult(
-        payload={
-            "ok": True,
-            "command": "goal.claim",
-            "event_log": append_result.path,
-            **state.to_dict(),
-        },
-        exit_code=0,
-    )
+    payload = {
+        "ok": True,
+        "command": "goal.claim",
+        "event_log": append_result.path,
+        **state.to_dict(),
+    }
+    _apply_intent_reinjection(payload, goal_path)
+    return GoalCommandResult(payload=payload, exit_code=0)
 
 
 def start_goal(
@@ -155,6 +169,9 @@ def start_goal(
         event_log=event_log,
         now=now,
     )
+    refusal = _refuse_unratified_root("goal.start", goal_path=goal_path, state=state)
+    if refusal is not None:
+        return refusal
     active_holder = _active_lease_holder(state)
     if active_holder is not None and active_holder != agent:
         return GoalCommandResult(
@@ -178,15 +195,14 @@ def start_goal(
         event_log=event_log,
         now=now,
     )
-    return GoalCommandResult(
-        payload={
-            "ok": True,
-            "command": "goal.start",
-            "event_log": append_result.path,
-            **state.to_dict(),
-        },
-        exit_code=0,
-    )
+    payload = {
+        "ok": True,
+        "command": "goal.start",
+        "event_log": append_result.path,
+        **state.to_dict(),
+    }
+    _apply_intent_reinjection(payload, goal_path)
+    return GoalCommandResult(payload=payload, exit_code=0)
 
 
 def heartbeat_goal(
@@ -294,6 +310,7 @@ def block_goal(
         "event_log": append_result.path,
         **state.to_dict(),
     }
+    _apply_repeated_block_hint(payload, state)
     if routing_result is not None:
         payload["routing"] = routing_result.routing
         if routing_result.error is not None:
@@ -337,6 +354,156 @@ def release_goal(
             "ok": True,
             "command": "goal.release",
             "event_log": append_result.path,
+            **state.to_dict(),
+        },
+        exit_code=0,
+    )
+
+
+def outcome_goal(
+    goal_path: Path,
+    *,
+    outcome_class: str,
+    ref: str,
+    event_log: Path = DEFAULT_GOAL_EVENT_LOG,
+) -> GoalCommandResult:
+    """Record real-world outcome contact with minimal goal validation.
+
+    Deliberately does not run full goal lint: outcome recording is the
+    zero-friction path and must work on historical goals that predate current
+    lint levels (for example intent-less goals). The goal file only has to
+    parse as a JSON object carrying a non-empty id.
+    """
+    goal_identity = _minimal_goal_identity("goal.outcome", goal_path)
+    if isinstance(goal_identity, GoalCommandResult):
+        return goal_identity
+    goal_id = goal_identity
+    if outcome_class not in KNOWN_OUTCOME_CLASSES:
+        return _usage_error(
+            "goal.outcome",
+            "unknown_outcome_class",
+            "$.class",
+            "Outcome class must be one of: mixed, not_useful, useful.",
+        )
+    if not ref.strip():
+        return _usage_error(
+            "goal.outcome",
+            "outcome_ref_required",
+            "$.ref",
+            "Outcome contact requires a governed ref recording where the signal lives.",
+        )
+
+    now = _utc_now()
+    event = _base_event(
+        "outcome_contact",
+        goal_id=goal_id,
+        goal_path=goal_path,
+        timestamp=now,
+    )
+    event["class"] = outcome_class
+    event["ref"] = ref.strip()
+    event["goal_sha256"] = _file_sha256(goal_path)
+    append_result = append_jsonl_event(event_log, event)
+    state = reconstruct_goal_state(
+        goal_id=goal_id,
+        goal_path=goal_path,
+        event_log=event_log,
+        now=now,
+    )
+    return GoalCommandResult(
+        payload={
+            "ok": True,
+            "command": "goal.outcome",
+            "event_log": append_result.path,
+            "outcome_class": outcome_class,
+            "ref": ref.strip(),
+            "message": (
+                "Outcome contact recorded; outcomes settle value claims and can revoke "
+                "done-as-verified, never bless failing verification."
+            ),
+            **state.to_dict(),
+        },
+        exit_code=0,
+    )
+
+
+def ratify_goal(
+    goal_path: Path,
+    *,
+    event_log: Path = DEFAULT_GOAL_EVENT_LOG,
+) -> GoalCommandResult:
+    """Ratify an agent-proposed root goal as an explicit, durable event.
+
+    Applies only to a proposed root: intent.parent null with authorship
+    agent_derived. The command performs exactly one goal-file mutation —
+    flipping intent.authorship to owner_ratified, written with the repo's
+    goal-file convention (json.dumps indent=2, sorted keys, trailing
+    newline) — and appends a ratified event carrying goal_sha256, the digest
+    of the post-edit goal file.
+    """
+    lint_result = lint_goal_file(goal_path)
+    if lint_result.exit_code != 0:
+        return _lint_failure_payload("goal.ratify", lint_result.report, lint_result.exit_code)
+
+    goal_id = _require_goal_id(lint_result.report)
+    contract = _read_json_object(goal_path)
+    if not is_unratified_agent_root(contract):
+        state = reconstruct_goal_state(
+            goal_id=goal_id,
+            goal_path=goal_path,
+            event_log=event_log,
+            now=_utc_now(),
+        )
+        return GoalCommandResult(
+            payload={
+                "ok": False,
+                "command": "goal.ratify",
+                "error": {
+                    "code": "not_agent_proposed_root",
+                    "path": "$.intent.authorship",
+                    "message": (
+                        "Ratification applies only to agent-proposed root goals: "
+                        "intent.parent null with authorship agent_derived."
+                    ),
+                },
+                **state.to_dict(),
+            },
+            exit_code=1,
+        )
+
+    # is_unratified_agent_root guarantees intent is a dict.
+    contract["intent"]["authorship"] = "owner_ratified"
+    goal_path.write_text(
+        json.dumps(contract, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    now = _utc_now()
+    goal_sha256 = _file_sha256(goal_path)
+    event = _base_event(
+        "ratified",
+        goal_id=goal_id,
+        goal_path=goal_path,
+        timestamp=now,
+        goal_sha256=goal_sha256,
+    )
+    append_result = append_jsonl_event(event_log, event)
+    state = reconstruct_goal_state(
+        goal_id=goal_id,
+        goal_path=goal_path,
+        event_log=event_log,
+        now=now,
+    )
+    return GoalCommandResult(
+        payload={
+            "ok": True,
+            "command": "goal.ratify",
+            "event_log": append_result.path,
+            "authorship": "owner_ratified",
+            "goal_sha256": goal_sha256,
+            "message": (
+                "Root goal ratified: authorship set to owner_ratified; claim and start now proceed."
+            ),
             **state.to_dict(),
         },
         exit_code=0,
@@ -478,6 +645,11 @@ def verify_goal(
             "evidence_id": evidence_run["evidence_id"],
             "evidence_plan": goal_evidence_plan,
             "evidence_plan_sha256": _file_sha256(evidence_plan_path),
+            "outcome_confirmed": _outcome_confirmed(
+                goal_id=goal_id,
+                goal_path=goal_path,
+                event_log=event_log,
+            ),
             "message": "Evidence run verified; goal state advanced to verified.",
             **state.to_dict(),
         },
@@ -503,10 +675,24 @@ def reconstruct_goal_state(
     state = "ready"
     lease: dict[str, Any] | None = None
     blocked: dict[str, Any] | None = None
+    receipts_since_outcome: int | None = None
+    last_outcome: dict[str, Any] | None = None
+    blocks_since_claim = 0
 
     for event in events:
         event_type = str(event.get("event", ""))
+        if event_type in RECEIPT_EVENTS and receipts_since_outcome is not None:
+            receipts_since_outcome += 1
+        if event_type == "outcome_contact":
+            receipts_since_outcome = 0
+            last_outcome = {
+                "class": event.get("class"),
+                "ref": event.get("ref"),
+                "timestamp": event.get("timestamp"),
+            }
+            continue
         if event_type == "claimed":
+            blocks_since_claim = 0
             expires_at = str(event.get("lease_expires_at", ""))
             stale = _parse_event_time(expires_at) <= effective_now
             lease = {
@@ -525,6 +711,7 @@ def reconstruct_goal_state(
             state = "pursuing"
         elif event_type == "blocked":
             state = "blocked"
+            blocks_since_claim += 1
             blocked = {
                 "reason": event.get("reason"),
                 "timestamp": event.get("timestamp"),
@@ -550,7 +737,80 @@ def reconstruct_goal_state(
         lease=lease,
         blocked=blocked,
         last_event=events[-1] if events else None,
+        receipts_since_last_outcome_contact=receipts_since_outcome,
+        last_outcome=last_outcome,
+        blocks_since_claim=blocks_since_claim,
     )
+
+
+def intent_reinjection(contract: dict[str, Any]) -> dict[str, Any] | None:
+    """Owner-word re-anchoring payload for claim, start, launch, and bootstrap surfaces.
+
+    Returns the goal's intent verbatim quotation, its source citation, and the
+    parent contribution claim exactly as authored — never a paraphrase.
+    """
+    intent = contract.get("intent")
+    if not isinstance(intent, dict):
+        return None
+    payload: dict[str, Any] = {}
+    verbatim = intent.get("verbatim")
+    if isinstance(verbatim, str) and verbatim.strip():
+        payload["verbatim"] = verbatim
+    source = intent.get("source")
+    if isinstance(source, dict):
+        payload["source"] = source
+    parent = intent.get("parent")
+    if isinstance(parent, dict):
+        contribution = parent.get("contribution")
+        if isinstance(contribution, str) and contribution.strip():
+            payload["parent_contribution"] = contribution
+    return payload or None
+
+
+def _apply_intent_reinjection(payload: dict[str, Any], goal_path: Path) -> None:
+    try:
+        contract = _read_json_object(goal_path)
+    except (OSError, ValueError, json.JSONDecodeError):
+        return
+    intent = intent_reinjection(contract)
+    if intent is not None:
+        payload["intent"] = intent
+
+
+def _apply_repeated_block_hint(payload: dict[str, Any], state: GoalState) -> None:
+    if state.blocks_since_claim < REPEATED_BLOCK_THRESHOLD:
+        return
+    hints = payload.setdefault("hints", [])
+    if isinstance(hints, list):
+        hints.append(hint_payload("DP-HINT-GOAL-REPEATED-BLOCKS"))
+
+
+def _outcome_confirmed(
+    *,
+    goal_id: str,
+    goal_path: Path,
+    event_log: Path,
+) -> bool:
+    """An outcome contact confirms only the goal content it was recorded against.
+
+    Latest wins, consistent with last_outcome: the most recent outcome_contact
+    event recorded against the current goal digest decides. A later not_useful
+    on the unchanged goal retracts an earlier confirmation.
+    """
+    try:
+        current_digest = _file_sha256(goal_path)
+    except OSError:
+        return False
+    confirmed = False
+    for event in read_jsonl_events(event_log):
+        if (
+            event.get("goal_id") == goal_id
+            and event.get("schema_version") == GOAL_EVENT_SCHEMA_VERSION
+            and event.get("event") == "outcome_contact"
+            and event.get("goal_sha256") == current_digest
+        ):
+            confirmed = event.get("class") in CONFIRMING_OUTCOME_CLASSES
+    return confirmed
 
 
 def parse_lease_duration(value: str) -> timedelta:
@@ -587,6 +847,84 @@ def _lint_failure_payload(
         },
         exit_code=exit_code,
     )
+
+
+def _refuse_unratified_root(
+    command: str,
+    *,
+    goal_path: Path,
+    state: GoalState,
+) -> GoalCommandResult | None:
+    """Refuse advancing an agent-proposed root goal until the owner ratifies it.
+
+    parent null with agent_derived authorship is lint-legal as a proposed root,
+    but claim and start refuse it: an agent must not pursue a root intent no
+    owner has ratified.
+    """
+    try:
+        contract = _read_json_object(goal_path)
+    except (OSError, ValueError, json.JSONDecodeError):
+        return None
+    if not is_unratified_agent_root(contract):
+        return None
+    return GoalCommandResult(
+        payload={
+            "ok": False,
+            "command": command,
+            "error": {
+                "code": "unratified_root_goal",
+                "path": "$.intent.authorship",
+                "message": (
+                    "Agent-proposed root goal awaits owner ratification: "
+                    "set authorship to owner_ratified."
+                ),
+            },
+            **state.to_dict(),
+        },
+        exit_code=1,
+    )
+
+
+def _minimal_goal_identity(command: str, goal_path: Path) -> str | GoalCommandResult:
+    """Minimal goal validation: the file parses as a JSON object with a non-empty id.
+
+    Used by outcome recording, which must stay zero-friction on historical
+    goals that would fail full lint.
+    """
+    try:
+        raw = goal_path.read_text(encoding="utf-8")
+    except OSError:
+        return _usage_error(
+            command,
+            "missing_file",
+            "$",
+            f"Goal contract file not found: {goal_path.as_posix()}",
+        )
+    try:
+        payload = json.loads(raw)
+    except json.JSONDecodeError as exc:
+        return _usage_error(
+            command,
+            "malformed_json",
+            "$",
+            f"Goal contract is not valid JSON: line {exc.lineno} column {exc.colno}.",
+        )
+    if not isinstance(payload, dict):
+        return _usage_error(
+            command,
+            "json_object_required",
+            "$",
+            "Goal contract must be a JSON object.",
+        )
+    goal_id = _non_empty_string(payload.get("id"))
+    if goal_id is None:
+        return _usage_error(
+            command,
+            "missing_id",
+            "$.id",
+            "Goal must define a non-empty id.",
+        )
+    return goal_id
 
 
 def _usage_error(command: str, code: str, path: str, message: str) -> GoalCommandResult:

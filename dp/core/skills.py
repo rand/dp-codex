@@ -241,7 +241,7 @@ def _failure_recovery_skill() -> str:
         "# DP Failure Recovery\n\n"
         "Respect `AGENTS.md`, nested instructions, the active GoalContract, and existing claims "
         "before acting. A red gate blocks completion, not diagnosis or authorized repair. "
-        "Verification decides done.\n\n"
+        "Proportional verification decides done; verification volume does not.\n\n"
         "## Capture\n\n"
         "Record the exact command, exit code, failed check, branch/HEAD, worktree state, "
         "applicable allowed paths, attempt budget, and failed receipt. Preserve prior evidence.\n\n"

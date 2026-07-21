@@ -51,6 +51,7 @@ def test_instructions_plan_update_does_not_mutate_agents() -> None:
     assert result.payload["would_mutate"] is False
     assert result.payload["changes"][0]["mode"] == "propose"
     preview = result.payload["changes"][0]["patch_preview"]
+    assert "## Outcome and Verification Budget" in preview
     assert "## Recovery and Escalation" in preview
     assert "## Agent Collaboration" in preview
 
@@ -61,6 +62,7 @@ def test_instructions_audit_flags_missing_recovery_and_collaboration_discipline(
     codes = {finding["code"] for finding in result.payload["findings"]}
     assert "instruction_missing_recovery_discipline" in codes
     assert "instruction_missing_collaboration_discipline" in codes
+    assert "instruction_missing_outcome_discipline" in codes
     assert any(
         hint["code"] == "DP-HINT-INSTRUCTIONS-DISCIPLINE-MISSING"
         for hint in result.payload["hints"]

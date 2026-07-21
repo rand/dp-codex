@@ -77,7 +77,7 @@ def test_dp_failure_recovery_skill_preserves_authority_and_verification() -> Non
         "true_blocker",
         "One writer owns one worktree",
         "advisory",
-        "Verification decides done",
+        "Proportional verification decides done",
     ):
         assert required in skill
 
@@ -87,11 +87,14 @@ def test_tracked_global_guidance_contains_recovery_and_collaboration_contract() 
     guidance = _read("docs/examples/codex/global-dp-guidance.md")
 
     for required in (
+        "The objective is a useful outcome in the real system.",
+        "Use the smallest proportional proof",
+        "stop verifying and ship",
         "A failed gate blocks completion, not diagnosis or authorized repair.",
         "Do not repeat an unchanged action",
         "specialist or adversarial agents",
         "External agent output is advisory",
-        "Verification decides done",
+        "Proportional verification decides done",
         "<!-- dp-agent-discipline:v1 -->",
     ):
         assert required in guidance

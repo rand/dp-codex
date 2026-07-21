@@ -13,6 +13,13 @@ AUDIT_SCHEMA_VERSION = "dp.instructions.audit.v1"
 PLAN_SCHEMA_VERSION = "dp.instructions.plan_update.v1"
 OVERSIZED_INSTRUCTION_BYTES = 12_000
 DP_AGENT_DISCIPLINE_MARKER = "<!-- dp-agent-discipline:v1 -->"
+OUTCOME_DISCIPLINE_ANCHORS = (
+    "## outcome and verification budget",
+    "useful outcome in the real system",
+    "support machinery",
+    "smallest proportional proof",
+    "stop verifying and ship",
+)
 RECOVERY_DISCIPLINE_ANCHORS = (
     "## recovery and escalation",
     "failed gate blocks completion",
@@ -143,10 +150,16 @@ def plan_instruction_update(repo_root: Path | None = None) -> InstructionCommand
     target = str(effective_root["path"]) if effective_root is not None else "AGENTS.md"
     agents_text = _file_text(root / target).lower() if effective_root is not None else ""
     contains_bootstrap = "dp agent bootstrap" in agents_text
+    contains_outcome = _contains_discipline(agents_text, OUTCOME_DISCIPLINE_ANCHORS)
     contains_recovery = _contains_discipline(agents_text, RECOVERY_DISCIPLINE_ANCHORS)
     contains_collaboration = _contains_discipline(agents_text, COLLABORATION_DISCIPLINE_ANCHORS)
     changes: list[dict[str, Any]] = []
-    if not (contains_bootstrap and contains_recovery and contains_collaboration):
+    if not (
+        contains_bootstrap
+        and contains_outcome
+        and contains_recovery
+        and contains_collaboration
+    ):
         changes.append(
             {
                 "id": "add-dp-agent-discipline",
@@ -154,12 +167,13 @@ def plan_instruction_update(repo_root: Path | None = None) -> InstructionCommand
                 "path": target,
                 "mode": "propose",
                 "reason": (
-                    "Add missing compact bootstrap, recovery, or collaboration guidance while "
-                    "preserving existing instructions."
+                    "Add missing compact bootstrap, outcome, recovery, or collaboration guidance "
+                    "while preserving existing instructions."
                 ),
                 "patch_preview": _dp_section_patch(
                     target_exists=effective_root is not None,
                     include_workflow=not contains_bootstrap,
+                    include_outcome=not contains_outcome,
                     include_recovery=not contains_recovery,
                     include_collaboration=not contains_collaboration,
                 ),
@@ -279,6 +293,17 @@ def _instruction_findings(root: Path, files: list[dict[str, Any]]) -> list[dict[
                 "warning",
                 "AGENTS.md",
                 "No bounded repair-before-blocking guidance found.",
+                "DP-HINT-INSTRUCTIONS-DISCIPLINE-MISSING",
+            )
+        )
+
+    if not _contains_discipline(effective_root_text, OUTCOME_DISCIPLINE_ANCHORS):
+        findings.append(
+            _finding(
+                "instruction_missing_outcome_discipline",
+                "warning",
+                "AGENTS.md",
+                "No outcome-first proportional-verification guidance found.",
                 "DP-HINT-INSTRUCTIONS-DISCIPLINE-MISSING",
             )
         )
@@ -443,6 +468,7 @@ def _dp_section_patch(
     *,
     target_exists: bool,
     include_workflow: bool,
+    include_outcome: bool,
     include_recovery: bool,
     include_collaboration: bool,
 ) -> str:
@@ -459,6 +485,19 @@ def _dp_section_patch(
             "- Respect this file and any nested AGENTS.md files before dp hints.\n"
             "- Treat dp hints as workflow affordances, not permission to ignore project rules.\n"
             "- Do not mark work complete without evidence.\n"
+        )
+    if include_outcome:
+        sections.append(
+            "## Outcome and Verification Budget\n\n"
+            "- The objective is a useful outcome in the real system. Plans, trackers, receipts, "
+            "reviews, and verification are support machinery, never substitutes for that outcome.\n"
+            "- Before adding process work, name the concrete decision or failure risk it changes. "
+            "If it changes neither, do not do it.\n"
+            "- Use the smallest proportional proof: normally the focused check, any required gate, "
+            "and one live observation for a live change. Add checks only for an identified risk.\n"
+            "- Once the outcome works and the named risks are answered, stop verifying and ship.\n"
+            "- Safety and versioning exist to enable fast, powerful, inspectable work with clean "
+            "branch and revert semantics; do not turn them into the product.\n"
         )
     if include_recovery:
         sections.append(

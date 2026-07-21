@@ -25,6 +25,7 @@ from dp.core.agent_response import (
 from dp.core.evidence_lint import lint_evidence_file
 from dp.core.evidence_run import run_evidence_file
 from dp.core.goal_lint import lint_goal_file
+from dp.core.goal_state import intent_reinjection
 from dp.core.hints import explain_code, hint_payload
 from dp.core.hooks import audit_hooks
 from dp.core.instructions import inspect_instructions, plan_instruction_update
@@ -817,7 +818,7 @@ def _bootstrap_next_actions(
                 "Recover campaign state before claiming work.",
             ),
         )
-    elif adoption_state != "current_spec81":
+    elif adoption_state not in {"current_spec81", "current_spec83"}:
         actions.append(
             next_action(
                 "plan_adoption",
@@ -883,14 +884,33 @@ def _current_goal_lease(root: Path) -> dict[str, Any] | None:
             continue
         expires_at = str(event.get("lease_expires_at") or "")
         stale = _is_stale(expires_at) if expires_at else False
-        return {
+        lease: dict[str, Any] = {
             "goal_id": goal_id,
             "goal_path": str(event.get("goal_path") or ""),
             "holder": event.get("agent"),
             "expires_at": expires_at or None,
             "stale": stale,
         }
+        intent = _goal_intent_reinjection(root, lease["goal_path"])
+        if intent is not None:
+            lease["intent"] = intent
+        return lease
     return None
+
+
+def _goal_intent_reinjection(root: Path, goal_path: str) -> dict[str, Any] | None:
+    if not goal_path:
+        return None
+    candidate = Path(goal_path)
+    if not candidate.is_absolute():
+        candidate = root / candidate
+    try:
+        contract = json.loads(candidate.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    if not isinstance(contract, dict):
+        return None
+    return intent_reinjection(contract)
 
 
 def _command_affordance(
@@ -993,7 +1013,16 @@ def _normal_result(command: str, payload: dict[str, Any]) -> dict[str, Any]:
     if command == "goal.status":
         return {
             key: payload[key]
-            for key in ("goal_id", "goal_path", "state", "events_count", "lease", "blocked")
+            for key in (
+                "goal_id",
+                "goal_path",
+                "state",
+                "events_count",
+                "lease",
+                "blocked",
+                "receipts_since_last_outcome_contact",
+                "last_outcome",
+            )
             if key in payload
         }
     if command == "goal.verify":
@@ -1006,6 +1035,7 @@ def _normal_result(command: str, payload: dict[str, Any]) -> dict[str, Any]:
                 "evidence_status",
                 "evidence",
                 "evidence_id",
+                "outcome_confirmed",
                 "error",
             )
             if key in payload
@@ -1085,6 +1115,9 @@ def _next_actions_for_payload(command: str, payload: dict[str, Any]) -> list[dic
 
 def _hints_for_payload(payload: dict[str, Any], detail: str) -> list[dict[str, str]]:
     hints: list[dict[str, str]] = []
+    payload_hints = payload.get("hints")
+    if isinstance(payload_hints, list):
+        hints.extend(hint for hint in payload_hints if isinstance(hint, dict))
     code = _first_hint_code(payload)
     if code:
         hints.append(hint_payload(code))

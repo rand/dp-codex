@@ -39,6 +39,8 @@ from dp.core.goal_state import (
     complete_goal,
     goal_status,
     heartbeat_goal,
+    outcome_goal,
+    ratify_goal,
     release_goal,
     start_goal,
     verify_goal,
@@ -47,6 +49,7 @@ from dp.core.goal_verification import verify_goal_orchestrated
 from dp.core.hints import explain_code
 from dp.core.hooks import audit_hooks, doctor_hooks, scaffold_hooks
 from dp.core.instructions import audit_instructions, inspect_instructions, plan_instruction_update
+from dp.core.intent_graph import audit_graph
 from dp.core.loop_ledger import lint_loop_file, loop_next, loop_status
 from dp.core.policy import load_policy_config
 from dp.core.progress import (
@@ -275,6 +278,33 @@ def _build_parser() -> argparse.ArgumentParser:
     goal_verify_parser.add_argument("--json", action="store_true")
     goal_verify_parser.add_argument("--detail", choices=["brief", "normal", "full"])
     goal_verify_parser.set_defaults(handler=_run_goal_verify)
+
+    goal_outcome_parser = goal_subparsers.add_parser(
+        "outcome",
+        help="Record real-world outcome contact that settles verified claims.",
+    )
+    goal_outcome_parser.add_argument("goal")
+    goal_outcome_parser.add_argument(
+        "--class",
+        dest="outcome_class",
+        required=True,
+        help="Outcome class: useful, mixed, or not_useful.",
+    )
+    goal_outcome_parser.add_argument(
+        "--ref",
+        required=True,
+        help="Opaque governed ref recording where the outcome signal lives.",
+    )
+    goal_outcome_parser.add_argument("--json", action="store_true")
+    goal_outcome_parser.set_defaults(handler=_run_goal_outcome)
+
+    goal_ratify_parser = goal_subparsers.add_parser(
+        "ratify",
+        help="Ratify an agent-proposed root goal: flip authorship to owner_ratified.",
+    )
+    goal_ratify_parser.add_argument("goal")
+    goal_ratify_parser.add_argument("--json", action="store_true")
+    goal_ratify_parser.set_defaults(handler=_run_goal_ratify)
 
     goal_emit_parser = goal_subparsers.add_parser(
         "emit",
@@ -700,6 +730,15 @@ def _build_parser() -> argparse.ArgumentParser:
     campaign_sync_beads_parser.add_argument("--json", action="store_true")
     campaign_sync_beads_parser.set_defaults(handler=_run_campaign_sync_beads)
 
+    graph_parser = subparsers.add_parser("graph")
+    graph_subparsers = graph_parser.add_subparsers(dest="graph_command", required=True)
+    graph_audit_parser = graph_subparsers.add_parser(
+        "audit",
+        help="Report intent-graph drift across docs/goals without gating.",
+    )
+    graph_audit_parser.add_argument("--json", action="store_true")
+    graph_audit_parser.set_defaults(handler=_run_graph_audit)
+
     return parser
 
 
@@ -1066,9 +1105,34 @@ def _run_goal_verify(args: argparse.Namespace) -> int:
     )
 
 
+def _run_goal_outcome(args: argparse.Namespace) -> int:
+    return _emit_goal_command_result(
+        outcome_goal(Path(args.goal), outcome_class=args.outcome_class, ref=args.ref),
+        args.json,
+    )
+
+
+def _run_goal_ratify(args: argparse.Namespace) -> int:
+    return _emit_goal_command_result(ratify_goal(Path(args.goal)), args.json)
+
+
 def _run_goal_emit(args: argparse.Namespace) -> int:
     result = emit_goal_prompt(Path(args.goal), output_format=args.format)
     return _emit_goal_command_result(result, args.json)
+
+
+def _run_graph_audit(args: argparse.Namespace) -> int:
+    result = audit_graph()
+    if args.json:
+        print(json.dumps(result.payload, sort_keys=True))
+        return result.exit_code
+
+    summary = result.payload["summary"]
+    print(f"Graph audit: {summary['goals']} goal(s), {summary['findings']} finding(s).")
+    for finding in result.payload["findings"]:
+        goal_id = finding.get("goal_id") or "<unknown>"
+        print(f"- [{finding['code']}] {goal_id} ({finding['path']}): {finding['message']}")
+    return result.exit_code
 
 
 def _run_agent_bootstrap(args: argparse.Namespace) -> int:

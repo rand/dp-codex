@@ -4,7 +4,22 @@ This repository is developed primarily with Codex. Use these rules to keep execu
 
 ## Operating Principle
 
-Prefer small, independently verifiable increments over large multi-concern changes.
+Safety, versioning, trackers, and verification exist to enable fast, powerful work with clean
+branch, inspection, and revert semantics. They are support machinery, not the product. Prefer
+small, independently useful increments over large multi-concern changes.
+
+## Outcome and Verification Budget
+
+- Name the useful change in the real system before adding process work.
+- Plans, tracker updates, receipts, evidence files, reviews, and summaries do not substitute for
+  the outcome they support.
+- Before adding a check or artifact, name the decision or failure risk it changes. If it changes
+  neither, skip it.
+- Use the smallest proportional proof: normally a focused check, any repository-required gate,
+  and one live observation for a live change. Add checks only for an identified risk or a failure.
+- Once the outcome works and named risks are answered, stop verifying and ship.
+- If administration or verification consumes more effort than implementation, cut it back unless
+  the task is itself an audit, recovery, or high-consequence boundary.
 
 ## Work Intake
 
@@ -37,7 +52,7 @@ Prefer small, independently verifiable increments over large multi-concern chang
 4. Do not repeat an unchanged action unless relevant state or the hypothesis changed. Respect the
    GoalContract attempt budget when present.
 5. Route a durable blocker only when no safe in-scope repair remains or new authority is required.
-   Verification decides done.
+   Proportional verification decides done; verification volume does not.
 
 ## Agent Collaboration
 
@@ -51,7 +66,8 @@ Prefer small, independently verifiable increments over large multi-concern chang
 
 ## Verification Rules
 
-Run all applicable checks before closing work:
+Run the focused check for the changed behavior and the repository-required gate before closing
+work:
 
 ```bash
 # Example quality gate pattern
@@ -60,65 +76,20 @@ make lint
 make typecheck
 ```
 
-If a command does not exist yet, create a follow-up issue and run the closest equivalent verification.
+Do not create speculative follow-up issues or run unrelated checks merely to increase verification
+volume.
 
 ## Task Close Protocol
 
 1. Verify acceptance criteria from the issue.
 2. Close with rationale:
    `bd close <id> --reason "<what was implemented and verified>"`
-3. Confirm tracker health:
-   `dp doctor --json`
-4. Run `dp codex preflight --event stop --json` for a cheap session-status check.
-5. Export or back up tracker state only through current Beads commands, such as
+3. Export or back up tracker state only when tracker state changed, using current Beads commands
+   such as
    `bd export`, `bd backup sync`, or `bd vc status`.
-
-## Session Completion Protocol
-
-Before ending a session, complete all steps:
-
-```bash
-git status
-dp doctor --json
-bd --readonly status --json
-git add <files>
-git commit -m "<type>: <summary>"
-git push
-```
-
-Do not end a session with unpushed committed work unless explicitly instructed.
+4. Commit and push completed work. If an external authority or remote policy prevents push after
+   diagnosis, report that blocker rather than retrying unchanged.
 
 ## Planning Source of Truth
 
 Execution sequencing, milestones, and acceptance criteria are defined in `docs/EXECUTION-PLAN.md`.
-
-## Landing the Plane (Session Completion)
-
-**When ending a work session**, you MUST complete ALL steps below. Work is NOT complete until `git push` succeeds.
-
-**MANDATORY WORKFLOW:**
-
-1. **File issues for remaining work** - Create issues for anything that needs follow-up
-2. **Run quality gates** (if code changed) - Tests, linters, builds
-3. **Update issue status** - Close finished work, update in-progress items
-4. **PUSH TO REMOTE** - This is MANDATORY:
-   ```bash
-   git pull --rebase
-   dp doctor --json
-   bd --readonly status --json
-   git push
-   git status  # MUST show "up to date with origin"
-   ```
-5. **Clean up** - Clear stashes, prune remote branches
-6. **Verify** - All changes committed AND pushed
-7. **Hand off** - Provide context for next session
-
-**CRITICAL RULES:**
-- Work is NOT complete until `git push` succeeds
-- Do not voluntarily leave pushable work unpushed. If an external authority or remote policy still
-  prevents push after principled diagnosis, record the blocker and exact next action instead of
-  claiming completion.
-- NEVER say "ready to push when you are" - YOU must push
-- If push fails, diagnose the exact cause and make a state-changing repair before retrying; do not
-  repeat an unchanged push. Record an external authority or remote-state blocker when it cannot be
-  repaired safely.

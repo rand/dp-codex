@@ -5,7 +5,7 @@ description: Diagnose and recover a failing gate, blocked or stranded dp goal, b
 
 # DP Failure Recovery
 
-Respect `AGENTS.md`, nested instructions, the active GoalContract, and existing claims before acting. A red gate blocks completion, not diagnosis or authorized repair. Verification decides done.
+Respect `AGENTS.md`, nested instructions, the active GoalContract, and existing claims before acting. A red gate blocks completion, not diagnosis or authorized repair. Proportional verification decides done; verification volume does not.
 
 ## Capture
 

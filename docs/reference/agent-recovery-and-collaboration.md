@@ -28,7 +28,8 @@ Use this ladder after a command, gate, or workflow step fails.
    state current. Do not invent unauthorized artifacts.
 
 A failed gate blocks completion, not diagnosis or authorized repair. Do not repeat an unchanged
-action unless relevant state or the hypothesis changed. Verification decides done.
+action unless relevant state or the hypothesis changed. Proportional verification decides done;
+verification volume does not.
 
 ## Consultation
 

@@ -48,9 +48,24 @@ Quick command reference by workflow.
 7. `dp goal release <goal.json> --reason "..." [--json]`
 8. `dp goal complete <goal.json> --evidence <run.json> [--json]`
 9. `dp goal verify <goal.json> --evidence <run.json> [--json]`
-10. `dp goal emit <goal.json> --format codex [--json]`
-11. `dp agent prompt --goal <goal.json> --format codex [--json]`
-12. `dp agent launch --goal <goal.json> --driver codex [--agent codex] [--lease 2h] --supervised [--json]`
+10. `dp goal outcome <goal.json> --class useful|mixed|not_useful --ref <governed-ref> [--json]`
+11. `dp goal emit <goal.json> --format codex [--json]`
+12. `dp agent prompt --goal <goal.json> --format codex [--json]`
+13. `dp agent launch --goal <goal.json> --driver codex [--agent codex] [--lease 2h] --supervised [--json]`
+
+## Intent Graph
+
+1. `dp graph audit [--json]` (reports intent drift across `docs/goals`, including
+   `missing_residual`, `missing_defeaters`, `unratified_root`, `verbatim_not_in_source`,
+   and `duplicate_goal_id`; never gates, exit 0)
+2. `dp goal ratify <goal.json> [--json]` (owner ratifies an agent-proposed root: flips
+   `intent.authorship` to `owner_ratified` — the only field dp mutates — and appends a
+   `ratified` event binding the post-edit goal digest; refuses non-root or already-ratified
+   goals)
+
+`dp goal claim` and `dp goal start` refuse agent-proposed root goals (`intent.parent: null`
+with `authorship: agent_derived`) with the `unratified_root_goal` error until the owner
+ratifies the root via `dp goal ratify` or sets authorship to `owner` or `owner_ratified`.
 
 ## Evidence Plans
 

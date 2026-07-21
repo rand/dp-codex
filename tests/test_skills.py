@@ -18,7 +18,7 @@ def test_skills_scaffold_audit_and_eval(tmp_path: Path, monkeypatch, capsys) -> 
     )
     assert "repairable_failure" in recovery_skill
     assert "One writer owns one worktree" in recovery_skill
-    assert "Verification decides done" in recovery_skill
+    assert "Proportional verification decides done" in recovery_skill
     assert "Writing helpers require isolated worktrees and disjoint paths" in recovery_skill
     assert "Unavailable consultation is not a blocker" in recovery_skill
 

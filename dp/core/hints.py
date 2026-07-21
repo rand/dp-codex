@@ -178,6 +178,25 @@ HINTS: dict[str, HintDefinition] = {
         ),
         docs=("docs/reference/goal-state-machine.md",),
     ),
+    "DP-HINT-GOAL-REPEATED-BLOCKS": HintDefinition(
+        code="DP-HINT-GOAL-REPEATED-BLOCKS",
+        severity="warning",
+        summary=(
+            "Repeated blocks: restate, in the owner's words, the outcome this goal serves "
+            "and why continuing serves it."
+        ),
+        why_it_matters=(
+            "Repair cycles beyond the first are where goal drift concentrates; "
+            "re-anchor on the owner-authored intent before continuing."
+        ),
+        next_actions=(
+            _action(
+                "dp goal status <goal.json> --json",
+                "Re-read the goal's intent verbatim and path-to-root before retrying.",
+            ),
+        ),
+        docs=("docs/reference/goal-state-machine.md",),
+    ),
     "DP-HINT-EVIDENCE-MISSING": HintDefinition(
         code="DP-HINT-EVIDENCE-MISSING",
         severity="error",
@@ -348,4 +367,27 @@ ERROR_ALIASES: dict[str, HintDefinition] = {
     "campaign_not_ready": HINTS["DP-HINT-CAMPAIGN-DRAFT"],
     "no_ready_goal": HINTS["DP-HINT-LOOP-NO-READY-NODES"],
     "goal_already_claimed": HINTS["DP-HINT-GOAL-NOT-STARTED"],
+    "unratified_root_goal": HintDefinition(
+        code="unratified_root_goal",
+        severity="error",
+        summary=(
+            "Agent-proposed root goal awaits owner ratification: "
+            "run dp goal ratify to set authorship to owner_ratified."
+        ),
+        why_it_matters=(
+            "A root goal declares whose intent all descendants serve; an agent must "
+            "not pursue a root intent no owner has ratified."
+        ),
+        next_actions=(
+            _action(
+                "dp goal ratify <goal.json> --json",
+                "Owner ratifies the root: flips authorship and records the event.",
+            ),
+            _action(
+                "dp graph audit --json",
+                "List unratified roots awaiting owner review.",
+            ),
+        ),
+        docs=("docs/specs/SPEC-83-intent-graph-substrate.md",),
+    ),
 }
