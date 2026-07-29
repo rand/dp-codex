@@ -1455,7 +1455,11 @@ def _run_campaign_sync_beads(args: argparse.Namespace) -> int:
 
 def _emit_agent_command_result(payload: dict[str, Any], exit_code: int, json_output: bool) -> int:
     if json_output:
-        print(json.dumps(payload, sort_keys=True))
+        # Agent-response payloads are deliberately ordered: summary and result
+        # precede workflow affordances, and bootstrap may place owner intent at
+        # the front of its result. Alphabetical serialization destroys that
+        # attention order even though the JSON values remain equivalent.
+        print(json.dumps(payload))
         return exit_code
     summary = payload.get("summary") or payload.get("status") or payload.get("command") or "ok"
     print(str(summary))

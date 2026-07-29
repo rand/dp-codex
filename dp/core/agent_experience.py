@@ -78,6 +78,7 @@ def agent_bootstrap(
             "state": adoption["classification"],
             "inspect_command": "dp adopt inspect --json",
         },
+        "goal_lease": lease,
     }
     if detail in {"normal", "full"}:
         result["instructions"] = {
@@ -86,7 +87,6 @@ def agent_bootstrap(
             "audit_command": "dp instructions audit --json",
         }
         result["campaigns"] = campaigns
-        result["goal_lease"] = lease
     if detail == "full":
         result["instructions_detail"] = instructions
         result["adoption_detail"] = adoption
@@ -765,11 +765,18 @@ def _bootstrap_result_for_detail(result: dict[str, Any], detail: str) -> dict[st
     if detail == "brief":
         repo = dict(result["repo"])
         repo["root"] = "."
-        return {
-            "repo": repo,
-            "doctor": {"ok": result["doctor"]["ok"]},
-            "adoption": result["adoption"],
-        }
+        payload: dict[str, Any] = {}
+        focus = _bootstrap_goal_focus(result.get("goal_lease"))
+        if focus is not None:
+            payload["focus"] = focus
+        payload.update(
+            {
+                "repo": repo,
+                "doctor": {"ok": result["doctor"]["ok"]},
+                "adoption": result["adoption"],
+            }
+        )
+        return payload
     if detail == "normal":
         return {
             key: value
@@ -787,8 +794,38 @@ def _bootstrap_summary(
 ) -> str:
     health = "dp workflow health is ok" if doctor_ok else "dp workflow health needs attention"
     campaign_count = len(campaigns.get("active", [])) + len(campaigns.get("blocked", []))
-    lease_text = "an active goal lease exists" if lease else "no active goal lease found"
-    return f"{health}. Adoption is {adoption_state}. {campaign_count} campaign(s); {lease_text}."
+    lease_is_stale = isinstance(lease, dict) and lease.get("stale") is True
+    if lease_is_stale:
+        lease_text = "a stale goal lease exists"
+    else:
+        lease_text = "an active goal lease exists" if lease else "no active goal lease found"
+    state = f"{health}; adoption is {adoption_state}; {campaign_count} campaign(s); {lease_text}"
+    focus = _bootstrap_goal_focus(lease)
+    if focus is None:
+        return f"{state}."
+    intent = focus.get("intent")
+    verbatim = intent.get("verbatim") if isinstance(intent, dict) else None
+    if isinstance(verbatim, str) and verbatim.strip():
+        label = "Stale goal intent" if lease_is_stale else "Owner intent"
+        return f"{label} is first in result.focus — {state}."
+    label = "Stale goal" if lease_is_stale else "Active goal"
+    return f"{label} first: {focus['goal_id']} — {state}."
+
+
+def _bootstrap_goal_focus(lease: Any) -> dict[str, Any] | None:
+    if not isinstance(lease, dict):
+        return None
+    goal_id = lease.get("goal_id")
+    if not isinstance(goal_id, str) or not goal_id.strip():
+        return None
+    focus: dict[str, Any] = {
+        "goal_id": goal_id,
+        "stale": lease.get("stale") is True,
+    }
+    intent = lease.get("intent")
+    if isinstance(intent, dict):
+        focus["intent"] = intent
+    return focus
 
 
 def _bootstrap_next_actions(
@@ -796,6 +833,22 @@ def _bootstrap_next_actions(
     campaigns: dict[str, Any],
     lease: dict[str, Any] | None,
 ) -> list[dict[str, str]]:
+    if lease is not None and lease.get("stale") is True:
+        return [
+            next_action(
+                "release_stale_goal",
+                f"dp goal release {lease['goal_path']} --reason stale-lease --json",
+                "Resolve stale goal state before claiming more work.",
+            )
+        ]
+    if lease is not None:
+        return [
+            next_action(
+                "resume_goal",
+                f"dp goal status {lease['goal_path']} --json",
+                "Reconcile the active goal without replacing its owner intent.",
+            )
+        ]
     actions = [
         next_action(
             "audit_instructions",
@@ -826,15 +879,6 @@ def _bootstrap_next_actions(
                 "dp adopt plan --write --json",
                 "Write an additive adoption plan before applying changes.",
             )
-        )
-    if lease is not None and lease.get("stale") is True:
-        actions.insert(
-            0,
-            next_action(
-                "release_stale_goal",
-                f"dp goal release {lease['goal_path']} --reason stale-lease --json",
-                "Resolve stale goal state before claiming more work.",
-            ),
         )
     return actions[:3]
 

@@ -125,3 +125,30 @@ def test_agent_bootstrap_surfaces_intent_for_the_claimed_goal(
     lease = payload["result"]["goal_lease"]
     assert lease["goal_id"] == "GOAL-SPEC-70.01"
     _assert_reinjected(lease["intent"])
+
+
+def test_agent_bootstrap_brief_puts_exact_owner_intent_before_workflow_actions(
+    tmp_path: Path,
+    monkeypatch,
+    capsys,
+) -> None:
+    _write_goal(tmp_path, with_intent=True)
+    (tmp_path / "AGENTS.md").write_text("# Agent Instructions\n", encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+    assert main(["goal", "claim", "goal.json", "--agent", "codex", "--json"]) == 0
+    capsys.readouterr()
+
+    exit_code = main(["agent", "bootstrap", "--json", "--detail", "brief"])
+
+    assert exit_code == 0
+    output = capsys.readouterr().out
+    payload = json.loads(output)
+    assert next(iter(payload["result"])) == "focus"
+    focus = payload["result"]["focus"]
+    assert focus["goal_id"] == "GOAL-SPEC-70.01"
+    assert focus["stale"] is False
+    _assert_reinjected(focus["intent"])
+    assert payload["summary"].startswith("Owner intent is first in result.focus")
+    assert output.index(focus["intent"]["verbatim"]) < output.index('"next_actions"')
+    assert [action["id"] for action in payload["next_actions"]] == ["resume_goal"]
+    assert len(output) <= 2_000

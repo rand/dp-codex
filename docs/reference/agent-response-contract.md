@@ -17,6 +17,10 @@ Required fields:
 10. `artifacts`: references to files or event logs, not payload dumps.
 11. `expansions`: commands for omitted detail.
 
+Agent-response JSON preserves this semantic field order rather than alphabetizing keys. In
+particular, `summary` and `result` precede workflow affordances and `next_actions`; commands may
+place an owner-intent focus first inside `result`.
+
 Detail modes:
 
 - `brief`: summary, affordances, key references, capped hints, and expansion handles.

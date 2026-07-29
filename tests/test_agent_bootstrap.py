@@ -119,3 +119,51 @@ def test_campaign_routing_does_not_recover_verified_history(
     assert campaigns["active"] == []
     assert campaigns["blocked"] == []
     assert all(action["id"] != "recover_campaign" for action in actions)
+
+
+def test_active_goal_focus_suppresses_generic_orientation_actions() -> None:
+    lease = {
+        "goal_id": "GOAL-ACTIVE",
+        "goal_path": "docs/goals/GOAL-ACTIVE.json",
+        "stale": False,
+    }
+
+    actions = agent_experience._bootstrap_next_actions(
+        "current_spec83",
+        {"active": ["docs/campaigns/CAMPAIGN-A.json"], "blocked": []},
+        lease,
+    )
+
+    assert actions == [
+        {
+            "id": "resume_goal",
+            "command": "dp goal status docs/goals/GOAL-ACTIVE.json --json",
+            "why": "Reconcile the active goal without replacing its owner intent.",
+        }
+    ]
+
+
+def test_stale_goal_focus_is_labeled_and_routes_only_to_release() -> None:
+    lease = {
+        "goal_id": "GOAL-STALE",
+        "goal_path": "docs/goals/GOAL-STALE.json",
+        "stale": True,
+        "intent": {"verbatim": "Keep the real product outcome in view."},
+    }
+
+    summary = agent_experience._bootstrap_summary(
+        True,
+        "current_spec83",
+        {"active": [], "blocked": []},
+        lease,
+    )
+    actions = agent_experience._bootstrap_next_actions(
+        "current_spec83",
+        {"active": [], "blocked": []},
+        lease,
+    )
+
+    assert summary.startswith("Stale goal intent is first in result.focus")
+    assert "a stale goal lease exists" in summary
+    assert agent_experience._bootstrap_goal_focus(lease)["stale"] is True
+    assert [action["id"] for action in actions] == ["release_stale_goal"]
